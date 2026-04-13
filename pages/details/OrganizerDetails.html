@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Organizer Details</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <style>
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.15),rgba(0,0,0,0)_60%)]"></div>
+  </div>
+
+  <div class="relative w-full z-10">
+    <nav class="fixed top-0 w-full z-50">
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+      <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+          <div class="h-8 w-28 sm:w-32 flex items-center">
+            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          </div>
+        </a>
+
+        <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+          <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+          <a href="/pages/browse/Events.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Events</a>
+          <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
+          <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+        </div>
+
+        <div class="flex items-center gap-3 relative">
+          <div id="authLoggedOut" class="flex items-center gap-3">
+            <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+            <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">Get started</a>
+          </div>
+
+          <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+            <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+            </button>
+            <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+                <p class="text-sm font-bold text-white">Notifications</p>
+                <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+              </div>
+              <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+                <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+              </div>
+            </div>
+            <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+              <span id="profileInitial">U</span>
+              <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+            </button>
+            <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+                <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+                <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+              </div>
+              <div class="p-2 flex flex-col gap-1">
+                <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+                </a>
+              </div>
+              <div class="p-2 border-t border-white/10">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                  <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="relative z-10 w-full pb-24 mt-24">
+      <section class="max-w-6xl mx-auto px-6 pt-8">
+        <div id="loadingState" class="text-center py-20 text-white/50">
+          <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-4 text-red-500"></i>
+          Loading organizer profile...
+        </div>
+
+        <div id="errorState" class="hidden text-center py-20">
+          <p class="text-red-500 text-xl font-bold mb-2">Unable to load organizer details right now.</p>
+          <a href="/pages/browse/Community.html" class="px-6 py-2 bg-white/10 rounded-lg hover:bg-white/20 text-sm font-bold uppercase">Back to Community</a>
+        </div>
+
+        <div id="organizerContent" class="hidden space-y-8">
+          <div class="mb-8 flex items-center gap-4">
+            <a href="/pages/browse/Community.html" class="text-white/60 hover:text-white transition-colors bg-white/5 p-2 rounded-full border border-white/10">
+              <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <h2 class="text-3xl font-extrabold tracking-tight text-white">Organizer Profile</h2>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6">
+            <aside class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
+              <div class="flex flex-col items-center text-center">
+                <div class="w-28 h-28 rounded-full overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center">
+                  <img id="organizerProfileImage" src="" class="w-full h-full object-cover hidden">
+                  <span id="organizerProfileFallback" class="text-4xl font-bold text-red-400">O</span>
+                </div>
+                <div id="organizerVerifiedBadge" class="mt-4 inline-flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 text-white/40">
+                  <i data-lucide="shield" class="w-4 h-4"></i>
+                </div>
+                <h1 id="organizerDisplayName" class="mt-4 text-3xl font-extrabold text-white">Organizer</h1>
+                <p id="organizerContactMeta" class="text-sm text-white/55 mt-2">Organizer details are loading...</p>
+                <p id="organizerBio" class="text-sm text-white/70 mt-4 leading-relaxed">Loading organizer bio...</p>
+              </div>
+
+              <div class="mt-6 grid grid-cols-2 gap-3">
+                <div class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                  <p class="text-[10px] uppercase tracking-widest text-white/40">Average Rating</p>
+                  <p id="organizerAverageRating" class="text-2xl font-bold text-white mt-2">0.0</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                  <p class="text-[10px] uppercase tracking-widest text-white/40">Reviews</p>
+                  <p id="organizerReviewCount" class="text-2xl font-bold text-white mt-2">0</p>
+                </div>
+              </div>
+
+              <button id="reportOrganizerBtn" type="button" class="mt-6 w-full py-3.5 bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-white/10 transition-colors">
+                Report Organizer
+              </button>
+            </aside>
+
+            <div class="space-y-6">
+              <section class="bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+                <div class="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-white">Recent Gigs</h3>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Latest events created by this organizer</p>
+                  </div>
+                  <span id="organizerRecentGigCountBadge" class="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">0 gigs</span>
+                </div>
+                <div id="organizerRecentGigsList" class="space-y-4">
+                  <p class="text-sm text-white/50">Loading organizer gigs...</p>
+                </div>
+              </section>
+
+              <section class="bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+                <div class="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-white">Community Posts</h3>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Organizer announcements, ticket pushes, and event updates</p>
+                  </div>
+                  <a id="organizerCommunityFeedLink" href="/pages/browse/Community.html" class="text-xs font-semibold text-red-400 hover:text-red-300 uppercase tracking-widest">Open Community</a>
+                </div>
+                <div id="organizerPostsList" class="space-y-4">
+                  <p class="text-sm text-white/50">Loading organizer posts...</p>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    let currentOrganizerId = null;
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDateTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 'TBA';
+      return new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }).format(date);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = firstName || username || role || 'User';
+
+      if (userId && role) {
+        document.getElementById('authLoggedOut').classList.add('hidden');
+        document.getElementById('authLoggedIn').classList.remove('hidden');
+        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+        document.getElementById('dropdownName').innerText = displayName;
+        document.getElementById('dropdownRole').innerText = role;
+
+        if (storedProfilePicture) {
+          const picEl = document.getElementById('navProfilePic');
+          picEl.src = storedProfilePicture;
+          picEl.classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+        }
+
+        const dashLink = document.getElementById('dashboardLink');
+        if (role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+        else if (role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+        else if (role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if (role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+      }
+
+      if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
+
+      const organizerId = new URLSearchParams(window.location.search).get('id');
+      if (!organizerId) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('errorState').classList.remove('hidden');
+        return;
+      }
+
+      currentOrganizerId = organizerId;
+      await loadOrganizerPage(organizerId);
+      bindOrganizerReport();
+    });
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('show'));
+      document.addEventListener('click', (e) => {
+        if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) profileDropdown.classList.remove('show');
+      });
+    }
+
+    function handleLogout() {
+      localStorage.clear();
+      window.location.href = '/pages/auth/login.html';
+    }
+
+    async function loadOrganizerPage(organizerId) {
+      try {
+        const [organizerRes, postsRes] = await Promise.all([
+          fetch(`/api/organizer/${organizerId}`),
+          fetch(`/api/community/posts/Organizer/${organizerId}`)
+        ]);
+
+        if (!organizerRes.ok) throw new Error('Organizer not found.');
+        const organizer = await organizerRes.json();
+        const posts = postsRes.ok ? await postsRes.json() : [];
+
+        renderOrganizerProfile(organizer);
+        renderOrganizerPosts(Array.isArray(posts) ? posts : []);
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('organizerContent').classList.remove('hidden');
+        lucide.createIcons();
+      } catch (error) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('errorState').classList.remove('hidden');
+      }
+    }
+
+    function renderOrganizerProfile(organizer) {
+      const displayName = organizer.displayName || organizer.productionName || 'Organizer';
+      document.getElementById('organizerDisplayName').innerText = displayName;
+      document.getElementById('organizerContactMeta').innerText = [organizer.contactNumber, organizer.address].filter(Boolean).join(' • ') || 'Organizer contact details are private or still being completed.';
+      document.getElementById('organizerBio').innerText = organizer.bio || 'This organizer has not written a public bio yet.';
+      document.getElementById('organizerAverageRating').innerText = Number(organizer.averageRating || 0).toFixed(1);
+      document.getElementById('organizerReviewCount').innerText = organizer.reviewCount || 0;
+
+      const verifiedBadge = document.getElementById('organizerVerifiedBadge');
+      verifiedBadge.className = `mt-4 inline-flex items-center justify-center w-8 h-8 rounded-full border ${organizer.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
+      verifiedBadge.innerHTML = organizer.isVerified
+        ? '<i data-lucide="badge-check" class="w-4 h-4"></i>'
+        : '<i data-lucide="shield" class="w-4 h-4"></i>';
+      verifiedBadge.title = organizer.isVerified ? 'Verified organizer' : (organizer.profileCompletionLabel || 'Profile incomplete');
+
+      if (organizer.profilePicture) {
+        const image = document.getElementById('organizerProfileImage');
+        image.src = organizer.profilePicture;
+        image.classList.remove('hidden');
+        document.getElementById('organizerProfileFallback').classList.add('hidden');
+      } else {
+        document.getElementById('organizerProfileFallback').innerText = displayName.charAt(0).toUpperCase();
+      }
+
+      const gigs = Array.isArray(organizer.recentGigs) ? organizer.recentGigs : [];
+      document.getElementById('organizerRecentGigCountBadge').innerText = `${gigs.length} gig${gigs.length === 1 ? '' : 's'}`;
+
+      const gigsList = document.getElementById('organizerRecentGigsList');
+      if (!gigs.length) {
+        gigsList.innerHTML = '<p class="text-sm text-white/50">No recent gigs yet.</p>';
+        return;
+      }
+
+      gigsList.innerHTML = gigs.map((gig) => `
+        <a href="/pages/details/EventDetailPage.html?id=${gig.id}" class="block rounded-2xl border border-white/10 bg-black/30 p-4 hover:border-white/20 transition-colors">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-white truncate">${escapeHtml(gig.title || 'Untitled Event')}</p>
+              <p class="text-xs text-white/50 mt-1">${escapeHtml(formatDateTime(gig.time))} • ${escapeHtml(gig.city || gig.location || 'Metro Manila')}</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 text-white/65">${escapeHtml(gig.status || 'Upcoming')}</span>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    function renderOrganizerPosts(posts) {
+      const container = document.getElementById('organizerPostsList');
+      if (!posts.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No organizer posts yet.</p>';
+        return;
+      }
+
+      container.innerHTML = posts.map((post) => `
+        <article class="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-4">
+          <div class="flex items-center justify-between gap-3">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold uppercase tracking-widest text-amber-300">Organizer</span>
+            <span class="text-[10px] uppercase tracking-widest text-white/35">${escapeHtml(formatDateTime(post.createdAt))}</span>
+          </div>
+          ${post.content ? `<p class="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">${escapeHtml(post.content)}</p>` : ''}
+          ${post.imageUrl ? `<img src="${escapeHtml(post.imageUrl)}" class="w-full max-h-[420px] object-cover rounded-2xl border border-white/10 bg-black/40">` : ''}
+        </article>
+      `).join('');
+    }
+
+    function bindOrganizerReport() {
+      const button = document.getElementById('reportOrganizerBtn');
+      if (!button) return;
+
+      button.addEventListener('click', async () => {
+        const reporterUserId = localStorage.getItem('userId');
+        if (!reporterUserId) {
+          alert('Please sign in first before reporting an organizer.');
+          window.location.href = '/pages/auth/login.html';
+          return;
+        }
+
+        const reason = await window.systemDialog.prompt('Why are you reporting this organizer?', {
+          title: 'Report Organizer',
+          kicker: 'Safety Report',
+          placeholder: 'Enter the main reason',
+          okText: 'Next',
+          required: true
+        });
+        if (!reason || !reason.trim()) return;
+        const details = await window.systemDialog.prompt('Add extra details if you want (optional).', {
+          title: 'More Details',
+          kicker: 'Optional Context',
+          placeholder: 'Add more details here',
+          okText: 'Submit',
+          multiline: true
+        }) || '';
+
+        try {
+          const response = await fetch('/api/report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reporterUserId,
+              targetId: currentOrganizerId,
+              targetType: 'organizer',
+              reason,
+              details
+            })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.message || 'Failed to submit report.');
+          alert(data.message || 'Organizer report submitted successfully.');
+        } catch (error) {
+          alert(error.message || 'Failed to submit report.');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

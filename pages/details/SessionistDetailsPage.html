@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Sessionist Details</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <style>
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none"></div>
+
+  <main class="relative w-full z-10">
+    <nav class="fixed top-0 w-full z-50">
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+      <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center group">
+          <div class="h-8 w-28 sm:w-32 flex items-center">
+            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          </div>
+        </a>
+
+        <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+          <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+          <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
+          <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+          <a href="/pages/browse/Sessionists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Sessionists</a>
+          <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+        </div>
+
+        <div class="flex items-center gap-3 relative">
+          <div id="authLoggedOut" class="flex items-center gap-3">
+            <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+            <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">Get started</a>
+          </div>
+
+          <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+            <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+            </button>
+            <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+                <p class="text-sm font-bold text-white">Notifications</p>
+                <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+              </div>
+              <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+                <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+              </div>
+            </div>
+            <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+              <span id="profileInitial">A</span>
+              <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+            </button>
+            <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 opacity-0 pointer-events-none transition-opacity">
+              <div class="px-4 py-3 border-b border-white/10">
+                <p id="dropdownName" class="text-sm font-semibold text-white truncate">User</p>
+                <p id="dropdownRole" class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Account</p>
+              </div>
+              <div class="p-2 border-t border-white/10">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+  <main class="relative z-10 w-full pb-24 mt-24">
+    <section class="max-w-6xl mx-auto px-6">
+      <div class="mb-10 flex items-center gap-4">
+        <a href="/pages/browse/Sessionists.html" class="inline-flex items-center justify-center w-10 h-10 rounded-full border border-white/10 bg-black/40 text-white/60 hover:text-white hover:bg-white/5 transition-colors backdrop-blur-sm">
+          <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div class="space-y-8">
+          
+          <div class="flex items-center gap-6">
+            <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-black/40 border-4 border-white/10 flex items-center justify-center overflow-hidden shadow-xl">
+              <img id="detailImg" src="" class="absolute inset-0 w-full h-full object-cover z-10 hidden">
+              <i data-lucide="user" class="w-10 h-10 text-white/30 relative z-0"></i>
+            </div>
+            <div>
+              <h3 id="detailName" class="text-3xl font-extrabold tracking-tight text-white mb-1">Loading...</h3>
+              <p class="text-xs font-bold text-red-400 uppercase tracking-widest">Sessionist</p>
+              <div id="sessionistProfileBadge" class="mt-2 inline-flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 text-white/40" title="Profile status">
+                <i data-lucide="shield" class="w-4 h-4"></i>
+              </div>
+              <p id="detailAvailability" class="mt-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">Available</p>
+              <div class="mt-4 flex flex-wrap items-center gap-2">
+                <button id="favoriteBtn" type="button" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-transparent text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-white/5 transition-colors">
+                  <i data-lucide="heart" class="w-3.5 h-3.5 text-white/60"></i> Add to Favorites
+                </button>
+                <button id="reportSessionistBtn" type="button" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-transparent text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-white/5 transition-colors">
+                  <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-white/60"></i> Report
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Average Rating</p>
+              <p id="ratingAverage" class="text-2xl font-bold text-white mt-2">0.0</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Favorites</p>
+              <p id="favoriteCount" class="text-2xl font-bold text-white mt-2">0</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Feedback Entries</p>
+              <p id="reviewCount" class="text-2xl font-bold text-white mt-2">0</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Base Price</p>
+              <p id="detailBasePrice" class="text-2xl font-bold text-white mt-2">PHP 0</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+            <p class="text-[10px] uppercase tracking-widest text-emerald-200/70">Verified Gigs</p>
+            <p id="verifiedGigCount" class="text-2xl font-bold text-emerald-300 mt-2">0</p>
+          </div>
+
+          <div id="sessionistTalentSetupCard" class="hidden rounded-2xl border border-white/10 bg-black/30 p-5">
+            <div class="flex items-center justify-between gap-4 mb-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Talent Setup</p>
+              <span id="sessionistTalentCategoryBadge" class="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Sessionist</span>
+            </div>
+            <div id="sessionistMembersWrap" class="hidden">
+              <p class="text-[10px] uppercase tracking-widest text-white/40 mb-3">Members</p>
+              <div id="sessionistMembersList" class="flex flex-wrap gap-2"></div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">About The Sessionist</p>
+            <p id="detailBio" class="text-sm text-white/70 leading-relaxed italic whitespace-pre-line"></p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Events Joined</p>
+              <span class="text-[10px] uppercase tracking-widest text-white/35">Linked by organizers</span>
+            </div>
+            <div id="relatedEventsList" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <p class="text-sm text-white/50">Loading events...</p>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Verified Performance History</p>
+              <span class="text-[10px] uppercase tracking-widest text-emerald-300/70">Auto-verified from finished gigs</span>
+            </div>
+            <div id="verifiedGigsList" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <p class="text-sm text-white/50">Loading verified gigs...</p>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Community Posts</p>
+              <span class="text-[10px] uppercase tracking-widest text-white/35">Visible to customers and organizers</span>
+            </div>
+            <div id="sessionistPostsList" class="space-y-4">
+              <p class="text-sm text-white/50">Loading posts...</p>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4 border-b border-white/10 pb-2">My Gallery</h4>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="aspect-[4/3] bg-white/5 border border-white/10 rounded-lg"></div>
+              <div class="aspect-[4/3] bg-white/5 border border-white/10 rounded-lg"></div>
+              <div class="aspect-[4/3] bg-white/5 border border-white/10 rounded-lg"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-8">
+          <div class="flex flex-wrap justify-start md:justify-end gap-3">
+            <button id="bookSessionistBtn" type="button" class="px-6 py-3.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+              Book Sessionist
+            </button>
+          </div>
+
+          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Instruments / Genres</h4>
+            <div class="flex flex-wrap gap-2" id="detailInstruments">
+              </div>
+          </div>
+
+          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl hidden" id="portfolioContainer">
+            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Portfolio Link</h4>
+            <div class="space-y-3">
+              <a id="detailSpotify" href="#" target="_blank" class="block w-full text-center px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold text-white hover:bg-white/10 transition-colors truncate">
+                View Portfolio
+              </a>
+            </div>
+          </div>
+
+          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Rate & Feedback</h4>
+                <p class="text-[10px] uppercase tracking-widest text-white/35 mt-1">Customer feedback only</p>
+              </div>
+            </div>
+            <form id="reviewForm" class="space-y-4">
+              <div class="space-y-2">
+                <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Your Rating</label>
+                <select id="reviewRating" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+                  <option value="5">5 - Outstanding</option>
+                  <option value="4">4 - Great</option>
+                  <option value="3">3 - Good</option>
+                  <option value="2">2 - Fair</option>
+                  <option value="1">1 - Needs Work</option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Feedback</label>
+                <textarea id="reviewFeedback" rows="5" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none" placeholder="Tell other customers how this sessionist performed and what they were like to work with."></textarea>
+              </div>
+              <p id="reviewStatus" class="text-xs text-white/45">Sign in as a Customer to leave a rating or add them to your favorites.</p>
+              <button id="submitReviewBtn" type="submit" class="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 transition-colors">
+                Submit Feedback
+              </button>
+            </form>
+          </div>
+
+          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Customer Feedback</h4>
+                <p class="text-[10px] uppercase tracking-widest text-white/35 mt-1">Recent ratings and comments</p>
+              </div>
+            </div>
+            <div id="reviewsList" class="space-y-4">
+              <p class="text-sm text-white/50">Loading feedback...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="bookingModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-xl bg-[#171212] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div>
+          <h2 class="text-xl font-bold text-white">Book Sessionist</h2>
+          <p id="bookingModalSubtitle" class="text-xs text-white/50 mt-1">Send a booking request and continue the details in chat.</p>
+        </div>
+        <button id="closeBookingModalBtn" type="button" class="text-white/50 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="bookingForm" class="p-6 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Title</label>
+            <input id="bookingEventTitle" type="text" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Date and time</label>
+            <input id="bookingEventDate" type="datetime-local" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Service type</label>
+            <select id="bookingServiceType" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+              <option value="Gig">Gig</option>
+              <option value="Recording">Recording</option>
+              <option value="Collab">Collab</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Location</label>
+            <input id="bookingLocation" type="text" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Proposed budget</label>
+            <input id="bookingBudget" type="number" min="0" step="0.01" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Notes / instructions</label>
+          <textarea id="bookingMessage" rows="4" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none"></textarea>
+        </div>
+        <div class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+          <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Service fee</p>
+          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 15.00 booking fee first. Organizers can send direct event booking requests and continue in chat.</p>
+        </div>
+        <p id="bookingStatus" class="text-xs text-white/50">Customers and organizers can send booking requests here.</p>
+        <button id="submitBookingBtn" type="submit" class="w-full py-3.5 rounded-xl bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors">
+          Book Now
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    lucide.createIcons();
+    let currentSessionistId = null;
+    let currentSessionistName = 'Sessionist';
+    let currentSessionistBasePrice = 0;
+    let sessionistInteractionSummary = null;
+    let currentSessionistAvailable = true;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Navbar Logic
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = firstName || username || role || 'User';
+
+      if (userId && role) {
+        document.getElementById('authLoggedOut').classList.add('hidden');
+        document.getElementById('authLoggedIn').classList.remove('hidden');
+        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+        const dropdownNameEl = document.getElementById('dropdownName');
+        const dropdownRoleEl = document.getElementById('dropdownRole');
+        if (dropdownNameEl) dropdownNameEl.innerText = displayName;
+        if (dropdownRoleEl) dropdownRoleEl.innerText = role;
+
+        if (storedProfilePicture) {
+            const picEl = document.getElementById('navProfilePic');
+            picEl.src = storedProfilePicture;
+            picEl.classList.remove('hidden');
+            document.getElementById('profileInitial').classList.add('hidden');
+        }
+
+        if (userId) {
+            try {
+                const endpoint = role === 'Sessionist' ? 'sessionist' : role === 'Artist' ? 'artist' : '';
+                if (endpoint) {
+                  const res = await fetch(`/api/${endpoint}/${userId}`);
+                  if (res.ok) {
+                      const userProfile = await res.json();
+                      if(userProfile.profilePicture) {
+                          const picEl = document.getElementById('navProfilePic');
+                          picEl.src = userProfile.profilePicture;
+                          picEl.classList.remove('hidden');
+                          document.getElementById('profileInitial').classList.add('hidden');
+                          localStorage.setItem('userProfilePicture', userProfile.profilePicture);
+                      }
+                  }
+                }
+            } catch(e) {}
+        }
+      }
+
+      if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
+
+      // Fetch Detail Logic
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionistId = urlParams.get('id');
+      if(!sessionistId) return history.back();
+      currentSessionistId = sessionistId;
+
+      try {
+        const res = await fetch(`/api/sessionist/${sessionistId}`);
+        if(!res.ok) throw new Error();
+        const data = await res.json();
+
+        currentSessionistName = data.displayName;
+        currentSessionistAvailable = data.isAvailable !== false;
+        document.getElementById('detailName').innerText = data.displayName;
+        document.getElementById('sessionistProfileBadge').innerHTML = data.isVerified
+          ? '<i data-lucide="badge-check" class="w-4 h-4"></i>'
+          : '<i data-lucide="shield" class="w-4 h-4"></i>';
+        document.getElementById('sessionistProfileBadge').className = `mt-2 inline-flex items-center justify-center w-8 h-8 rounded-full border ${data.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
+        document.getElementById('sessionistProfileBadge').title = data.isVerified ? 'Verified profile' : (data.profileCompletionLabel || 'Profile incomplete');
+        document.getElementById('bookingModalSubtitle').innerText = `Book ${data.displayName}, send the request, and continue in chat.`;
+        document.getElementById('detailAvailability').innerText = currentSessionistAvailable ? 'Available' : 'Not Available';
+        document.getElementById('detailAvailability').className = `mt-2 text-[10px] font-bold uppercase tracking-[0.18em] ${currentSessionistAvailable ? 'text-emerald-400' : 'text-white/50'}`;
+        currentSessionistBasePrice = Number(data.basePrice || 0);
+        document.getElementById('detailBasePrice').innerText = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentSessionistBasePrice);
+        syncBookingBudgetWithBasePrice(true);
+        document.getElementById('bookSessionistBtn').disabled = !currentSessionistAvailable;
+        document.getElementById('bookSessionistBtn').classList.toggle('opacity-50', !currentSessionistAvailable);
+        document.getElementById('bookSessionistBtn').innerText = currentSessionistAvailable ? 'Book Sessionist' : 'Currently Unavailable';
+        document.getElementById('detailBio').innerText = `"${data.bio}"`;
+        document.getElementById('verifiedGigCount').innerText = data.verifiedGigCount || 0;
+        renderTalentSetup(data.talentCategory, data.memberNames, 'Sessionist');
+        
+        if (data.profilePicture) {
+            const imgEl = document.getElementById('detailImg');
+            imgEl.src = data.profilePicture;
+            imgEl.classList.remove('hidden');
+        }
+
+        const instrBox = document.getElementById('detailInstruments');
+        if (data.genres) {
+            data.genres.split(',').forEach(g => {
+                if(g.trim()) {
+                    instrBox.innerHTML += `<span class="px-4 py-2 bg-[#0a0a0a] border border-white/5 rounded-lg text-[10px] font-bold uppercase tracking-widest text-white/80 shadow-inner">${g.trim()}</span>`;
+                }
+            });
+        }
+
+        if(data.spotifyLink) {
+            document.getElementById('detailSpotify').href = data.spotifyLink;
+            document.getElementById('detailSpotify').innerText = data.spotifyLink;
+            document.getElementById('portfolioContainer').classList.remove('hidden');
+        }
+
+        renderRelatedEvents(data.relatedEvents || []);
+        renderVerifiedGigs(data.verifiedGigs || []);
+        await loadSessionistPosts();
+        lucide.createIcons();
+
+        await loadSessionistInteractions();
+
+      } catch(e) {
+        document.getElementById('detailName').innerText = "Sessionist not found.";
+        document.getElementById('detailBio').innerText = "Make sure the C# server is running and the ID is valid.";
+      }
+    });
+
+    function renderTalentSetup(talentCategory, memberNames, roleLabel) {
+      const card = document.getElementById('sessionistTalentSetupCard');
+      const badge = document.getElementById('sessionistTalentCategoryBadge');
+      const membersWrap = document.getElementById('sessionistMembersWrap');
+      const membersList = document.getElementById('sessionistMembersList');
+      const normalizedMembers = String(memberNames || '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
+
+      if (!talentCategory && !normalizedMembers.length) {
+        card.classList.add('hidden');
+        return;
+      }
+
+      card.classList.remove('hidden');
+      badge.innerText = talentCategory || roleLabel;
+      membersList.innerHTML = '';
+
+      if (normalizedMembers.length) {
+        membersWrap.classList.remove('hidden');
+        normalizedMembers.forEach(name => {
+          const chip = document.createElement('span');
+          chip.className = 'px-3 py-1.5 bg-[#0a0a0a] border border-white/5 rounded-lg text-[10px] font-bold tracking-widest uppercase text-white/70 shadow-inner';
+          chip.innerText = name;
+          membersList.appendChild(chip);
+        });
+      } else {
+        membersWrap.classList.add('hidden');
+      }
+    }
+
+    const bookingModal = document.getElementById('bookingModal');
+    document.getElementById('bookSessionistBtn').addEventListener('click', openBookingModal);
+    document.getElementById('closeBookingModalBtn').addEventListener('click', closeBookingModal);
+    bookingModal.addEventListener('click', (event) => {
+      if (event.target.id === 'bookingModal') closeBookingModal();
+    });
+
+    async function openBookingModal() {
+      const role = localStorage.getItem('userRole');
+      if (role !== 'Customer' && role !== 'Organizer') {
+        alert('Please sign in as a Customer or Organizer to send a booking request.');
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+      if (!currentSessionistAvailable) {
+        alert(`${currentSessionistName} is currently marked unavailable for bookings.`);
+        return;
+      }
+
+      const linkedEventTitle = new URLSearchParams(window.location.search).get('eventTitle');
+      if (role === 'Organizer' && linkedEventTitle && !document.getElementById('bookingEventTitle').value) {
+        document.getElementById('bookingEventTitle').value = linkedEventTitle;
+      }
+      syncBookingBudgetWithBasePrice(false);
+      document.getElementById('bookingStatus').innerText = role === 'Organizer'
+        ? `You are sending an organizer booking request to ${currentSessionistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
+        : `You are booking ${currentSessionistName}. The PHP 15.00 service fee is collected before the sessionist can review your request.`;
+      bookingModal.classList.remove('hidden');
+      bookingModal.classList.add('flex');
+    }
+
+    function closeBookingModal() {
+      bookingModal.classList.add('hidden');
+      bookingModal.classList.remove('flex');
+    }
+
+    document.getElementById('bookingForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submitBtn = document.getElementById('submitBookingBtn');
+      const budgetInput = document.getElementById('bookingBudget');
+      const parsedBudget = parseFloat(budgetInput.value);
+      const finalBudget = Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : currentSessionistBasePrice;
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Preparing payment...';
+
+      const payload = {
+        customerId: localStorage.getItem('userId'),
+        targetUserId: currentSessionistId,
+        eventId: new URLSearchParams(window.location.search).get('eventId') || null,
+        requesterRole: localStorage.getItem('userRole'),
+        targetRole: 'Sessionist',
+        serviceType: document.getElementById('bookingServiceType').value,
+        eventTitle: document.getElementById('bookingEventTitle').value,
+        eventDate: document.getElementById('bookingEventDate').value,
+        location: document.getElementById('bookingLocation').value,
+        budget: finalBudget > 0 ? finalBudget : 0,
+        notes: document.getElementById('bookingMessage').value
+      };
+
+      try {
+        const response = await fetch('/api/booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Failed to send booking request.');
+
+        const bookingId = data.bookingId;
+        if (!bookingId) throw new Error('Booking was created but no booking ID was returned.');
+
+        if (localStorage.getItem('userRole') === 'Organizer') {
+          document.getElementById('bookingStatus').innerText = 'Booking request created. Opening the chat thread...';
+          window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
+          return;
+        }
+
+        document.getElementById('bookingStatus').innerText = 'Booking created. Redirecting to the PHP 15.00 service fee checkout...';
+
+        const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}&bookingFeePaid=1`;
+        const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}`;
+        const checkoutRes = await fetch(`/api/booking/${bookingId}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ successUrl, cancelUrl })
+        });
+        const checkoutData = await checkoutRes.json().catch(() => ({}));
+        if (!checkoutRes.ok || !checkoutData.checkoutUrl) {
+          throw new Error(checkoutData.message || 'Failed to start booking fee payment.');
+        }
+
+        window.location.href = checkoutData.checkoutUrl;
+      } catch (error) {
+        document.getElementById('bookingStatus').innerText = error.message || 'Failed to send booking request.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Book Now';
+      }
+    });
+
+    function syncBookingBudgetWithBasePrice(force = false) {
+      const budgetInput = document.getElementById('bookingBudget');
+      if (!budgetInput) return;
+
+      const hasManualValue = budgetInput.dataset.userEdited === 'true' && Number(budgetInput.value || 0) > 0;
+      if (force || !hasManualValue) {
+        budgetInput.value = currentSessionistBasePrice > 0 ? currentSessionistBasePrice.toFixed(2) : '';
+      }
+      budgetInput.placeholder = currentSessionistBasePrice > 0
+        ? `Starts at PHP ${currentSessionistBasePrice.toFixed(2)}`
+        : 'Enter proposed budget';
+    }
+
+    document.getElementById('bookingBudget').addEventListener('input', (event) => {
+      event.target.dataset.userEdited = 'true';
+    });
+
+    document.getElementById('reportSessionistBtn')?.addEventListener('click', async () => {
+      const reporterUserId = localStorage.getItem('userId');
+      if (!reporterUserId) {
+        alert('Please sign in first before sending a report.');
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      const reason = await window.systemDialog.prompt('What is the main reason for this report?', {
+        title: 'Report Sessionist',
+        kicker: 'Safety Report',
+        placeholder: 'Enter the main reason',
+        okText: 'Next',
+        required: true
+      });
+      if (!reason) return;
+      const details = await window.systemDialog.prompt('Add more details if needed (optional):', {
+        title: 'More Details',
+        kicker: 'Optional Context',
+        placeholder: 'Add more details here',
+        okText: 'Submit',
+        multiline: true
+      }) || '';
+
+      try {
+        const res = await fetch('/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reporterUserId,
+            targetId: currentSessionistId,
+            targetType: 'sessionist',
+            reason,
+            details
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to submit report.');
+        alert(data.message || 'Report submitted successfully.');
+      } catch (error) {
+        alert(error.message || 'Failed to submit report.');
+      }
+    });
+
+    async function loadSessionistInteractions() {
+      const customerId = localStorage.getItem('userRole') === 'Customer' ? localStorage.getItem('userId') : '';
+
+      try {
+        const summaryRes = await fetch(`/api/talentinteraction/summary/Sessionist/${currentSessionistId}${customerId ? `?customerId=${customerId}` : ''}`);
+        if (!summaryRes.ok) throw new Error();
+
+        sessionistInteractionSummary = await summaryRes.json();
+        document.getElementById('ratingAverage').innerText = Number(sessionistInteractionSummary.averageRating || 0).toFixed(1);
+        document.getElementById('favoriteCount').innerText = sessionistInteractionSummary.favoriteCount || 0;
+        document.getElementById('reviewCount').innerText = sessionistInteractionSummary.reviewCount || 0;
+        updateFavoriteButton(sessionistInteractionSummary.isFavorited);
+        renderReviews(sessionistInteractionSummary.reviews || []);
+      } catch (error) {
+        document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
+      }
+    }
+
+    function updateFavoriteButton(isFavorited) {
+      const favoriteBtn = document.getElementById('favoriteBtn');
+      favoriteBtn.dataset.active = isFavorited ? 'true' : 'false';
+      favoriteBtn.className = `mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors ${isFavorited ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/15' : 'border-white/15 bg-transparent text-white hover:bg-white/5'}`;
+      favoriteBtn.innerHTML = `<i data-lucide="heart" class="w-3.5 h-3.5 ${isFavorited ? 'text-red-400 fill-current' : 'text-white/60'}"></i> ${isFavorited ? 'Saved To Favorites' : 'Add to Favorites'}`;
+      lucide.createIcons();
+    }
+
+    function renderReviews(reviews) {
+      const reviewsList = document.getElementById('reviewsList');
+      if (!reviews.length) {
+        reviewsList.innerHTML = `<p class="text-sm text-white/50">No reviews yet. Be the first customer to leave feedback.</p>`;
+        return;
+      }
+
+      reviewsList.innerHTML = reviews.map(review => `
+        <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p class="text-sm font-semibold text-white">${review.customerName || 'Customer'}</p>
+              <p class="text-[10px] uppercase tracking-widest text-white/35 mt-1">${new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+            <div class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-yellow-300">
+              ${'★'.repeat(review.rating || 0)}${'☆'.repeat(Math.max(0, 5 - (review.rating || 0)))}
+            </div>
+          </div>
+          <p class="text-sm text-white/70 leading-relaxed">${review.feedback || 'No written feedback provided.'}</p>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('favoriteBtn').addEventListener('click', async () => {
+      const role = localStorage.getItem('userRole');
+      const customerId = localStorage.getItem('userId');
+      if (role !== 'Customer' || !customerId) {
+        alert('Please sign in as a Customer to use favorites.');
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/talentinteraction/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            targetUserId: currentSessionistId,
+            targetRole: 'Sessionist'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update favorites.');
+        updateFavoriteButton(data.isFavorited);
+        await loadSessionistInteractions();
+      } catch (error) {
+        alert(error.message || 'Failed to update favorites.');
+      }
+    });
+
+    document.getElementById('reviewForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const role = localStorage.getItem('userRole');
+      const customerId = localStorage.getItem('userId');
+      const reviewStatus = document.getElementById('reviewStatus');
+      const submitBtn = document.getElementById('submitReviewBtn');
+
+      if (role !== 'Customer' || !customerId) {
+        alert('Please sign in as a Customer to leave feedback.');
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving...';
+
+      try {
+        const res = await fetch('/api/talentinteraction/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            targetUserId: currentSessionistId,
+            targetRole: 'Sessionist',
+            rating: parseInt(document.getElementById('reviewRating').value, 10),
+            feedback: document.getElementById('reviewFeedback').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save feedback.');
+
+        reviewStatus.innerText = data.message || 'Feedback saved successfully.';
+        document.getElementById('reviewFeedback').value = '';
+        await loadSessionistInteractions();
+      } catch (error) {
+        reviewStatus.innerText = error.message || 'Failed to save feedback.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Submit Feedback';
+      }
+    });
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => {
+        profileDropdown.classList.toggle('show');
+        profileDropdown.style.opacity = profileDropdown.classList.contains('show') ? '1' : '0';
+        profileDropdown.style.pointerEvents = profileDropdown.classList.contains('show') ? 'auto' : 'none';
+      });
+    }
+    function renderRelatedEvents(events) {
+      const container = document.getElementById('relatedEventsList');
+
+      if (!Array.isArray(events) || events.length === 0) {
+        container.innerHTML = `<p class="text-sm text-white/50">No linked events yet.</p>`;
+        return;
+      }
+
+      container.innerHTML = events.map(event => `
+        <a href="/pages/details/EventDetailPage.html?id=${event.id}" class="block rounded-2xl border border-white/10 bg-black/30 p-4 hover:border-white/20 transition-colors">
+          <p class="text-sm font-bold text-white">${event.title}</p>
+          <p class="mt-2 text-xs text-white/55">${new Date(event.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+          <p class="mt-1 text-xs text-white/45">${event.city ? `${event.city} - ${event.location}` : event.location}</p>
+          <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest ${event.status === 'Finished' ? 'bg-neutral-500/20 text-neutral-300' : 'bg-emerald-500/15 text-emerald-400'}">${event.status}</span>
+        </a>
+      `).join('');
+    }
+    function renderVerifiedGigs(gigs) {
+      const container = document.getElementById('verifiedGigsList');
+
+      if (!Array.isArray(gigs) || gigs.length === 0) {
+        container.innerHTML = `<p class="text-sm text-white/50">No verified gigs yet.</p>`;
+        return;
+      }
+
+      container.innerHTML = gigs.map(gig => `
+        <div class="rounded-2xl border border-emerald-500/20 bg-black/30 p-4">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm font-bold text-white">${gig.title || 'Untitled Event'}</p>
+            <span class="text-[10px] uppercase tracking-widest text-emerald-300">${gig.roleAtEvent || 'Sessionist'}</span>
+          </div>
+          <p class="mt-2 text-xs text-white/55">${gig.time ? new Date(gig.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable'}</p>
+          <p class="mt-1 text-xs text-white/45">${gig.city ? `${gig.city} - ${gig.location}` : (gig.location || 'Location to be confirmed')}</p>
+          <p class="mt-3 text-[10px] font-bold uppercase tracking-widest text-emerald-200/70">Verified ${gig.verifiedAt ? new Date(gig.verifiedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'recently'}</p>
+        </div>
+      `).join('');
+    }
+    async function loadSessionistPosts() {
+      const container = document.getElementById('sessionistPostsList');
+      if (!container || !currentSessionistId) return;
+      try {
+        const res = await fetch(`/api/community/posts/Sessionist/${currentSessionistId}`);
+        if (!res.ok) throw new Error();
+        const posts = await res.json();
+        if (!Array.isArray(posts) || !posts.length) {
+          container.innerHTML = `<p class="text-sm text-white/50">No community posts yet.</p>`;
+          return;
+        }
+
+        container.innerHTML = posts.map(post => `
+          <article class="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
+                ${post.authorProfilePicture ? `<img src="${post.authorProfilePicture}" class="w-full h-full object-cover">` : `<i data-lucide="user-round" class="w-4 h-4 text-white/40"></i>`}
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-white">${post.authorName || currentSessionistName}</p>
+                <div class="flex items-center gap-2 text-[10px] uppercase tracking-widest ${post.authorVerified ? 'text-blue-300' : 'text-white/35'}">
+                  ${post.authorVerified ? '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"><i data-lucide="badge-check" class="w-3 h-3"></i></span>' : '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full border border-white/10 bg-white/5 text-white/35"><i data-lucide="sparkles" class="w-3 h-3"></i></span>'}
+                  <span>${new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+              </div>
+            </div>
+            ${post.content ? `<p class="text-sm text-white/70 leading-relaxed mt-4 whitespace-pre-line">${post.content}</p>` : ''}
+            ${post.imageUrl ? `<img src="${post.imageUrl}" class="mt-4 w-full rounded-2xl border border-white/10 object-cover max-h-[420px] bg-black/40">` : ''}
+          </article>
+        `).join('');
+        lucide.createIcons();
+      } catch (error) {
+        container.innerHTML = `<p class="text-sm text-red-400">Failed to load posts.</p>`;
+      }
+    }
+    function handleLogout() { localStorage.clear(); window.location.href = '/pages/auth/login.html'; }
+  </script>
+</body>
+</html>

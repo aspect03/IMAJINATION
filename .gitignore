@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+credentials.json
+node_modules/
+
+bin/
+obj/
+out/
+temp-build-verify/
+runtime-test-*.log

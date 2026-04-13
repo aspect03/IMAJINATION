@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Artists</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <style>
+    select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+    }
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none"></div>
+
+  <main class="relative w-full z-10">
+    <nav class="fixed top-0 w-full z-50">
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+      <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+          <div class="h-8 w-28 sm:w-32 flex items-center">
+            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          </div>
+        </a>
+
+        <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+          <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+          <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
+          <a href="/pages/browse/Artists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Artists</a>
+          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
+          <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+        </div>
+
+        <div class="flex items-center gap-3 relative">
+          <div id="authLoggedOut" class="flex items-center gap-3">
+            <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">
+              Sign in
+            </a>
+            <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">
+              Get started
+            </a>
+          </div>
+
+          <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+            <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+            </button>
+            <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+                <p class="text-sm font-bold text-white">Notifications</p>
+                <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+              </div>
+              <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+                <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+              </div>
+            </div>
+            <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+              <span id="profileInitial">A</span>
+              <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+            </button>
+            <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+                <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+                <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+              </div>
+              <div class="p-2 flex flex-col gap-1">
+                <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+                </a>
+              </div>
+              <div class="p-2 border-t border-white/10">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                  <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="relative z-10 w-full pb-24 mt-24">
+      <section class="max-w-7xl mx-auto px-6">
+        <div class="mb-10">
+          <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Discover</p>
+          <h2 class="text-4xl font-extrabold tracking-tight text-white">Artists</h2>
+        </div>
+
+        <div class="flex flex-wrap lg:flex-nowrap items-center gap-3 mb-10 w-full">
+          <div class="relative flex-grow min-w-[250px]">
+            <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50"></i>
+            <input type="text" id="searchInput" placeholder="Search artists..." class="w-full pl-11 pr-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500/50 text-white placeholder-white/40">
+          </div>
+          
+          <select id="genreSelect" class="px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer">
+            <option value="">Genre</option>
+            <option value="indie pop">Indie Pop</option>
+            <option value="rock">Rock</option>
+            <option value="acoustic">Acoustic</option>
+            <option value="r&b">R&B</option>
+            <option value="electronic">Electronic</option>
+          </select>
+          
+          <select class="px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer hidden md:block">
+            <option>Artist Type</option>
+            <option>Solo</option>
+            <option>Band</option>
+          </select>
+
+          <select class="px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer hidden lg:block">
+            <option>Popularity</option>
+          </select>
+
+          <select class="px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer hidden lg:block">
+            <option>Availability</option>
+          </select>
+
+          <select class="px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/50 appearance-none cursor-pointer hidden lg:block">
+            <option>Price Range</option>
+          </select>
+
+          <div class="flex items-center gap-3 shrink-0 ml-auto w-full lg:w-auto mt-3 lg:mt-0">
+            <button id="clearBtn" class="flex-1 lg:flex-none px-6 py-3 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/5 transition-colors">Clear</button>
+            <button id="searchBtn" class="flex-1 lg:flex-none px-6 py-3 rounded-xl bg-[#cc292b] text-white text-xs font-bold uppercase tracking-wider hover:bg-red-600 transition-colors shadow-lg">Apply Filters</button>
+          </div>
+        </div>
+
+        <div id="artistsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <p class="col-span-4 text-center py-10 text-white/50">
+            <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-4 text-red-500"></i>
+            Loading artists...
+          </p>
+        </div>
+
+      </section>
+    </main>
+  </main>
+  
+  <script>
+    lucide.createIcons();
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = firstName || username || role || 'User';
+
+      if (userId && role) {
+        document.getElementById('authLoggedOut').classList.add('hidden');
+        document.getElementById('authLoggedIn').classList.remove('hidden');
+        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+        document.getElementById('dropdownName').innerText = displayName;
+        document.getElementById('dropdownRole').innerText = role;
+
+        if (storedProfilePicture) {
+          const picEl = document.getElementById('navProfilePic');
+          picEl.src = storedProfilePicture;
+          picEl.classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+        }
+
+        const dashLink = document.getElementById('dashboardLink');
+        if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+        else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+
+        // FIX: Fetch profile picture for Artists in the navbar!
+        if (role === 'Artist' && userId) {
+            try {
+                const res = await fetch(`/api/artist/${userId}`);
+                if (res.ok) {
+                    const artist = await res.json();
+                    if(artist.profilePicture) {
+                        const picEl = document.getElementById('navProfilePic');
+                        picEl.src = artist.profilePicture;
+                        picEl.classList.remove('hidden');
+                        document.getElementById('profileInitial').classList.add('hidden');
+                        localStorage.setItem('userProfilePicture', artist.profilePicture);
+                    }
+                }
+            } catch(e) {}
+        }
+      }
+
+      fetchArtists();
+      if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
+    });
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('show'));
+      document.addEventListener('click', (e) => {
+        if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) profileDropdown.classList.remove('show');
+      });
+    }
+
+    function handleLogout() { localStorage.clear(); window.location.reload(); }
+
+    let allArtists = [];
+    const artistsCacheKey = 'artistsPageCacheV1';
+    const artistsCacheTtlMs = 2 * 60 * 1000;
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function readCachedArtists() {
+      try {
+        const raw = sessionStorage.getItem(artistsCacheKey);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items) || typeof parsed.savedAt !== 'number') return null;
+        if (Date.now() - parsed.savedAt > artistsCacheTtlMs) return null;
+
+        return parsed.items;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCachedArtists(items) {
+      try {
+        sessionStorage.setItem(artistsCacheKey, JSON.stringify({
+          savedAt: Date.now(),
+          items
+        }));
+      } catch {
+        // Ignore cache errors and keep the page usable.
+      }
+    }
+
+    function getEventBookingQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const eventId = params.get('eventId');
+      const eventTitle = params.get('eventTitle');
+      if (!eventId) return '';
+
+      const next = new URLSearchParams();
+      next.set('eventId', eventId);
+      if (eventTitle) next.set('eventTitle', eventTitle);
+      return `&${next.toString()}`;
+    }
+
+    async function fetchArtists() {
+      const grid = document.getElementById('artistsGrid');
+      const cachedArtists = readCachedArtists();
+
+      if (cachedArtists && cachedArtists.length > 0) {
+        allArtists = cachedArtists;
+        renderArtists(cachedArtists);
+      }
+
+      try {
+        if (!cachedArtists) {
+          grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">Loading artists...</p>`;
+        }
+
+        const response = await fetchWithTimeout('/api/artist/all');
+        const text = await response.text(); 
+
+        if (!text) {
+            throw new Error("Server returned an empty response. Make sure you restarted your C# Server (dotnet run)!");
+        }
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch(e) {
+            throw new Error("Server error, JSON could not be read.");
+        }
+
+        if(!response.ok) {
+            throw new Error(data.message || "Database Error");
+        }
+
+        allArtists = data;
+        writeCachedArtists(data);
+        
+        if (allArtists.length === 0) {
+            grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">No artists registered yet.</p>`;
+            return;
+        }
+
+        renderArtists(allArtists);
+      } catch (error) {
+        if (cachedArtists && cachedArtists.length > 0) return;
+        console.error(error);
+        grid.innerHTML = `
+          <div class="col-span-4 flex flex-col items-center py-10">
+             <p class="text-red-500 font-bold mb-2">Failed to load artists.</p>
+             <p class="text-white/50 text-xs">Error: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderArtists(artistsToRender) {
+        const grid = document.getElementById('artistsGrid');
+        grid.innerHTML = '';
+        
+        if (artistsToRender.length === 0) {
+            grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">No artists match your search.</p>`;
+            return;
+        }
+
+        const eventBookingQuery = getEventBookingQuery();
+        const isOrganizerEventFlow = (localStorage.getItem('userRole') || '') === 'Organizer' && !!eventBookingQuery;
+
+        artistsToRender.forEach(artist => {
+          const isAvailable = artist.isAvailable !== false;
+          grid.innerHTML += `
+            <article class="flex flex-col items-center p-6 bg-[#181414] rounded-3xl border border-white/5 hover:border-white/20 transition-colors text-center shadow-lg">
+              <img src="${artist.profilePicture}" onerror="this.src='https://images.unsplash.com/photo-1549834125-82d3c48159a3?auto=format&fit=crop&q=80&w=300'" alt="Avatar" class="w-24 h-24 rounded-full object-cover mb-4 ring-2 ring-white/10">
+              <h4 class="text-lg font-semibold tracking-tight text-white line-clamp-1">${artist.displayName}</h4>
+              <p class="text-[10px] font-bold text-red-500 mb-4 px-2 line-clamp-1 tracking-widest uppercase">${artist.genres}</p>
+              <p class="text-[10px] font-bold uppercase tracking-[0.16em] mb-4 ${isAvailable ? 'text-emerald-400' : 'text-white/40'}">${isAvailable ? 'Available' : 'Not Available'}</p>
+              <a href="/pages/details/ArtistDetails.html?id=${artist.id}${eventBookingQuery}" class="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/5 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 transition-colors cursor-pointer mt-auto">${isOrganizerEventFlow ? 'Book For Event' : 'Profile'}</a>
+            </article>
+          `;
+        });
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const genre = document.getElementById('genreSelect').value.toLowerCase();
+
+        const filtered = allArtists.filter(a => {
+            const matchName = a.displayName.toLowerCase().includes(query);
+            const matchGenre = genre === "" || (a.genres && a.genres.toLowerCase().includes(genre));
+            return matchName && matchGenre;
+        });
+
+        renderArtists(filtered);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        document.getElementById('searchInput').value = "";
+        document.getElementById('genreSelect').value = "";
+        renderArtists(allArtists);
+    });
+
+  </script>
+</body>
+</html>z

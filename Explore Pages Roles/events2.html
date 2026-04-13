@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Events</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="pointer-events-none fixed inset-0 z-0">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_60%)]"></div>
+    <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black"></div>
+  </div>
+<main class="relative w-full z-10">
+    <nav class="fixed top-0 w-full z-50">
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+      <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <a href="#" class="flex items-center gap-2">
+          <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10">
+            <span class="w-2.5 h-2.5 rounded-sm bg-red-500"></span>
+          </span>
+          <span class="tracking-tight font-semibold text-lg text-white uppercase">
+            IMAJINATION
+          </span>
+        </a>
+
+        <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+          <a href="#landing" class="text-white hover:text-white/90 transition-colors">Home</a>
+          <a href="#browse" class="hover:text-white/90 transition-colors">Events</a>
+          <a href="#artists" class="hover:text-white/90 transition-colors">Artists</a>
+          <a href="#about" class="hover:text-white/90 transition-colors">About</a>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <a href="#auth" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">
+            Sign in
+          </a>
+          <a href="#auth" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">
+            Get started
+          </a>
+        </div>
+      </div>
+    </nav>
+
+  <main class="relative z-10 w-full pb-24 mt-12">
+    <section class="max-w-7xl mx-auto px-6 pt-8">
+      <div class="mb-10">
+        <p class="text-xs font-semibold text-red-500 uppercase tracking-[0.18em]">Discover</p>
+        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-2">Upcoming Gigs</h2>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 mb-8 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+        <div class="relative flex-1 min-w-[200px] sm:max-w-xs">
+          <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50" style="stroke-width:1.5"></i>
+          <input type="text" placeholder="Search events..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 transition-shadow">
+        </div>
+        <select class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30">
+          <option>Genre</option>
+          <option>Indie Rock</option>
+          <option>Acoustic</option>
+        </select>
+        <select class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30">
+          <option>Location</option>
+          <option>Quezon City</option>
+          <option>Makati</option>
+        </select>
+        <input type="date" class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30 [color-scheme:dark]">
+        
+        <div class="ml-auto flex items-center gap-3 w-full sm:w-auto mt-3 sm:mt-0">
+          <button type="button" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-white/10 transition-colors">
+            Search
+          </button>
+          <button type="button" class="flex-1 sm:flex-none px-6 py-2.5 bg-red-600 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-red-500 transition-colors">
+            Apply Filters
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <article class="group flex flex-col bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
+          <div class="relative aspect-[4/3] overflow-hidden bg-black/40">
+            <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=600" alt="Gig" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+          </div>
+          <div class="p-6 flex flex-col flex-1">
+            <h3 class="text-xl font-semibold tracking-tight text-white mb-2">Neon Nights Festival</h3>
+            <p class="text-sm text-white/60 mb-4 line-clamp-2">A night of indie pop and alternative rock at The Warehouse.</p>
+            <div class="mt-auto">
+              <a href="event-details.html" class="inline-flex w-full items-center justify-center py-2.5 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 transition-colors">View Details</a>
+            </div>
+          </div>
+        </article>
+        
+        <article class="group flex flex-col bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
+          <div class="relative aspect-[4/3] overflow-hidden bg-black/40">
+             <img src="https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&q=80&w=600" alt="Gig" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500">
+             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+          </div>
+          <div class="p-6 flex flex-col flex-1">
+            <h3 class="text-xl font-semibold tracking-tight text-white mb-2">Acoustic QC Sessions</h3>
+            <p class="text-sm text-white/60 mb-4 line-clamp-2">Intimate unplugged performances at Route 196.</p>
+            <div class="mt-auto">
+              <a href="event-details.html" class="inline-flex w-full items-center justify-center py-2.5 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 transition-colors">View Details</a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

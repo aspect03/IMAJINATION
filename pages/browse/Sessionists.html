@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Sessionists</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <style>
+    select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+    }
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none"></div>
+
+  <main class="relative w-full z-10">
+    <nav class="fixed top-0 w-full z-50">
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+      <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        
+        <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+          <div class="h-8 w-28 sm:w-32 flex items-center">
+            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          </div>
+        </a>
+
+        <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+          <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+          <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
+          <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+          <a href="/pages/browse/Sessionists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Sessionists</a>
+          <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+        </div>
+
+        <div class="flex items-center gap-3 relative">
+          <div id="authLoggedOut" class="flex items-center gap-3">
+            <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+            <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">Get started</a>
+          </div>
+
+          <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+            <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+            </button>
+            <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+                <p class="text-sm font-bold text-white">Notifications</p>
+                <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+              </div>
+              <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+                <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+              </div>
+            </div>
+            <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden cursor-pointer">
+              <span id="profileInitial">A</span>
+              <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+            </button>
+            
+            <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+                <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+                <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+              </div>
+              <div class="p-2 flex flex-col gap-1">
+                <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+                </a>
+              </div>
+              <div class="p-2 border-t border-white/10">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                  <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+  <main class="relative z-10 w-full pb-24 mt-24">
+    <section class="max-w-7xl mx-auto px-6">
+      <div class="mb-10">
+        <p class="text-xs font-semibold text-red-500 uppercase tracking-[0.18em]">Discover</p>
+        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-2">Sessionists</h2>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 mb-8 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+        <div class="relative flex-1 min-w-[200px] sm:max-w-xs">
+          <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50" style="stroke-width:1.5"></i>
+          <input type="text" id="searchInput" placeholder="Search sessionists..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 transition-shadow">
+        </div>
+        <select id="genreSelect" class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30">
+          <option value="">Instrument</option>
+          <option value="lead guitar">Lead Guitar</option>
+          <option value="rhythm guitar">Rhythm Guitar</option>
+          <option value="drums">Drums</option>
+          <option value="bass">Bass</option>
+          <option value="keyboard">Keyboard</option>
+          <option value="vocalist">Vocalist</option>
+        </select>
+        
+        <div class="ml-auto flex items-center gap-3 w-full lg:w-auto mt-3 lg:mt-0">
+          <button type="button" id="clearBtn" class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-white/10 transition-colors">
+            Clear
+          </button>
+          <button type="button" id="searchBtn" class="flex-1 lg:flex-none px-6 py-2.5 bg-red-600 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+            Apply Filters
+          </button>
+        </div>
+      </div>
+
+      <div id="sessionistsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+         <p class="col-span-4 text-center py-10 text-white/50"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-4 text-red-500"></i> Loading sessionists...</p>
+      </div>
+    </section>
+  </main>
+  
+  <script>
+    lucide.createIcons();
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = firstName || username || role || 'User';
+
+      if (userId && role) {
+        document.getElementById('authLoggedOut').classList.add('hidden');
+        document.getElementById('authLoggedIn').classList.remove('hidden');
+        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+        document.getElementById('dropdownName').innerText = displayName;
+        document.getElementById('dropdownRole').innerText = role;
+
+        if (storedProfilePicture) {
+          const picEl = document.getElementById('navProfilePic');
+          picEl.src = storedProfilePicture;
+          picEl.classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+        }
+
+        const dashLink = document.getElementById('dashboardLink');
+        if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+        else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
+
+        // Properly fetch avatar for any logged in role
+        if (userId) {
+            try {
+                let endpoint = '';
+                if(role === 'Artist') endpoint = 'artist';
+                else if(role === 'Sessionist') endpoint = 'sessionist';
+                else if(role === 'Customer') endpoint = 'customer';
+                
+                if(endpoint) {
+                    const res = await fetch(`/api/${endpoint}/${userId}`);
+                    if (res.ok) {
+                        const userProfile = await res.json();
+                        if(userProfile.profilePicture) {
+                            const picEl = document.getElementById('navProfilePic');
+                            picEl.src = userProfile.profilePicture;
+                            picEl.classList.remove('hidden');
+                            document.getElementById('profileInitial').classList.add('hidden');
+                            localStorage.setItem('userProfilePicture', userProfile.profilePicture);
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+      }
+      fetchSessionists();
+      if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
+    });
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('show'));
+      document.addEventListener('click', (e) => {
+        if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) profileDropdown.classList.remove('show');
+      });
+    }
+
+    function handleLogout() { localStorage.clear(); window.location.href = '/pages/auth/login.html'; }
+
+    let allSessionists = [];
+    const sessionistsCacheKey = 'sessionistsPageCacheV1';
+    const sessionistsCacheTtlMs = 2 * 60 * 1000;
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function readCachedSessionists() {
+      try {
+        const raw = sessionStorage.getItem(sessionistsCacheKey);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items) || typeof parsed.savedAt !== 'number') return null;
+        if (Date.now() - parsed.savedAt > sessionistsCacheTtlMs) return null;
+
+        return parsed.items;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCachedSessionists(items) {
+      try {
+        sessionStorage.setItem(sessionistsCacheKey, JSON.stringify({
+          savedAt: Date.now(),
+          items
+        }));
+      } catch {
+        // Ignore cache errors and keep the page usable.
+      }
+    }
+
+    function getEventBookingQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const eventId = params.get('eventId');
+      const eventTitle = params.get('eventTitle');
+      if (!eventId) return '';
+
+      const next = new URLSearchParams();
+      next.set('eventId', eventId);
+      if (eventTitle) next.set('eventTitle', eventTitle);
+      return `&${next.toString()}`;
+    }
+
+    async function fetchSessionists() {
+      const grid = document.getElementById('sessionistsGrid');
+      const cachedSessionists = readCachedSessionists();
+
+      if (cachedSessionists && cachedSessionists.length > 0) {
+        allSessionists = cachedSessionists;
+        renderSessionists(cachedSessionists);
+      }
+
+      try {
+        if (!cachedSessionists) {
+          grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">Loading sessionists...</p>`;
+        }
+
+        const response = await fetchWithTimeout('/api/sessionist/all');
+        const text = await response.text(); 
+        if (!text) throw new Error("API Route Not Found. Restart C# server.");
+        
+        allSessionists = JSON.parse(text);
+        writeCachedSessionists(allSessionists);
+        if (allSessionists.length === 0) {
+            grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">No sessionists registered yet.</p>`;
+            return;
+        }
+        renderSessionists(allSessionists);
+      } catch (error) {
+        if (cachedSessionists && cachedSessionists.length > 0) return;
+        grid.innerHTML = `<div class="col-span-4 flex flex-col items-center py-10"><p class="text-red-500 font-bold mb-2">Failed to load sessionists.</p></div>`;
+      }
+    }
+
+    function renderSessionists(data) {
+        const grid = document.getElementById('sessionistsGrid');
+        grid.innerHTML = '';
+        if (data.length === 0) return grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">No sessionists match your search.</p>`;
+
+        const eventBookingQuery = getEventBookingQuery();
+        const isOrganizerEventFlow = (localStorage.getItem('userRole') || '') === 'Organizer' && !!eventBookingQuery;
+
+        data.forEach(s => {
+          const isAvailable = s.isAvailable !== false;
+          grid.innerHTML += `
+            <article class="flex flex-col items-center p-6 bg-white/5 rounded-3xl border border-white/10 hover:border-white/20 transition-colors text-center shadow-lg backdrop-blur-sm">
+              <div class="relative w-24 h-24 rounded-full bg-black/40 border border-white/10 flex items-center justify-center mb-4 overflow-hidden shadow-inner">
+                <img src="${s.profilePicture}" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.display='none'">
+                <i data-lucide="headphones" class="w-8 h-8 text-white/50 relative z-0"></i>
+              </div>
+              <h4 class="text-lg font-semibold tracking-tight text-white line-clamp-1">${s.displayName}</h4>
+              <p class="text-xs text-red-400 font-bold uppercase tracking-widest mb-4 px-2 line-clamp-1">${s.genres}</p>
+              <p class="text-[10px] font-bold uppercase tracking-[0.16em] mb-4 ${isAvailable ? 'text-emerald-400' : 'text-white/40'}">${isAvailable ? 'Available' : 'Not Available'}</p>
+              <a href="/pages/details/SessionistDetailsPage.html?id=${s.id}${eventBookingQuery}" class="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-[0.14em] text-white hover:bg-white/10 transition-colors mt-auto">${isOrganizerEventFlow ? 'Book For Event' : 'View Profile'}</a>
+            </article>
+          `;
+        });
+        lucide.createIcons();
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const genre = document.getElementById('genreSelect').value.toLowerCase();
+        const filtered = allSessionists.filter(a => {
+            const matchName = a.displayName.toLowerCase().includes(query);
+            const matchGenre = genre === "" || (a.genres && a.genres.toLowerCase().includes(genre));
+            return matchName && matchGenre;
+        });
+        renderSessionists(filtered);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        document.getElementById('searchInput').value = "";
+        document.getElementById('genreSelect').value = "";
+        renderSessionists(allSessionists);
+    });
+  </script>
+</body>
+</html>

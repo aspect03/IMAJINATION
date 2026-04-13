@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Imajination - Admin Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/chart.js@4.4.3/dist/chart.umd.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+</head>
+<body class="bg-neutral-950 text-white antialiased h-screen overflow-hidden" style="font-family: 'Montserrat', sans-serif;">
+  
+  <div class="bg-dashboard-backdrop"></div>
+
+  <nav class="fixed top-0 inset-x-0 z-50 w-full h-16 flex items-center justify-between px-6 border-b border-white/10 bg-black/70 backdrop-blur-md">
+    <a href="/" class="font-semibold text-lg uppercase tracking-tight flex items-center gap-2">
+      <span class="inline-flex w-8 h-8 rounded-xl bg-white/5 border border-white/10 items-center justify-center"><span class="w-2.5 h-2.5 rounded-sm bg-red-500"></span></span>
+      Imajination System Admin
+    </a>
+    
+    <div class="flex items-center gap-6">
+      <div class="relative">
+        <button id="adminNotificationBellBtn" type="button" class="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+          <i data-lucide="bell" class="w-4 h-4"></i>
+          <span id="adminNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+        </button>
+        <div id="adminNotificationBellDropdown" class="hidden absolute right-0 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+          <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+            <p class="text-sm font-bold text-white">Notifications</p>
+            <span id="adminNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+          </div>
+          <div id="adminNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+            <p class="text-sm text-white/50 p-3">Loading notifications...</p>
+          </div>
+        </div>
+      </div>
+      <span class="text-sm font-semibold text-white/70">SysAdmin: <span id="userNameDisplay" class="text-white">Guest</span></span>
+      <button onclick="handleLogout()" class="text-xs font-semibold text-red-400 uppercase hover:text-red-300 flex items-center gap-2 transition-colors">
+        <i data-lucide="shield-alert" class="w-4 h-4"></i> Secure Logout
+      </button>
+    </div>
+  </nav>
+
+  <main class="relative z-10 max-w-[1680px] mx-auto px-6 pt-24 pb-8 h-screen">
+    <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6 h-[calc(100vh-8rem)] items-start">
+      <aside class="bg-white/[0.03] border border-white/10 rounded-3xl p-4 backdrop-blur-sm h-fit xl:mt-2">
+        <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-4 px-2">Admin Modules</p>
+        <div class="space-y-2">
+          <button type="button" data-section="overview" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 bg-white/10 text-white rounded-xl text-sm font-medium transition-colors">
+            <span class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview</span>
+          </button>
+          <button type="button" data-section="moderation" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
+            <span class="flex items-center gap-3"><i data-lucide="shield" class="w-4 h-4"></i> Moderation</span>
+          </button>
+          <button type="button" data-section="analytics" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
+            <span class="flex items-center gap-3"><i data-lucide="bar-chart-3" class="w-4 h-4"></i> Analytics</span>
+          </button>
+          <button type="button" data-section="payments" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
+            <span class="flex items-center gap-3"><i data-lucide="wallet" class="w-4 h-4"></i> Payments</span>
+          </button>
+          <button type="button" data-section="security" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
+            <span class="flex items-center gap-3"><i data-lucide="shield-alert" class="w-4 h-4"></i> Security</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="min-h-0 overflow-y-auto pr-1 pb-6 xl:pt-2">
+        <div class="mb-8">
+          <h2 class="text-3xl font-extrabold tracking-tight text-white">Platform Monitoring</h2>
+          <p class="text-white/60 mt-1">Real-time analytics, moderation, and payment visibility from one admin console.</p>
+        </div>
+
+        <section id="adminSection-overview" class="admin-section space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="md:col-span-2 bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm relative overflow-hidden flex flex-col justify-center">
+        <div class="absolute -right-4 -top-4 w-32 h-32 bg-green-500/10 blur-3xl rounded-full"></div>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase text-white/60 tracking-wider">Gross Ticket Sales</p>
+            <p id="grossTicketSales" class="text-5xl font-extrabold mt-3 text-green-400">PHP 0.00</p>
+          </div>
+          <i data-lucide="trending-up" class="w-12 h-12 text-green-400/20 hidden sm:block"></i>
+        </div>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-sm flex flex-col justify-between">
+        <div class="flex justify-between items-start">
+            <p class="text-xs font-semibold uppercase text-white/60 tracking-wider">Users</p>
+            <i data-lucide="users" class="w-4 h-4 text-white/30"></i>
+        </div>
+        <p id="totalUsers" class="text-4xl font-extrabold mt-4 text-white">0</p>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-sm flex flex-col justify-between">
+        <div class="flex justify-between items-start">
+            <p class="text-xs font-semibold uppercase text-white/60 tracking-wider">Active Gigs</p>
+            <i data-lucide="music" class="w-4 h-4 text-white/30"></i>
+        </div>
+        <p id="activeGigs" class="text-4xl font-extrabold mt-4 text-white">0</p>
+      </div>
+
+      <div class="md:col-span-2 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-white">Booking Snapshot</h3>
+          <i data-lucide="activity" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div id="overviewBookingSummary" class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+            <p class="text-xs uppercase tracking-widest text-white/40">Status pulse</p>
+            <p class="mt-3 text-sm text-white/65">Loading booking activity...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="md:col-span-2 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-white">Quick Access</h3>
+          <i data-lucide="zap" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <button type="button" data-section-target="moderation" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
+            <p class="text-sm font-semibold text-white">Open Moderation</p>
+            <p class="mt-2 text-xs text-white/45">Review flagged events and manage account access without hunting through the full page.</p>
+          </button>
+          <button type="button" data-section-target="analytics" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
+            <p class="text-sm font-semibold text-white">Open Analytics</p>
+            <p class="mt-2 text-xs text-white/45">See charts for bookings, top events, recent signups, and top-performing talent.</p>
+          </button>
+          <button type="button" data-section-target="payments" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
+            <p class="text-sm font-semibold text-white">Open Payments</p>
+            <p class="mt-2 text-xs text-white/45">Track service fees, talent fees, refunds, and the payment watchlist in one place.</p>
+          </button>
+          <div id="overviewTopEvent" class="rounded-2xl border border-white/10 bg-black/25 p-5">
+            <p class="text-sm font-semibold text-white">Top Event</p>
+            <p class="mt-2 text-xs text-white/45">Loading event sales highlight...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="md:col-span-2 lg:col-span-4 bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center">
+                <i data-lucide="check-circle" class="w-6 h-6 text-white/50"></i>
+            </div>
+            <div>
+                <p class="text-xs font-semibold uppercase text-white/60 tracking-wider">Completed Contracts</p>
+                <p id="completedContracts" class="text-2xl font-extrabold text-white mt-1">0</p>
+            </div>
+        </div>
+        <div class="text-right">
+            <span id="systemHealthBadge" class="text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-2 rounded-full border border-green-500/20">Loading system health...</span>
+        </div>
+      </div>
+          </div>
+        </section>
+
+        <section id="adminSection-moderation" class="admin-section hidden space-y-6 h-full">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0">
+            <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0 max-h-[calc(100vh-14rem)]">
+              <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">Event Moderation</h3>
+                <i data-lucide="calendar" class="text-white/30 w-5 h-5"></i>
+              </div>
+              <div id="eventModerationFilters" class="flex flex-wrap gap-2 mb-4">
+                <button type="button" data-event-filter="All" class="admin-event-filter px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold uppercase tracking-wider">All Events</button>
+                <button type="button" data-event-filter="Upcoming" class="admin-event-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Upcoming</button>
+                <button type="button" data-event-filter="Active" class="admin-event-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Active</button>
+                <button type="button" data-event-filter="Flagged" class="admin-event-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Flagged</button>
+                <button type="button" data-event-filter="Suspended" class="admin-event-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Suspended</button>
+                <button type="button" data-event-filter="Finished" class="admin-event-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Finished</button>
+              </div>
+              <div class="overflow-auto flex-1 min-h-0 pr-2">
+                <table class="w-full text-left text-sm">
+                  <thead class="border-b border-white/10 text-xs font-semibold uppercase text-white/50">
+                    <tr>
+                      <th class="pb-3">Event Title</th>
+                      <th class="pb-3">Organizer</th>
+                      <th class="pb-3">Status</th>
+                      <th class="pb-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="eventModerationTable" class="divide-y divide-white/5 text-white/80 font-medium">
+                    <tr>
+                      <td colspan="4" class="py-6 text-center text-white/50">Loading event moderation...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0 max-h-[calc(100vh-14rem)]">
+              <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">Account Moderation</h3>
+                <i data-lucide="shield" class="text-white/30 w-5 h-5"></i>
+              </div>
+              <div id="accountModerationFilters" class="flex flex-wrap gap-2 mb-4">
+                <button type="button" data-role-filter="All" class="admin-role-filter px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold uppercase tracking-wider">All Roles</button>
+                <button type="button" data-role-filter="Customer" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Customer</button>
+                <button type="button" data-role-filter="Organizer" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Organizer</button>
+                <button type="button" data-role-filter="Artist" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Artist</button>
+                <button type="button" data-role-filter="Sessionist" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Sessionist</button>
+                <button type="button" data-role-filter="PendingApproval" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Pending Approval</button>
+                <button type="button" data-role-filter="Denied" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Denied</button>
+                <button type="button" data-role-filter="Banned" class="admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Banned</button>
+              </div>
+              <div class="overflow-auto flex-1 min-h-0 pr-2">
+                <table class="w-full text-left text-sm">
+                  <thead class="border-b border-white/10 text-xs font-semibold uppercase text-white/50">
+                    <tr>
+                      <th class="pb-3">User/Entity</th>
+                      <th class="pb-3">Role</th>
+                      <th class="pb-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accountModerationTable" class="divide-y divide-white/5 text-white/80 font-medium">
+                    <tr>
+                      <td colspan="3" class="py-6 text-center text-white/50">Loading account moderation...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="adminSection-analytics" class="admin-section hidden space-y-6">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-white">Booking Status Breakdown</h3>
+          <i data-lucide="bar-chart-3" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div class="rounded-2xl border border-white/5 bg-black/30 p-4 mb-6 h-72">
+          <canvas id="bookingStatusChart" class="!w-full !h-full"></canvas>
+        </div>
+        <div id="bookingStatusList" class="space-y-3">
+          <p class="text-sm text-white/50">Loading booking breakdown...</p>
+        </div>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-white">Top Events</h3>
+          <i data-lucide="ticket" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div class="rounded-2xl border border-white/5 bg-black/30 p-4 mb-6 h-72">
+          <canvas id="topEventsChart" class="!w-full !h-full"></canvas>
+        </div>
+        <div id="topEventsList" class="space-y-3">
+          <p class="text-sm text-white/50">Loading top events...</p>
+        </div>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-white">Top Talent</h3>
+          <i data-lucide="mic-2" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div id="topTalentList" class="space-y-3">
+          <p class="text-sm text-white/50">Loading top talent...</p>
+        </div>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-white">Recent Signups</h3>
+          <i data-lucide="user-plus" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div id="recentSignupsList" class="space-y-3">
+          <p class="text-sm text-white/50">Loading recent signups...</p>
+        </div>
+      </div>
+
+          </div>
+        </section>
+
+        <section id="adminSection-payments" class="admin-section hidden space-y-6">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-white">Payment Summary</h3>
+          <i data-lucide="wallet" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div class="rounded-2xl border border-white/5 bg-black/30 p-4 mb-6 h-72">
+          <canvas id="paymentSummaryChart" class="!w-full !h-full"></canvas>
+        </div>
+        <div id="paymentSummaryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <p class="text-sm text-white/50">Loading payment summary...</p>
+        </div>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-bold text-white">Payment Watchlist</h3>
+          <i data-lucide="alert-triangle" class="text-white/30 w-5 h-5"></i>
+        </div>
+        <div id="paymentWatchlist" class="space-y-3">
+          <p class="text-sm text-white/50">Loading payment watchlist...</p>
+        </div>
+      </div>
+          </div>
+        </section>
+
+        <section id="adminSection-security" class="admin-section hidden space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" id="securitySummaryGrid">
+            <div class="bg-white/5 border border-white/10 rounded-3xl p-6"><p class="text-sm text-white/50">Loading security summary...</p></div>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-bold text-white">Recent Security Activity</h3>
+              <i data-lucide="shield-alert" class="text-white/30 w-5 h-5"></i>
+            </div>
+            <div id="securityActivityList" class="space-y-3">
+              <p class="text-sm text-white/50">Loading security activity...</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  
+  <script>lucide.createIcons();</script>
+
+  <script>
+    let adminNotificationInterval = null;
+    let bookingStatusChart = null;
+    let topEventsChart = null;
+    let paymentSummaryChart = null;
+    let adminDashboardData = null;
+    let activeAdminSection = 'overview';
+    let adminEventModerationData = [];
+    let adminAccountModerationData = [];
+    let activeEventModerationFilter = 'All';
+    let activeAccountModerationFilter = 'All';
+    document.addEventListener('DOMContentLoaded', () => {
+      const firstName = localStorage.getItem('userFirstName');
+      const role = localStorage.getItem('userRole');
+      const userId = localStorage.getItem('userId');
+
+      if (!firstName || role !== 'Admin') {
+          window.location.href = '/pages/auth/login.html';
+          return;
+      }
+
+      const nameDisplay = document.getElementById('userNameDisplay');
+      if (nameDisplay) {
+          nameDisplay.innerText = firstName;
+      }
+
+      bindAdminSectionButtons();
+      bindAdminJumpButtons();
+      bindModerationFilters();
+      updateModerationFilterStyles();
+      switchAdminSection('overview');
+      loadAdminDashboard();
+      if (userId) {
+        loadAdminNotifications(userId);
+        adminNotificationInterval = window.setInterval(() => loadAdminNotifications(userId), 30000);
+      }
+    });
+
+    function handleLogout() {
+      if (adminNotificationInterval) window.clearInterval(adminNotificationInterval);
+      localStorage.clear(); 
+      window.location.href = '/pages/auth/login.html';
+    }
+
+    function closeAdminNotificationBell() {
+      document.getElementById('adminNotificationBellDropdown')?.classList.add('hidden');
+    }
+
+    document.getElementById('adminNotificationBellBtn')?.addEventListener('click', () => {
+      document.getElementById('adminNotificationBellDropdown')?.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (event) => {
+      const btn = document.getElementById('adminNotificationBellBtn');
+      const dropdown = document.getElementById('adminNotificationBellDropdown');
+      if (btn && dropdown && !btn.contains(event.target) && !dropdown.contains(event.target)) closeAdminNotificationBell();
+    });
+
+    function formatNotificationTime(value) {
+      if (!value) return 'Just now';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 'Just now' : new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }).format(date);
+    }
+
+    async function loadAdminNotifications(userId) {
+      const badge = document.getElementById('adminNotificationBellBadge');
+      const count = document.getElementById('adminNotificationBellCount');
+      const list = document.getElementById('adminNotificationBellList');
+      if (!badge || !count || !list) return;
+
+      try {
+        const res = await fetch(`/api/notification/user/${userId}`);
+        if (!res.ok) throw new Error('Failed to load notifications.');
+        const notifications = await res.json();
+        const unread = notifications.filter(item => !item.isRead).length;
+        badge.textContent = unread > 99 ? '99+' : String(unread);
+        badge.classList.toggle('hidden', unread === 0);
+        badge.classList.toggle('flex', unread > 0);
+        count.innerText = `${unread} new`;
+
+        if (!notifications.length) {
+          list.innerHTML = `<p class="text-sm text-white/50 p-3">No notifications yet.</p>`;
+          return;
+        }
+
+        const visible = notifications.slice(0, 8);
+        list.innerHTML = visible.map((notification, index) => `
+          <button type="button" data-index="${index}" class="admin-bell-item w-full text-left p-3 bg-black/30 border ${notification.isRead ? 'border-white/5' : 'border-red-500/20'} rounded-xl hover:border-white/20 transition-colors">
+            <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${escapeHtml(notification.title || 'Notification')}</p>
+            <p class="text-xs text-white/55 mt-1">${escapeHtml(notification.message || '')}</p>
+            <p class="text-[10px] text-white/35 mt-3 uppercase tracking-widest">${formatNotificationTime(notification.createdAt)}</p>
+          </button>
+        `).join('');
+
+        list.querySelectorAll('.admin-bell-item').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const notification = visible[Number(button.dataset.index)];
+            if (notification?.id) {
+              await fetch(`/api/notification/${notification.id}/read`, { method: 'POST' }).catch(() => {});
+            }
+            closeAdminNotificationBell();
+            if (notification?.relatedType === 'booking' && notification?.relatedId) {
+              window.location.href = `/pages/bookings/messages.html?bookingId=${notification.relatedId}`;
+            }
+          });
+        });
+      } catch (error) {
+        list.innerHTML = `<p class="text-sm text-red-400 p-3">Failed to load notifications.</p>`;
+      }
+    }
+
+    function formatPeso(value) {
+      const amount = Number(value || 0);
+      return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        minimumFractionDigits: 2
+      }).format(amount);
+    }
+
+    function formatDateTime(value) {
+      if (!value) return 'No date';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 'No date';
+      return new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }).format(date);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getStatusClass(status) {
+      const normalized = String(status || '').toLowerCase();
+      if (normalized === 'flagged') return 'bg-yellow-500/20 text-yellow-400';
+      if (normalized === 'suspended' || normalized === 'cancelled') return 'bg-red-500/20 text-red-400';
+      if (normalized === 'finished' || normalized === 'completed' || normalized === 'confirmed') return 'bg-blue-500/20 text-blue-300';
+      return 'bg-green-500/20 text-green-400';
+    }
+
+    function destroyChartInstance(chart) {
+      if (chart && typeof chart.destroy === 'function') {
+        chart.destroy();
+      }
+    }
+
+    function bindAdminSectionButtons() {
+      document.querySelectorAll('.admin-section-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          const section = button.dataset.section;
+          if (section) switchAdminSection(section);
+        });
+      });
+    }
+
+    function bindAdminJumpButtons() {
+      document.querySelectorAll('.admin-jump-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          const section = button.dataset.sectionTarget;
+          if (section) switchAdminSection(section);
+        });
+      });
+    }
+
+    function bindModerationFilters() {
+      document.querySelectorAll('.admin-role-filter').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeAccountModerationFilter = button.dataset.roleFilter || 'All';
+          updateModerationFilterStyles();
+          applyModerationFilters();
+        });
+      });
+
+      document.querySelectorAll('.admin-event-filter').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeEventModerationFilter = button.dataset.eventFilter || 'All';
+          updateModerationFilterStyles();
+          applyModerationFilters();
+        });
+      });
+    }
+
+    function updateModerationFilterStyles() {
+      document.querySelectorAll('.admin-role-filter').forEach((button) => {
+        const isActive = (button.dataset.roleFilter || 'All') === activeAccountModerationFilter;
+        button.className = isActive
+          ? 'admin-role-filter px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold uppercase tracking-wider'
+          : 'admin-role-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors';
+      });
+
+      document.querySelectorAll('.admin-event-filter').forEach((button) => {
+        const isActive = (button.dataset.eventFilter || 'All') === activeEventModerationFilter;
+        button.className = isActive
+          ? 'admin-event-filter px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold uppercase tracking-wider'
+          : 'admin-event-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors';
+      });
+    }
+
+    function applyModerationFilters() {
+      const filteredEvents = activeEventModerationFilter === 'All'
+        ? adminEventModerationData
+        : adminEventModerationData.filter((event) => String(event.status || '').toLowerCase() === activeEventModerationFilter.toLowerCase());
+
+      const filteredAccounts = adminAccountModerationData.filter((user) => {
+        if (activeAccountModerationFilter === 'All') return true;
+        if (activeAccountModerationFilter === 'Banned') {
+          return !!user.isBanned || /banned/i.test(user.accountStatus || '');
+        }
+        if (activeAccountModerationFilter === 'PendingApproval') {
+          return /pendingapproval/i.test(user.accountStatus || '');
+        }
+        if (activeAccountModerationFilter === 'Denied') {
+          return /denied/i.test(user.accountStatus || '');
+        }
+        return String(user.role || '').toLowerCase() === activeAccountModerationFilter.toLowerCase();
+      });
+
+      renderEventModeration(filteredEvents);
+      renderAccountModeration(filteredAccounts);
+    }
+
+    function switchAdminSection(sectionName) {
+      activeAdminSection = sectionName;
+
+      document.querySelectorAll('.admin-section').forEach((section) => {
+        section.classList.toggle('hidden', section.id !== `adminSection-${sectionName}`);
+      });
+
+      document.querySelectorAll('.admin-section-btn').forEach((button) => {
+        const isActive = button.dataset.section === sectionName;
+        button.className = isActive
+          ? 'admin-section-btn w-full flex items-center justify-between px-3 py-3 bg-white/10 text-white rounded-xl text-sm font-medium transition-colors'
+          : 'admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors';
+      });
+
+      if (!adminDashboardData) return;
+
+      window.requestAnimationFrame(() => {
+        if (sectionName === 'analytics') {
+          renderBookingStatus(Array.isArray(adminDashboardData.bookingStatusCounts) ? adminDashboardData.bookingStatusCounts : []);
+          renderTopEvents(Array.isArray(adminDashboardData.topEvents) ? adminDashboardData.topEvents : []);
+          renderTopTalent(Array.isArray(adminDashboardData.topTalent) ? adminDashboardData.topTalent : []);
+          renderRecentSignups(Array.isArray(adminDashboardData.recentSignups) ? adminDashboardData.recentSignups : []);
+        } else if (sectionName === 'payments') {
+          renderPaymentSummary(adminDashboardData.paymentSummary || {});
+          renderPaymentWatchlist(Array.isArray(adminDashboardData.paymentWatchlist) ? adminDashboardData.paymentWatchlist : []);
+        } else if (sectionName === 'security') {
+          renderSecurityPanel(adminDashboardData.securitySummary || {}, Array.isArray(adminDashboardData.securityActivity) ? adminDashboardData.securityActivity : []);
+        }
+      });
+    }
+
+    async function loadAdminDashboard() {
+      try {
+        const response = await fetch('/api/admin/dashboard');
+        if (!response.ok) throw new Error('Failed to load admin dashboard.');
+
+        const dashboard = await response.json();
+        adminDashboardData = dashboard;
+        document.getElementById('grossTicketSales').innerText = formatPeso(dashboard.grossTicketSales);
+        document.getElementById('totalUsers').innerText = dashboard.totalUsers ?? 0;
+        document.getElementById('activeGigs').innerText = dashboard.activeGigs ?? 0;
+        document.getElementById('completedContracts').innerText = dashboard.completedContracts ?? 0;
+
+        const systemHealthBadge = document.getElementById('systemHealthBadge');
+        const health = dashboard.systemHealth || 'System Running Smoothly';
+        systemHealthBadge.innerText = health;
+        const quiet = /waiting/i.test(health);
+        systemHealthBadge.className = quiet
+          ? 'text-xs font-semibold text-yellow-300 bg-yellow-400/10 px-3 py-2 rounded-full border border-yellow-500/20'
+          : 'text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-2 rounded-full border border-green-500/20';
+
+        adminEventModerationData = Array.isArray(dashboard.eventModeration) ? dashboard.eventModeration : [];
+        adminAccountModerationData = Array.isArray(dashboard.accountModeration) ? dashboard.accountModeration : [];
+        applyModerationFilters();
+        renderOverviewSnapshot(dashboard);
+        switchAdminSection(activeAdminSection);
+      } catch (error) {
+        console.warn('Admin dashboard load failed:', error);
+        document.querySelectorAll('#eventModerationTable').forEach((table) => {
+          table.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-red-400">Failed to load event moderation.</td></tr>';
+        });
+        document.querySelectorAll('#accountModerationTable').forEach((table) => {
+          table.innerHTML = '<tr><td colspan="3" class="py-6 text-center text-red-400">Failed to load account moderation.</td></tr>';
+        });
+        document.getElementById('bookingStatusList').innerHTML = '<p class="text-sm text-red-400">Failed to load booking breakdown.</p>';
+        document.getElementById('topEventsList').innerHTML = '<p class="text-sm text-red-400">Failed to load top events.</p>';
+        document.getElementById('topTalentList').innerHTML = '<p class="text-sm text-red-400">Failed to load top talent.</p>';
+        document.getElementById('recentSignupsList').innerHTML = '<p class="text-sm text-red-400">Failed to load recent signups.</p>';
+        document.getElementById('paymentSummaryGrid').innerHTML = '<p class="text-sm text-red-400">Failed to load payment summary.</p>';
+        document.getElementById('paymentWatchlist').innerHTML = '<p class="text-sm text-red-400">Failed to load payment watchlist.</p>';
+        document.getElementById('securitySummaryGrid').innerHTML = '<p class="text-sm text-red-400">Failed to load security summary.</p>';
+        document.getElementById('securityActivityList').innerHTML = '<p class="text-sm text-red-400">Failed to load security activity.</p>';
+        document.getElementById('overviewBookingSummary').innerHTML = '<div class="rounded-2xl border border-red-500/20 bg-red-500/5 p-4"><p class="text-sm text-red-300">Failed to load overview snapshot.</p></div>';
+        document.getElementById('overviewTopEvent').innerHTML = '<p class="text-sm text-red-300">Failed to load event sales highlight.</p>';
+      }
+    }
+
+    function renderOverviewSnapshot(dashboard) {
+      const container = document.getElementById('overviewBookingSummary');
+      const statusItems = Array.isArray(dashboard.bookingStatusCounts) ? dashboard.bookingStatusCounts.slice(0, 4) : [];
+      if (!statusItems.length) {
+        container.innerHTML = '<div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-sm text-white/55">No booking activity yet.</p></div>';
+      } else {
+        container.innerHTML = statusItems.map((item) => `
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+            <p class="text-xs uppercase tracking-widest text-white/40">${escapeHtml(item.status || 'Unknown')}</p>
+            <p class="mt-3 text-3xl font-bold text-white">${Number(item.count || 0)}</p>
+            <p class="mt-2 text-xs text-white/40">Current booking count in this state.</p>
+          </div>
+        `).join('');
+      }
+
+      const topEventTarget = document.getElementById('overviewTopEvent');
+      const topEvent = Array.isArray(dashboard.topEvents) && dashboard.topEvents.length ? dashboard.topEvents[0] : null;
+      topEventTarget.innerHTML = topEvent ? `
+        <p class="text-sm font-semibold text-white">Top Event</p>
+        <p class="mt-3 text-lg font-bold text-white">${escapeHtml(topEvent.title || 'Untitled Event')}</p>
+        <p class="mt-2 text-sm text-emerald-300">${escapeHtml(formatPeso(topEvent.grossRevenue || 0))}</p>
+        <p class="mt-2 text-xs text-white/45">${Number(topEvent.ticketsSold || 0)} tickets sold • ${escapeHtml(topEvent.status || 'Upcoming')}</p>
+      ` : `
+        <p class="text-sm font-semibold text-white">Top Event</p>
+        <p class="mt-2 text-xs text-white/45">No event sales data yet.</p>
+      `;
+    }
+
+    function renderPaymentSummary(summary) {
+      const container = document.getElementById('paymentSummaryGrid');
+      const cards = [
+        { label: 'Service Fees Paid', value: Number(summary.serviceFeesPaid || 0), tone: 'text-emerald-300', helper: formatPeso(summary.serviceFeeRevenue || 0) },
+        { label: 'Talent Fees Paid', value: Number(summary.talentFeesPaid || 0), tone: 'text-cyan-300', helper: formatPeso(summary.talentFeeCollected || 0) },
+        { label: 'Payments Waiting', value: Number(summary.paymentsWaiting || 0), tone: 'text-amber-300', helper: 'Needs follow-up' },
+        { label: 'Refunds Pending', value: Number(summary.refundsPending || 0), tone: 'text-red-300', helper: 'Watch closely' }
+      ];
+
+      container.innerHTML = cards.map(card => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <p class="text-xs font-semibold uppercase tracking-widest text-white/45">${escapeHtml(card.label)}</p>
+          <p class="mt-3 text-3xl font-bold ${card.tone}">${card.value}</p>
+          <p class="mt-2 text-xs text-white/40">${escapeHtml(card.helper)}</p>
+        </div>
+      `).join('');
+
+      const canvas = document.getElementById('paymentSummaryChart');
+      if (canvas && typeof Chart !== 'undefined') {
+        destroyChartInstance(paymentSummaryChart);
+        paymentSummaryChart = new Chart(canvas.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: cards.map(card => card.label),
+            datasets: [{
+              data: cards.map(card => card.value),
+              backgroundColor: ['rgba(110, 231, 183, 0.9)', 'rgba(103, 232, 249, 0.9)', 'rgba(252, 211, 77, 0.9)', 'rgba(248, 113, 113, 0.9)'],
+              borderColor: 'rgba(10,10,10,0.85)',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: 'rgba(255,255,255,0.7)' } }
+            }
+          }
+        });
+      } else if (canvas) {
+        container.insertAdjacentHTML('beforeend', '<p class="text-xs text-red-300 sm:col-span-2">Chart library is unavailable right now.</p>');
+      }
+    }
+
+    function renderPaymentWatchlist(items) {
+      const container = document.getElementById('paymentWatchlist');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No payment issues to monitor right now.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <p class="font-semibold text-white">${escapeHtml(item.eventTitle || 'Untitled Booking')}</p>
+              <p class="text-xs text-white/45 mt-1">${escapeHtml(item.customerName || 'Unknown Customer')} to ${escapeHtml(item.talentName || 'Unknown Talent')}</p>
+            </div>
+            <span class="text-xs uppercase tracking-widest ${/refund/i.test(item.paymentStatus || '') ? 'text-red-300' : 'text-amber-300'}">${escapeHtml(item.paymentStatus || 'Unpaid')}</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 text-xs">
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Service Fee</p>
+              <p class="mt-1 text-white">${escapeHtml(item.serviceFeeStatus || 'Unpaid')} • ${escapeHtml(formatPeso(item.bookingFee || 0))}</p>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Talent Fee</p>
+              <p class="mt-1 text-white">${escapeHtml(item.talentFeeStatus || 'Unpaid')} • ${escapeHtml(formatPeso(item.budget || 0))}</p>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Created</p>
+              <p class="mt-1 text-white">${escapeHtml(formatDateTime(item.createdAt))}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderBookingStatus(items) {
+      const container = document.getElementById('bookingStatusList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No bookings yet.</p>';
+        destroyChartInstance(bookingStatusChart);
+        bookingStatusChart = null;
+        return;
+      }
+
+      const max = Math.max(...items.map(item => Number(item.count || 0)), 1);
+      container.innerHTML = items.map(item => {
+        const count = Number(item.count || 0);
+        const width = Math.max(10, Math.round((count / max) * 100));
+        return `
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-white/80">${escapeHtml(item.status || 'Unknown')}</span>
+              <span class="text-white font-semibold">${count}</span>
+            </div>
+            <div class="h-2 rounded-full bg-black/40 overflow-hidden">
+              <div class="h-full rounded-full bg-red-500/80" style="width:${width}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const canvas = document.getElementById('bookingStatusChart');
+      if (canvas && typeof Chart !== 'undefined') {
+        destroyChartInstance(bookingStatusChart);
+        bookingStatusChart = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: items.map(item => item.status || 'Unknown'),
+            datasets: [{
+              label: 'Bookings',
+              data: items.map(item => Number(item.count || 0)),
+              backgroundColor: 'rgba(239, 68, 68, 0.78)',
+              borderRadius: 10
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+              y: { beginAtZero: true, ticks: { color: 'rgba(255,255,255,0.72)', precision: 0 }, grid: { color: 'rgba(255,255,255,0.06)' } }
+            }
+          }
+        });
+      } else if (canvas) {
+        container.insertAdjacentHTML('beforeend', '<p class="text-xs text-red-300">Chart library is unavailable right now.</p>');
+      }
+    }
+
+    function renderTopEvents(items) {
+      const container = document.getElementById('topEventsList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No event sales yet.</p>';
+        destroyChartInstance(topEventsChart);
+        topEventsChart = null;
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl flex items-center justify-between gap-4">
+          <div>
+            <p class="font-semibold text-white">${escapeHtml(item.title)}</p>
+            <p class="text-xs text-white/40 mt-1">${Number(item.ticketsSold || 0)} tickets sold • ${escapeHtml(item.status || 'Upcoming')}</p>
+          </div>
+          <span class="text-sm font-bold text-emerald-400">${escapeHtml(formatPeso(item.grossRevenue || 0))}</span>
+        </div>
+      `).join('');
+
+      const canvas = document.getElementById('topEventsChart');
+      if (canvas && typeof Chart !== 'undefined') {
+        destroyChartInstance(topEventsChart);
+        topEventsChart = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: items.map(item => item.title || 'Untitled'),
+            datasets: [{
+              label: 'Revenue',
+              data: items.map(item => Number(item.grossRevenue || 0)),
+              backgroundColor: 'rgba(52, 211, 153, 0.78)',
+              borderRadius: 10
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+              y: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { display: false } }
+            }
+          }
+        });
+      } else if (canvas) {
+        container.insertAdjacentHTML('beforeend', '<p class="text-xs text-red-300">Chart library is unavailable right now.</p>');
+      }
+    }
+
+    function renderTopTalent(items) {
+      const container = document.getElementById('topTalentList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No confirmed talent bookings yet.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl flex items-center justify-between gap-4">
+          <div>
+            <p class="font-semibold text-white">${escapeHtml(item.displayName)}</p>
+            <p class="text-xs text-white/40 mt-1">${escapeHtml(item.role || 'Talent')}</p>
+          </div>
+          <span class="text-sm font-bold text-white">${Number(item.bookingCount || 0)} bookings</span>
+        </div>
+      `).join('');
+    }
+
+    function renderRecentSignups(items) {
+      const container = document.getElementById('recentSignupsList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No recent signups yet.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <p class="font-semibold text-white">${escapeHtml(item.displayName)}</p>
+              <p class="text-xs text-white/40 mt-1">${escapeHtml(item.role || 'User')} • ${escapeHtml(item.email || 'No email')}</p>
+            </div>
+            <span class="text-xs text-white/50">${escapeHtml(formatDateTime(item.createdAt))}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSecurityPanel(summary, activity) {
+      const summaryGrid = document.getElementById('securitySummaryGrid');
+      const cards = [
+        { label: 'Failed Logins (24h)', value: Number(summary.failedLogins24h || 0), tone: 'text-amber-300', helper: 'Repeated invalid sign-in attempts' },
+        { label: 'Lockouts (24h)', value: Number(summary.lockouts24h || 0), tone: 'text-red-300', helper: 'Accounts/IPs temporarily blocked' },
+        { label: 'OTP Blocks (24h)', value: Number(summary.otpBlocks24h || 0), tone: 'text-cyan-300', helper: 'Cooldown or abuse throttles triggered' },
+        { label: 'Reports Filed (24h)', value: Number(summary.reports24h || 0), tone: 'text-white', helper: 'New moderation reports submitted' }
+      ];
+
+      summaryGrid.innerHTML = cards.map(card => `
+        <div class="bg-white/5 border border-white/10 rounded-3xl p-6">
+          <p class="text-xs font-semibold uppercase tracking-widest text-white/45">${escapeHtml(card.label)}</p>
+          <p class="mt-3 text-4xl font-extrabold ${card.tone}">${card.value}</p>
+          <p class="mt-2 text-xs text-white/40">${escapeHtml(card.helper)}</p>
+        </div>
+      `).join('');
+
+      const list = document.getElementById('securityActivityList');
+      if (!activity.length) {
+        list.innerHTML = '<p class="text-sm text-white/50">No recent security activity yet.</p>';
+        return;
+      }
+
+      list.innerHTML = activity.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <p class="font-semibold text-white">${escapeHtml((item.actionType || 'security_event').replaceAll('_', ' '))}</p>
+              <p class="text-xs text-white/45 mt-1">${escapeHtml(item.actorRole || 'System')} â€¢ ${escapeHtml(item.targetType || 'general')}</p>
+              <p class="text-sm text-white/70 mt-3">${escapeHtml(item.details || 'No details recorded.')}</p>
+            </div>
+            <span class="text-xs text-white/45 whitespace-nowrap">${escapeHtml(formatDateTime(item.createdAt))}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderEventModeration(events) {
+      const table = document.getElementById('eventModerationTable');
+      if (!events.length) {
+        table.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-white/50">No events to moderate yet.</td></tr>';
+        return;
+      }
+
+      table.innerHTML = events.map(event => {
+        const status = escapeHtml(event.status || 'Upcoming');
+        const nextAction = /flagged/i.test(status) ? 'Suspend' : 'Flag';
+        return `
+          <tr>
+            <td class="py-4">
+              <p class="text-white">${escapeHtml(event.title)}</p>
+              <p class="text-xs text-white/40 mt-1">${escapeHtml(formatDateTime(event.eventTime))}</p>
+            </td>
+            <td class="py-4">
+              <p>${escapeHtml(event.organizer)}</p>
+              <p class="text-xs text-white/40 mt-1">${Number(event.ticketsSold || 0)} tickets • ${escapeHtml(formatPeso(event.grossRevenue || 0))}</p>
+            </td>
+            <td class="py-4"><span class="px-2 py-1 text-[10px] uppercase rounded ${getStatusClass(status)}">${status}</span></td>
+            <td class="py-4 text-right">
+              <button data-event-id="${escapeHtml(event.eventId)}" data-next-status="${nextAction === 'Suspend' ? 'Suspended' : 'Flagged'}" class="admin-event-action text-xs text-red-400 hover:text-red-300 uppercase font-bold transition-colors">${nextAction}</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      bindEventActions();
+    }
+
+    function renderAccountModeration(users) {
+      const table = document.getElementById('accountModerationTable');
+      if (!users.length) {
+        table.innerHTML = '<tr><td colspan="3" class="py-6 text-center text-white/50">No accounts found.</td></tr>';
+        return;
+      }
+
+      table.innerHTML = users.map(user => {
+        const picture = user.profilePicture ? `<img src="${escapeHtml(user.profilePicture)}" class="w-8 h-8 rounded-full object-cover">` : '<div class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center"><i data-lucide="user" class="w-4 h-4 text-white/50"></i></div>';
+        const availability = /artist|sessionist/i.test(user.role || '')
+          ? `<p class="text-xs text-white/40 mt-1">${user.isAvailable ? 'Available' : 'Not Available'}</p>`
+          : `<p class="text-xs text-white/40 mt-1">${escapeHtml(formatDateTime(user.createdAt))}</p>`;
+        const banned = !!user.isBanned || /banned/i.test(user.accountStatus || '');
+        const denied = /denied/i.test(user.accountStatus || '');
+        const pendingApproval = /pendingapproval/i.test(user.accountStatus || '');
+        const statusText = banned ? 'Banned' : (user.accountStatus || 'Active');
+        const actionButtons = [];
+
+        if (/organizer/i.test(user.role || '') && pendingApproval) {
+          actionButtons.push(`<button data-user-id="${escapeHtml(user.userId)}" data-action="approve" class="admin-user-action text-xs uppercase font-bold transition-colors text-emerald-400 hover:text-emerald-300">Approve</button>`);
+          actionButtons.push(`<button data-user-id="${escapeHtml(user.userId)}" data-action="deny" class="admin-user-action text-xs uppercase font-bold transition-colors text-amber-300 hover:text-amber-200">Deny</button>`);
+        } else if (/organizer/i.test(user.role || '') && denied) {
+          actionButtons.push(`<button data-user-id="${escapeHtml(user.userId)}" data-action="approve" class="admin-user-action text-xs uppercase font-bold transition-colors text-emerald-400 hover:text-emerald-300">Approve</button>`);
+        } else {
+          actionButtons.push(`<button data-user-id="${escapeHtml(user.userId)}" data-action="${banned ? 'unban' : 'ban'}" class="admin-user-action text-xs uppercase font-bold transition-colors ${banned ? 'text-emerald-400 hover:text-emerald-300' : 'text-red-400 hover:text-red-300'}">${banned ? 'Unban' : 'Ban'}</button>`);
+        }
+
+        const statusTone = banned
+          ? 'text-red-400'
+          : pendingApproval
+            ? 'text-amber-300'
+            : denied
+              ? 'text-orange-300'
+              : 'text-white/30';
+
+        return `
+          <tr>
+            <td class="py-4">
+              <div class="flex items-center gap-3">
+                ${picture}
+                <div>
+                  <span class="text-white">${escapeHtml(user.displayName)}</span>
+                  ${availability}
+                  <p class="text-[11px] uppercase tracking-wide mt-1 ${statusTone}">${escapeHtml(statusText)}</p>
+                </div>
+              </div>
+            </td>
+            <td class="py-4">${escapeHtml(user.role || 'User')}</td>
+            <td class="py-4 text-right">
+              <div class="flex flex-col items-end gap-2">
+                <span class="text-xs text-white/60 uppercase">${escapeHtml(user.email || 'No email')}</span>
+                <div class="flex items-center gap-3">${actionButtons.join('')}</div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+      bindUserActions();
+    }
+
+    function bindEventActions() {
+      document.querySelectorAll('.admin-event-action').forEach(button => {
+        button.addEventListener('click', async () => {
+          const eventId = button.dataset.eventId;
+          const nextStatus = button.dataset.nextStatus;
+          if (!eventId || !nextStatus) return;
+
+          const originalText = button.innerText;
+          button.disabled = true;
+          button.innerText = 'Saving...';
+
+          try {
+            const response = await fetch(`/api/admin/events/${eventId}/status`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: nextStatus })
+            });
+
+            if (!response.ok) throw new Error('Failed to update event status.');
+            await loadAdminDashboard();
+          } catch (error) {
+            console.warn('Event moderation update failed:', error);
+            button.disabled = false;
+            button.innerText = originalText;
+          }
+        });
+      });
+    }
+
+    function bindUserActions() {
+      document.querySelectorAll('.admin-user-action').forEach(button => {
+        button.addEventListener('click', async () => {
+          const userId = button.dataset.userId;
+          const action = button.dataset.action;
+          if (!userId || !action) return;
+
+          const originalText = button.innerText;
+          button.disabled = true;
+          button.innerText = 'Saving...';
+
+          try {
+            const response = await fetch(`/api/admin/users/${userId}/moderation`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action })
+            });
+
+            if (!response.ok) throw new Error('Failed to update user moderation.');
+            await loadAdminDashboard();
+          } catch (error) {
+            console.warn('User moderation update failed:', error);
+            button.disabled = false;
+            button.innerText = originalText;
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>

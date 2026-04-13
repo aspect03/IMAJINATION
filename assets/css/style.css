@@ -1,0 +1,181 @@
+/* =========================================================
+   IMAJINATION GLOBAL STYLES (style.css)
+   ========================================================= */
+
+/* 1. Import Global Font */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+/* 2. Base Body Styles (Removes the need for inline style="..." on the body tag) */
+body {
+  font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #0a0a0a; /* Neutral 950 */
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 3. Custom Text Selection (Red Highlight) */
+::selection {
+  background-color: rgba(239, 68, 68, 0.3); /* Red-500 at 30% */
+  color: #ffffff;
+}
+
+/* =========================================================
+   GLOBAL BACKGROUNDS 
+   ========================================================= */
+
+/* Use this for Public Pages (Landing, Login, Events, Artists, Signups) */
+.bg-global-backdrop {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(60% 55% at 50% 25%, rgba(239, 68, 68, 0.18), transparent 60%),
+    radial-gradient(55% 45% at 30% 10%, rgba(255, 255, 255, 0.05), transparent 55%),
+    radial-gradient(55% 45% at 80% 20%, rgba(255, 255, 255, 0.04), transparent 55%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 1));
+}
+
+/* Use this for the Dashboards (A slightly cleaner, darker backdrop) */
+.bg-dashboard-backdrop {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(40% 50% at 50% 0%, rgba(239, 68, 68, 0.08), transparent 100%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 1));
+}
+
+/* =========================================================
+   CUSTOM ANIMATIONS (For QR Scanners)
+   ========================================================= */
+
+@keyframes scan {
+  0%, 100% { top: 0; }
+  50% { top: 100%; }
+}
+
+@keyframes scanline {
+  0%, 100% { top: 0%; }
+  50% { top: 100%; }
+}
+
+/* =========================================================
+   CUSTOM DARK SCROLLBAR
+   ========================================================= */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #dc2626; /* Imajination Red hover */
+}
+
+/* =========================================================
+   MOBILE DASHBOARD LAYOUT
+   ========================================================= */
+
+.mobile-screen {
+  min-height: 100vh;
+}
+
+@media (max-width: 767px) {
+  .mobile-screen {
+    height: auto !important;
+    overflow: auto !important;
+  }
+
+  .mobile-dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    overflow: visible !important;
+  }
+
+  .mobile-dashboard-sidebar {
+    width: 100% !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .mobile-dashboard-sidebar nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 1rem;
+  }
+
+  .mobile-dashboard-sidebar nav a,
+  .mobile-dashboard-sidebar nav button {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  .mobile-dashboard-main {
+    overflow: visible !important;
+    padding: 1rem !important;
+  }
+
+  .mobile-dashboard-main > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .mobile-stack-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .mobile-stack-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-form-card {
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .mobile-form-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  .mobile-avatar {
+    width: 5rem !important;
+    height: 5rem !important;
+  }
+
+  .mobile-modal-card {
+    max-height: 92vh !important;
+    border-radius: 1.5rem !important;
+  }
+
+  .mobile-modal-body {
+    padding: 1rem !important;
+  }
+
+  .mobile-modal-header,
+  .mobile-modal-footer {
+    padding: 1rem !important;
+  }
+}

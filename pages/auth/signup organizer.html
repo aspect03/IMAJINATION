@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Organizer Registration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+</head>
+<body class="bg-neutral-950 text-white antialiased" style="font-family: 'Montserrat', sans-serif;">
+  
+  <div class="bg-global-backdrop"></div>
+
+  <nav class="relative z-10 w-full h-16 flex items-center justify-between px-6 border-b border-white/10 bg-black/30 backdrop-blur-md">
+    <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+      <div class="h-9 w-32 sm:h-10 sm:w-36 flex items-center">
+        <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left drop-shadow-[0_8px_24px_rgba(239,68,68,0.18)]" onerror="this.style.display='none'">
+      </div>
+    </a>
+    <a href="/pages/auth/signuproles.html" class="text-xs font-semibold text-white/70 uppercase tracking-[0.14em] hover:text-white transition-colors">Back to Roles</a>
+  </nav>
+
+  <main class="relative z-10 max-w-6xl mx-auto px-6 py-8 md:py-10">
+    <div class="grid gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] items-start">
+      <aside class="rounded-[2rem] border border-white/10 bg-black/20 backdrop-blur-sm p-6 md:p-7 overflow-hidden relative lg:sticky lg:top-24">
+        <div class="absolute inset-0 bg-[radial-gradient(60%_50%_at_68%_20%,rgba(239,68,68,0.16),rgba(0,0,0,0)_75%)]"></div>
+        <div class="relative z-10">
+          <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-red-400/80 mb-3">Organizer Signup</p>
+          <h1 class="text-3xl font-extrabold tracking-tight text-white">Set up your event management account.</h1>
+          <p class="mt-3 text-sm leading-relaxed text-white/70">
+            Register your production identity, then move into event creation, ticket sales, lineup control, and reporting.
+          </p>
+          <div class="mt-6 space-y-3">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="text-[10px] uppercase tracking-[0.18em] text-white/45">Built for hosts</p>
+              <p class="mt-2 text-sm text-white/75">Create events, monitor attendees, manage lineups, and track payments from a single organizer dashboard.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p class="text-[10px] uppercase tracking-[0.18em] text-white/45">Verification flow</p>
+              <p class="mt-2 text-sm text-white/75">Use your official production details. After email verification, organizer accounts still go through admin approval before sign in is enabled.</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="bg-white/5 rounded-3xl border border-white/10 p-8 md:p-12 backdrop-blur-sm shadow-2xl">
+      <div class="mb-8 border-b border-white/10 pb-6 flex items-center gap-4">
+        <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+          <i data-lucide="building-2" class="h-6 w-6 text-red-500"></i>
+        </div>
+        <div>
+          <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Organizer Registration</h2>
+          <p class="text-sm text-white/60 mt-1">ISO 25010 Compliant Security & Verification.</p>
+        </div>
+      </div>
+
+      <form id="registerForm" class="space-y-6">
+        <div class="p-5 bg-black/20 rounded-2xl border border-white/5 mb-6">
+          <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] mb-2">Production / Organization Name *</label>
+          <input type="text" id="productionName" placeholder="e.g. Metro Nights Production" required class="w-full px-4 py-3 bg-red-600/10 border border-red-500/30 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none text-white">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] mb-3">Representative Full Name</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <input type="text" id="firstName" placeholder="First Name *" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            <input type="text" id="middleName" placeholder="Middle Name" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            <input type="text" id="lastName" placeholder="Last Name *" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            <input type="text" id="suffix" placeholder="Suffix" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Username *</label>
+            <input type="text" id="username" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+          </div>
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Business Email *</label>
+            <input type="email" id="email" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Contact Number *</label>
+            <div class="flex">
+              <span class="inline-flex items-center px-4 bg-black/60 border border-r-0 border-white/10 rounded-l-xl text-sm text-white/60 font-semibold">
+                +63
+              </span>
+              <input type="tel" id="contactNumber" placeholder="9123456789" pattern="[0-9]{10}" title="Enter 10 digits after +63" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-r-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Business Address *</label>
+            <input type="text" id="address" placeholder="Street, Barangay, City" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-red-950/20 border border-red-500/20 rounded-2xl">
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Secure Password *</label>
+            <input type="password" id="password" required 
+                   pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}" 
+                   title="Must contain at least 8 characters, including ONE uppercase, ONE lowercase, ONE number, and ONE special character."
+                   placeholder="Create a strong password"
+                   class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <p class="text-[10px] text-red-300 mt-1">Requires: 8+ chars, 1 Uppercase, 1 Number, 1 Special Char (!@#$%).</p>
+          </div>
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Confirm Password *</label>
+            <input type="password" id="confirmPassword" required placeholder="Repeat your password" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
+            <p id="passwordMatchText" class="text-[10px] text-white/50 mt-1 hidden">Passwords do not match.</p>
+          </div>
+        </div>
+
+        <input type="date" id="bday" value="1990-01-01" class="hidden">
+        <input type="number" id="age" value="30" class="hidden">
+
+        <div class="pt-4 border-t border-white/10">
+          <div class="flex items-start gap-3 mb-6">
+            <input type="checkbox" required class="mt-1 w-4 h-4 accent-red-600 rounded bg-black/40 border-white/10">
+            <label class="text-sm text-white/60">I agree to the <a href="#" class="text-red-400 hover:text-red-300 underline">Terms and Conditions</a>.</label>
+          </div>
+          <button type="button" id="initiateBtn" class="w-full py-4 bg-red-600 text-white text-sm font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+            Verify Email & Create Account
+          </button>
+        </div>
+      </form>
+      </div>
+    </div>
+  </main>
+
+  <div id="otpModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+    <div class="bg-neutral-900 border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center relative">
+      <button id="closeModal" class="absolute top-4 right-4 text-white/50 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <div class="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="mail" class="w-8 h-8 text-red-500"></i>
+      </div>
+      <h3 class="text-xl font-bold mb-2">Check your Email</h3>
+      <p class="text-xs text-white/60 mb-6">We sent a 6-digit code to <span id="displayEmail" class="text-white font-semibold">your email</span>.</p>
+      
+      <input type="text" id="otpInput" placeholder="Enter 6-digit code" maxlength="6" class="w-full px-4 py-3 bg-black text-center tracking-[0.5em] font-mono border border-white/20 rounded-xl text-lg focus:ring-2 focus:ring-red-500 outline-none mb-4">
+      
+      <button id="confirmOtpBtn" class="w-full py-3 bg-white text-black text-sm font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-neutral-200 transition-colors">
+        Confirm & Register
+      </button>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const pendingGoogleSignup = sessionStorage.getItem('pendingGoogleSignup');
+    const fromGoogleSignup = new URLSearchParams(window.location.search).get('from') === 'google';
+
+    if (pendingGoogleSignup && fromGoogleSignup) {
+      try {
+        const googleProfile = JSON.parse(pendingGoogleSignup);
+        document.getElementById('email').value = googleProfile.email || '';
+        document.getElementById('firstName').value = googleProfile.firstName || '';
+        document.getElementById('lastName').value = googleProfile.lastName || '';
+        if (googleProfile.suggestedUsername) {
+          document.getElementById('username').value = googleProfile.suggestedUsername;
+        }
+      } catch (_) {
+      }
+    }
+
+    // Password matching logic
+    const pass = document.getElementById('password');
+    const confirmPass = document.getElementById('confirmPassword');
+    const matchText = document.getElementById('passwordMatchText');
+
+    confirmPass.addEventListener('input', () => {
+      if(confirmPass.value !== pass.value) {
+        matchText.classList.remove('hidden');
+        matchText.classList.replace('text-white/50', 'text-red-500');
+      } else {
+        matchText.classList.add('hidden');
+      }
+    });
+
+    // 1. Initiate OTP Email
+    document.getElementById('initiateBtn').addEventListener('click', async () => {
+      const form = document.getElementById('registerForm');
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+      if (pass.value !== confirmPass.value) { alert("Passwords do not match!"); return; }
+
+      const email = document.getElementById('email').value;
+      const btn = document.getElementById('initiateBtn');
+      
+      btn.innerText = "Sending Code...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+
+        if (response.ok) {
+          document.getElementById('displayEmail').innerText = email;
+          document.getElementById('otpModal').classList.remove('hidden');
+        } else {
+          const data = await response.json();
+          alert("Server Error: " + data.message);
+        }
+      } catch (error) {
+        alert("Failed to connect to the C# server. Is it running?");
+      } finally {
+        btn.innerText = "Verify Email & Create Account";
+        btn.disabled = false;
+      }
+    });
+
+    // Close Modal
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('otpModal').classList.add('hidden');
+    });
+
+    // 2. Final Registration Submission
+    document.getElementById('confirmOtpBtn').addEventListener('click', async () => {
+      const otpCode = document.getElementById('otpInput').value;
+      if(otpCode.length !== 6) { alert("Please enter a valid 6-digit code."); return; }
+      
+      const payload = {
+        role: "Organizer",
+        productionName: document.getElementById('productionName').value,
+        firstName: document.getElementById('firstName').value,
+        middleName: document.getElementById('middleName').value,
+        lastName: document.getElementById('lastName').value,
+        suffix: document.getElementById('suffix').value,
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        contactNumber: "+63" + document.getElementById('contactNumber').value, // Add +63 prefix
+        password: document.getElementById('password').value,
+        address: document.getElementById('address').value,
+        birthday: document.getElementById('bday').value,
+        age: parseInt(document.getElementById('age').value),
+        otp: otpCode 
+      };
+
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          alert(data.message || "Organizer registration submitted. Please wait for admin approval before logging in.");
+          window.location.href = '/pages/auth/login.html';
+        } else {
+          alert(data.message || "Registration failed."); 
+        }
+      } catch (error) {
+        alert("Failed to connect to the server.");
+      }
+    });
+  </script>
+</body>
+</html>

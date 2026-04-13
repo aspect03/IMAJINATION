@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imajination - Customer Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <style>
+    @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    
+    /* Thermal Receipt Styling */
+    .receipt-paper {
+      background: #fdfdfd; color: #111; font-family: 'Courier New', Courier, monospace;
+      border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .receipt-paper::before {
+      content: ""; position: absolute; top: -10px; left: 0; right: 0; height: 10px;
+      background: radial-gradient(circle at 10px 0, transparent 10px, #fdfdfd 11px) repeat-x;
+      background-size: 20px 10px;
+    }
+    
+    /* Dropdown Transitions */
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  </style>
+</head>
+<body class="mobile-screen bg-neutral-950 text-white antialiased min-h-screen flex flex-col" style="font-family: 'Montserrat', sans-serif;">
+  
+  <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
+
+  <nav class="relative z-50 w-full flex-shrink-0">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+    <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      
+      <a href="/" class="flex items-center group">
+        <div class="h-8 w-28 sm:w-32 flex items-center">
+          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+        </div>
+      </a>
+
+      <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+        <a href="/" class="hover:text-white transition-colors">Home</a>
+        <a href="/pages/browse/Events.html" class="hover:text-white transition-colors">Events</a>
+        <a href="/pages/browse/Artists.html" class="hover:text-white transition-colors">Artists</a>
+        <a href="/pages/browse/Sessionists.html" class="hover:text-white transition-colors">Sessionists</a>
+      </div>
+
+      <div class="flex items-center gap-3 relative">
+        <div class="relative">
+          <button id="notificationBellBtn" type="button" class="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+            <i data-lucide="bell" class="w-4 h-4"></i>
+            <span id="notificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+          </button>
+          <div id="notificationBellDropdown" class="hidden absolute right-0 mt-3 w-80 bg-[#1a1515] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-md">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+              <p class="text-sm font-bold text-white">Notifications</p>
+              <span id="notificationBellDropdownCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+            </div>
+            <div id="notificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+              <p class="text-sm text-white/50 p-3">Loading notifications...</p>
+            </div>
+          </div>
+        </div>
+        <div id="authLoggedIn" class="relative">
+          <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden cursor-pointer">
+            <span id="profileInitial">C</span>
+            <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+          </button>
+
+          <div id="profileDropdown" class="absolute right-0 mt-3 w-56 bg-[#1a1515] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 backdrop-blur-md">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+              <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+              <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">CUSTOMER</p>
+            </div>
+            <div class="p-2 flex flex-col gap-1">
+              <button onclick="switchTab('dashboard')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+              </button>
+              <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                <i data-lucide="settings" class="w-4 h-4"></i> Settings
+              </button>
+            </div>
+            <div class="p-2 border-t border-white/10">
+              <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </nav>
+
+  <div class="mobile-dashboard-shell relative z-10 flex-1 flex flex-col md:flex-row overflow-hidden">
+    <aside class="mobile-dashboard-sidebar w-full md:w-64 flex-shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-white/[0.02] flex flex-col backdrop-blur-md">
+      <div class="p-6 flex items-center gap-3 border-b border-white/10">
+        <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/10"><i data-lucide="user-round" class="w-4 h-4 text-white"></i></div>
+        <div>
+          <p id="sidebarName" class="font-bold text-sm leading-tight">Customer</p>
+          <p class="text-[10px] text-white/50 uppercase tracking-widest">Ticket Holder</p>
+        </div>
+      </div>
+      <nav class="flex md:flex-col flex-nowrap md:flex-1 gap-2 md:gap-1 px-4 py-4 md:py-6 overflow-x-auto md:overflow-y-auto">
+        <button type="button" data-view="dashboard" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 bg-white/10 text-white rounded-lg text-sm font-medium">
+          <span class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+        </button>
+        <button type="button" data-view="tickets" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="ticket" class="w-4 h-4"></i> My Tickets</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+        </button>
+        <button type="button" data-view="bookings" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="messages-square" class="w-4 h-4"></i> Bookings</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+        </button>
+        <button type="button" data-view="settings" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="settings" class="w-4 h-4"></i> Settings</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+        </button>
+      </nav>
+      <div class="p-4 border-t border-white/10">
+        <div class="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+          <p class="text-xs font-semibold text-blue-300 flex items-center gap-1.5"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Customer mode</p>
+          <p class="text-[10px] text-white/60 mt-1 leading-tight">Track tickets, booking requests, and profile details from one place.</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="mobile-dashboard-main flex-1 overflow-y-auto">
+      <div class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
+        <header class="mobile-stack-header flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Customer Portal</p>
+            <h1 id="pageTitle" class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+              Welcome, <span id="userNameDisplay" class="text-white">Guest</span>
+            </h1>
+            <p id="pageSubtitle" class="text-sm text-white/60 mt-1">Manage your tickets and track your upcoming gigs.</p>
+          </div>
+          <div class="mobile-stack-actions flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            <a href="/pages/browse/Events.html" class="px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-red-500 transition-colors shadow-lg">
+              <i data-lucide="search" class="w-4 h-4"></i> Find events
+            </a>
+            <button type="button" onclick="setActiveView('settings')" class="px-5 py-2.5 bg-white/5 border border-white/10 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
+              <i data-lucide="user-cog" class="w-4 h-4"></i> Edit profile
+            </button>
+          </div>
+        </header>
+
+        <section id="view-dashboard" data-view-panel="dashboard" class="customer-view space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Active Tickets</p>
+          <div class="flex justify-between items-end">
+            <span class="text-4xl font-extrabold text-red-500" id="activeTicketsCount">0</span>
+            <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center"><i data-lucide="ticket" class="w-5 h-5 text-red-500"></i></div>
+          </div>
+        </div>
+        <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Saved Events</p>
+          <div class="flex justify-between items-end">
+            <span class="text-4xl font-extrabold text-white">5</span>
+            <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5 text-white/70"></i></div>
+          </div>
+        </div>
+        <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Notifications</p>
+          <div class="flex justify-between items-end">
+            <span id="customerNotificationCount" class="text-4xl font-extrabold text-blue-400">0</span>
+            <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"><i data-lucide="bell" class="w-5 h-5 text-blue-400"></i></div>
+          </div>
+        </div>
+        <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Profile Setup</p>
+          <div class="flex justify-between items-end">
+            <span id="customerProfileCompletionPercent" class="text-4xl font-extrabold text-emerald-400">0%</span>
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center"><i data-lucide="user-check" class="w-5 h-5 text-emerald-400"></i></div>
+          </div>
+          <p id="customerProfileCompletionLabel" class="text-[10px] text-white/40 mt-3 uppercase tracking-wider">Profile loading</p>
+        </div>
+      </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+          
+              <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div>
+                  <h2 class="text-sm font-bold uppercase tracking-widest text-white">Recent Ticket Activity</h2>
+                  <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">A quick look at your latest passes and event access.</p>
+                </div>
+                <button type="button" onclick="setActiveView('tickets')" class="text-xs font-semibold text-red-400 hover:text-red-300 uppercase tracking-widest">Open tickets</button>
+              </div>
+          
+              <div id="dashboardTicketsPreview" class="grid grid-cols-1 gap-4">
+                <p class="text-white/50 text-sm">Loading tickets...</p>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+                <div class="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-white">Booking Requests</h2>
+                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Track inquiries and continue the conversation</p>
+                  </div>
+                  <button type="button" onclick="setActiveView('bookings')" class="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors">View all</button>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-5">
+                  <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Pending</p>
+                    <p id="customerBookingPendingCount" class="text-2xl font-bold text-white mt-1">0</p>
+                  </div>
+                  <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Confirmed</p>
+                    <p id="customerBookingAcceptedCount" class="text-2xl font-bold text-white mt-1">0</p>
+                  </div>
+                </div>
+                <div id="dashboardBookingsPreview" class="space-y-3">
+                  <p class="text-sm text-white/50">Loading booking requests...</p>
+                </div>
+              </div>
+              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+                <h2 class="text-sm font-bold uppercase tracking-widest text-white mb-6">Quick actions</h2>
+                <div class="space-y-3">
+                  <button onclick="setActiveView('settings')" class="w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
+                    <p class="font-semibold text-sm text-white">Edit Profile & Settings</p>
+                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Update your picture and bio.</p>
+                  </button>
+                  <a href="/pages/browse/Events.html" class="block w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
+                    <p class="font-semibold text-sm text-white">Find events</p>
+                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Search gigs by date, genre, and location.</p>
+                  </a>
+                  <a href="/pages/browse/Artists.html" class="block w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
+                    <p class="font-semibold text-sm text-white">Explore artists</p>
+                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Follow artists you like and get updates.</p>
+                  </a>
+                </div>
+              </div>
+              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+                <div class="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-white">Recent Notifications</h2>
+                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Latest updates about your bookings and payments</p>
+                  </div>
+                  <i data-lucide="bell-ring" class="w-4 h-4 text-blue-400"></i>
+                </div>
+                <div id="customerNotificationsContainer" class="space-y-3">
+                  <p class="text-sm text-white/50">Loading notifications...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <section id="view-tickets" data-view-panel="tickets" class="customer-view hidden">
+          <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+              <div>
+                <h2 class="text-sm font-bold uppercase tracking-widest text-white">Your Ticket History</h2>
+                <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Review active, used, and expired event tickets.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 p-1 bg-black/40 rounded-xl border border-white/5">
+                <button onclick="filterTickets('all')" id="btnFilterAll" class="px-4 py-2 rounded-lg bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-widest transition-colors shadow-lg">All</button>
+                <button onclick="filterTickets('upcoming')" id="btnFilterUpcoming" class="px-4 py-2 rounded-lg bg-transparent hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors">Upcoming</button>
+                <button onclick="filterTickets('used')" id="btnFilterUsed" class="px-4 py-2 rounded-lg bg-transparent hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors">Used</button>
+                <button onclick="filterTickets('expired')" id="btnFilterExpired" class="px-4 py-2 rounded-lg bg-transparent hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors">Expired</button>
+              </div>
+            </div>
+            <div id="ticketsListContainer" class="grid grid-cols-1 gap-4">
+              <p class="text-white/50 text-sm">Loading tickets...</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-bookings" data-view-panel="bookings" class="customer-view hidden">
+          <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 class="text-sm font-bold uppercase tracking-widest text-white">Booking Requests</h2>
+                <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Track service-fee payments, conversations, and talent decisions.</p>
+              </div>
+              <a href="/pages/bookings/messages.html" class="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors">Open Inbox</a>
+            </div>
+            <div id="customerBookingsContainer" class="space-y-3">
+              <p class="text-sm text-white/50">Loading booking requests...</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-settings" data-view-panel="settings" class="customer-view hidden">
+          <div class="max-w-3xl mx-auto space-y-6">
+            <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+              <div class="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">1. Profile Picture</h3>
+                <button onclick="setActiveView('dashboard')" class="text-[10px] font-bold text-white/50 hover:text-white uppercase tracking-[0.2em] flex items-center gap-1 transition-colors"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard</button>
+              </div>
+              
+              <div class="mobile-form-row flex items-center gap-6">
+                <div class="mobile-avatar relative w-28 h-28 rounded-full border-4 border-black shadow-xl overflow-hidden bg-neutral-900">
+                   <img id="avatarPreview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300" class="absolute inset-0 w-full h-full object-cover">
+                </div>
+                <div>
+                  <label class="cursor-pointer inline-flex items-center gap-2 px-5 py-3 bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl hover:bg-white/10 transition-colors text-white">
+                    <i data-lucide="upload" class="w-4 h-4"></i> Upload Image
+                    <input type="file" id="picInput" accept="image/*" class="hidden">
+                  </label>
+                  <p class="text-[10px] font-medium uppercase tracking-widest text-white/30 mt-3">Square image, max 2MB.</p>
+                </div>
+              </div>
+            </div>
+
+            <form id="profileForm" class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-6 backdrop-blur-md shadow-2xl">
+              <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">2. Public Bio</h3>
+              
+              <div class="space-y-3">
+                <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">About Me</label>
+                <textarea id="bioInput" rows="4" placeholder="Tell the community a bit about yourself..." class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white resize-none shadow-inner"></textarea>
+              </div>
+
+              <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors mt-4">
+                Save Profile Changes
+              </button>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="receiptModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
+    <div class="w-full max-w-sm animate-pop-in relative">
+      <button onclick="closeReceipt()" class="absolute -top-12 right-0 text-white/50 hover:text-white"><i data-lucide="x" class="w-8 h-8"></i></button>
+      
+      <div class="receipt-paper p-8 text-sm">
+        <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <h2 class="font-extrabold text-2xl tracking-tight mb-1">IMAJINATION</h2>
+          <p class="text-xs text-gray-500">Official E-Ticket</p>
+        </div>
+
+        <div class="flex justify-center mb-6 relative">
+          <img id="rQrCode" src="" alt="QR Code" class="w-40 h-40 border-4 border-white shadow-sm rounded-lg bg-white">
+          <div id="qrOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden rounded-lg">
+             <span id="qrOverlayText" class="font-extrabold text-2xl rotate-12 tracking-widest text-red-600 border-4 border-red-600 px-3 py-1 rounded">USED</span>
+          </div>
+        </div>
+
+        <div class="space-y-4 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div><p class="text-xs text-gray-500 uppercase">Event</p><p id="rTitle" class="font-bold text-lg leading-tight">Event Name</p></div>
+          <div><p class="text-xs text-gray-500 uppercase">Location & Time</p><p id="rLocTime" class="font-bold">Location</p></div>
+        </div>
+
+        <div class="space-y-2 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div class="flex justify-between items-start"><p>Tier:</p><p id="rTier" class="font-bold text-right">VIP</p></div>
+          <div class="flex justify-between items-start"><p>Quantity:</p><p id="rQty" class="font-bold text-right">2</p></div>
+          <div class="flex justify-between items-start"><p>Payment:</p><p id="rMethod" class="font-bold uppercase text-right">GCash</p></div>
+          <div class="flex justify-between items-start"><p>Date Bought:</p><p id="rDate" class="font-bold text-[10px] text-right">Date</p></div>
+        </div>
+
+        <div class="flex justify-between items-center text-lg">
+          <p class="font-bold">TOTAL:</p>
+          <p id="rTotal" class="font-bold">₱0.00</p>
+        </div>
+
+        <div class="mt-6 text-center text-xs text-gray-500">
+          <p>Ticket ID: <span id="rId">123</span></p>
+          <p class="mt-2 font-bold" id="qrInstruction">Present this QR code at the entrance.</p>
+        </div>
+        
+        <div class="mt-4 p-3 bg-red-100 text-center rounded-lg border border-red-200 hidden" id="usedWarning">
+          <p id="warningText" class="text-xs font-extrabold text-red-600 tracking-wider">THIS TICKET HAS BEEN SCANNED.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bookingReceiptModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
+    <div class="w-full max-w-sm animate-pop-in relative">
+      <button onclick="closeBookingReceipt()" class="absolute -top-12 right-0 text-white/50 hover:text-white"><i data-lucide="x" class="w-8 h-8"></i></button>
+
+      <div class="receipt-paper p-8 text-sm">
+        <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <h2 class="font-extrabold text-2xl tracking-tight mb-1">IMAJINATION</h2>
+          <p class="text-xs text-gray-500">Official Booking Receipt</p>
+        </div>
+
+        <div class="space-y-4 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div><p class="text-xs text-gray-500 uppercase">Booking For</p><p id="brTarget" class="font-bold text-lg leading-tight">Talent Name</p></div>
+          <div><p class="text-xs text-gray-500 uppercase">Event</p><p id="brEvent" class="font-bold">Booking Event</p></div>
+          <div><p class="text-xs text-gray-500 uppercase">Date & Location</p><p id="brSchedule" class="font-bold whitespace-pre-line">Schedule</p></div>
+        </div>
+
+        <div class="space-y-2 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div class="flex justify-between items-start"><p>Status:</p><p id="brStatus" class="font-bold text-right">Paid</p></div>
+          <div class="flex justify-between items-start"><p>Service Fee:</p><p id="brServiceFee" class="font-bold text-right">₱0.00</p></div>
+          <div class="flex justify-between items-start"><p>Service Fee Method:</p><p id="brMethod" class="font-bold uppercase text-right">GCASH</p></div>
+          <div class="flex justify-between items-start"><p>Service Fee Paid At:</p><p id="brPaidAt" class="font-bold text-[10px] text-right">Date</p></div>
+          <div class="flex justify-between items-start"><p>Service Fee Ref:</p><p id="brReference" class="font-bold text-[10px] text-right">REF</p></div>
+          <div id="brTalentFeeRow" class="hidden flex justify-between items-start"><p>Talent Fee:</p><p id="brTalentFee" class="font-bold text-right">₱0.00</p></div>
+          <div id="brTalentMethodRow" class="hidden flex justify-between items-start"><p>Talent Fee Method:</p><p id="brTalentMethod" class="font-bold uppercase text-right">GCASH</p></div>
+          <div id="brTalentPaidAtRow" class="hidden flex justify-between items-start"><p>Talent Fee Paid At:</p><p id="brTalentPaidAt" class="font-bold text-[10px] text-right">Date</p></div>
+          <div id="brTalentReferenceRow" class="hidden flex justify-between items-start"><p>Talent Fee Ref:</p><p id="brTalentReference" class="font-bold text-[10px] text-right">REF</p></div>
+        </div>
+
+        <div class="flex justify-between items-center text-lg">
+          <p class="font-bold">TOTAL PAID:</p>
+          <p id="brTotal" class="font-bold">₱0.00</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>lucide.createIcons();</script>
+
+  <script>
+    let globalTickets = []; 
+    let customerBookings = [];
+    let customerNotifications = [];
+    let base64Image = null;
+    let currentTicketFilter = 'all';
+    let customerNotificationInterval = null;
+    const MAX_UPLOAD_DIMENSION = 512;
+    const JPEG_QUALITY = 0.82;
+    const CUSTOMER_VIEWS = new Set(['dashboard', 'tickets', 'bookings', 'settings']);
+
+    function closeProfileDropdown() {
+      const dropdown = document.getElementById('profileDropdown');
+      if (dropdown) {
+        dropdown.classList.remove('show');
+        dropdown.style.opacity = '0';
+        dropdown.style.pointerEvents = 'none';
+      }
+    }
+
+    function closeNotificationBellDropdown() {
+      document.getElementById('notificationBellDropdown')?.classList.add('hidden');
+    }
+
+    function setActiveView(viewName) {
+      const normalizedView = CUSTOMER_VIEWS.has(viewName) ? viewName : 'dashboard';
+      const titles = {
+        dashboard: {
+          title: 'Welcome,',
+          subtitle: 'Manage your tickets and track your upcoming gigs.'
+        },
+        tickets: {
+          title: 'Your tickets,',
+          subtitle: 'Review active, used, and expired event passes in one place.'
+        },
+        bookings: {
+          title: 'Your bookings,',
+          subtitle: 'Track talent inquiries, messages, and payment progress.'
+        },
+        settings: {
+          title: 'Profile settings,',
+          subtitle: 'Update your picture and public bio for the platform.'
+        }
+      };
+
+      document.querySelectorAll('.customer-view').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.viewPanel !== normalizedView);
+      });
+
+      document.querySelectorAll('.customer-nav-btn').forEach((button) => {
+        const isActive = button.dataset.view === normalizedView;
+        button.className = isActive
+          ? 'customer-nav-btn flex items-center justify-between px-3 py-2.5 bg-white/10 text-white rounded-lg text-sm font-medium'
+          : 'customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors';
+        button.setAttribute('aria-current', isActive ? 'page' : 'false');
+      });
+
+      const config = titles[normalizedView] || titles.dashboard;
+      document.getElementById('pageTitle').innerHTML = `${config.title} <span id="userNameDisplay" class="text-white">${localStorage.getItem('userFirstName') || 'Guest'}</span>`;
+      document.getElementById('pageSubtitle').innerText = config.subtitle;
+      sessionStorage.setItem('customerActiveView', normalizedView);
+      closeProfileDropdown();
+      closeNotificationBellDropdown();
+      document.querySelector('.mobile-dashboard-main')?.scrollTo({ top: 0, behavior: 'smooth' });
+      lucide.createIcons();
+    }
+
+    function switchTab(tabName) {
+      const mappedView = tabName === 'profile' ? 'settings' : tabName;
+      setActiveView(mappedView);
+    }
+
+    // Filter Tickets Logic
+    function filterTickets(type) {
+      currentTicketFilter = type;
+      
+      // Update button styles
+      const btns = {
+        'all': document.getElementById('btnFilterAll'),
+        'upcoming': document.getElementById('btnFilterUpcoming'),
+        'used': document.getElementById('btnFilterUsed'),
+        'expired': document.getElementById('btnFilterExpired')
+      };
+      
+      for(const [key, btn] of Object.entries(btns)) {
+        if(key === type) {
+          btn.className = "px-4 py-2 rounded-lg bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-widest transition-colors shadow-lg";
+        } else {
+          btn.className = "px-4 py-2 rounded-lg bg-transparent hover:bg-white/5 text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors";
+        }
+      }
+      renderTickets();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const firstName = localStorage.getItem('userFirstName');
+      const role = localStorage.getItem('userRole');
+      const userId = localStorage.getItem('userId');
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+
+      if (!firstName || role !== 'Customer') {
+          window.location.href = '/pages/auth/login.html';
+          return;
+      }
+
+      document.getElementById('userNameDisplay').innerText = firstName;
+      document.getElementById('dropdownName').innerText = firstName;
+      document.getElementById('profileInitial').innerText = firstName.charAt(0).toUpperCase();
+      document.getElementById('sidebarName').innerText = firstName;
+
+      document.querySelectorAll('.customer-nav-btn').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          setActiveView(button.dataset.view);
+        });
+      });
+
+      if (storedProfilePicture) {
+          document.getElementById('navProfilePic').src = storedProfilePicture;
+          document.getElementById('navProfilePic').classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+          document.getElementById('avatarPreview').src = storedProfilePicture;
+          base64Image = storedProfilePicture;
+      }
+
+      // Dropdown Logic
+      const profileBtn = document.getElementById('profileBtn');
+      const profileDropdown = document.getElementById('profileDropdown');
+      const notificationBellBtn = document.getElementById('notificationBellBtn');
+      const notificationBellDropdown = document.getElementById('notificationBellDropdown');
+
+      if (profileBtn) {
+        profileBtn.addEventListener('click', () => {
+          closeNotificationBellDropdown();
+          profileDropdown.classList.toggle('show');
+          profileDropdown.style.opacity = profileDropdown.classList.contains('show') ? '1' : '0';
+          profileDropdown.style.pointerEvents = profileDropdown.classList.contains('show') ? 'auto' : 'none';
+        });
+
+        document.addEventListener('click', (e) => {
+          if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) {
+            profileDropdown.classList.remove('show');
+            profileDropdown.style.opacity = '0';
+            profileDropdown.style.pointerEvents = 'none';
+          }
+          if (notificationBellBtn && notificationBellDropdown && !notificationBellBtn.contains(e.target) && !notificationBellDropdown.contains(e.target)) {
+            closeNotificationBellDropdown();
+          }
+        });
+      }
+
+      if (notificationBellBtn && notificationBellDropdown) {
+        notificationBellBtn.addEventListener('click', () => {
+          closeProfileDropdown();
+          notificationBellDropdown.classList.toggle('hidden');
+        });
+      }
+
+      // Fetch Customer Profile Data
+      if (userId) {
+          try {
+              const res = await fetch(`/api/customer/${userId}`);
+              if (res.ok) {
+                  const customer = await res.json();
+                  
+                  if(customer.profilePicture) {
+                      document.getElementById('navProfilePic').src = customer.profilePicture;
+                      document.getElementById('navProfilePic').classList.remove('hidden');
+                      document.getElementById('profileInitial').classList.add('hidden');
+                      
+                      document.getElementById('avatarPreview').src = customer.profilePicture;
+                      base64Image = customer.profilePicture;
+                      localStorage.setItem('userProfilePicture', customer.profilePicture);
+                  }
+                  
+                  if(customer.bio && !customer.bio.includes("hasn't written")) {
+                      document.getElementById('bioInput').value = customer.bio;
+                  }
+                  const profilePercentEl = document.getElementById('customerProfileCompletionPercent');
+                  const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
+                  if (profilePercentEl) profilePercentEl.innerText = `${customer.profileCompletionPercent || 0}%`;
+                  if (profileLabelEl) profileLabelEl.innerText = customer.isVerified ? 'Verified profile' : (customer.profileCompletionLabel || 'Profile incomplete');
+              }
+          } catch(e) {}
+      }
+
+      await confirmBookingPaymentFromUrl();
+      await confirmTicketPaymentFromUrl();
+      loadCustomerTickets();
+      loadCustomerBookings();
+      loadCustomerNotifications();
+      customerNotificationInterval = window.setInterval(loadCustomerNotifications, 30000);
+
+      const params = new URLSearchParams(window.location.search);
+      const requestedView = params.get('view');
+      const savedView = sessionStorage.getItem('customerActiveView');
+      setActiveView(CUSTOMER_VIEWS.has(requestedView || '') ? requestedView : (CUSTOMER_VIEWS.has(savedView || '') ? savedView : 'dashboard'));
+    });
+
+    function handleLogout() {
+      if (customerNotificationInterval) window.clearInterval(customerNotificationInterval);
+      localStorage.clear(); 
+      window.location.href = '/pages/auth/login.html';
+    }
+
+    function formatNotificationTime(value) {
+      if (!value) return 'Just now';
+      const date = new Date(value);
+      return isNaN(date) ? 'Just now' : date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+
+    function openNotificationTarget(notification) {
+      if (!notification || !notification.relatedId) return;
+      if (notification.id) {
+        fetch(`/api/notification/${notification.id}/read`, { method: 'POST' }).catch(() => {});
+      }
+      if (notification.relatedType === 'booking') {
+        window.location.href = `/pages/bookings/messages.html?bookingId=${notification.relatedId}`;
+      }
+    }
+
+    function renderCustomerNotificationBell(notifications) {
+      const badge = document.getElementById('notificationBellBadge');
+      const count = document.getElementById('notificationBellDropdownCount');
+      const list = document.getElementById('notificationBellList');
+      if (!badge || !count || !list) return;
+
+      const unreadCount = notifications.filter(item => !item.isRead).length;
+      badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+      badge.classList.toggle('hidden', unreadCount === 0);
+      badge.classList.toggle('flex', unreadCount > 0);
+      count.innerText = `${unreadCount} new`;
+
+      if (!notifications.length) {
+        list.innerHTML = `<p class="text-sm text-white/50 p-3">No notifications yet.</p>`;
+        return;
+      }
+
+      const visibleNotifications = notifications.slice(0, 8);
+      list.innerHTML = visibleNotifications.map((notification, index) => `
+        <button type="button" data-index="${index}" class="customer-bell-item w-full text-left p-3 bg-black/30 border ${notification.isRead ? 'border-white/5' : 'border-red-500/20'} rounded-xl hover:border-white/20 transition-colors">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${notification.title || 'Notification'}</p>
+              <p class="text-xs text-white/55 mt-1">${notification.message || ''}</p>
+            </div>
+            <span class="text-[10px] uppercase tracking-widest ${notification.isRead ? 'text-white/35' : 'text-red-300'}">${notification.isRead ? 'Read' : 'New'}</span>
+          </div>
+          <p class="text-[10px] text-white/35 mt-3 uppercase tracking-widest">${formatNotificationTime(notification.createdAt)}</p>
+        </button>
+      `).join('');
+
+      list.querySelectorAll('.customer-bell-item').forEach((button) => {
+        button.addEventListener('click', () => {
+          closeNotificationBellDropdown();
+          openNotificationTarget(visibleNotifications[Number(button.dataset.index)]);
+        });
+      });
+    }
+
+    async function loadCustomerNotifications() {
+      const userId = localStorage.getItem('userId');
+      const container = document.getElementById('customerNotificationsContainer');
+      if (!userId || !container) return;
+
+      try {
+        const res = await fetch(`/api/notification/user/${userId}`);
+        if (!res.ok) throw new Error('Failed to load notifications.');
+        customerNotifications = await res.json();
+
+        const unreadCount = customerNotifications.filter(item => !item.isRead).length;
+        const countEl = document.getElementById('customerNotificationCount');
+        if (countEl) countEl.innerText = String(unreadCount);
+        renderCustomerNotificationBell(customerNotifications);
+
+        if (!customerNotifications.length) {
+          container.innerHTML = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No notifications yet.</p>`;
+          return;
+        }
+
+        const visibleNotifications = customerNotifications.slice(0, 5);
+
+        container.innerHTML = visibleNotifications.map(notification => `
+          <button type="button" data-notification-id="${notification.id}" class="customer-notification-item w-full text-left p-4 bg-black/40 border ${notification.isRead ? 'border-white/5' : 'border-blue-500/20'} rounded-xl hover:border-white/20 transition-colors">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${notification.title || 'Notification'}</p>
+                <p class="text-xs text-white/55 mt-1">${notification.message || ''}</p>
+              </div>
+              <span class="text-[10px] uppercase tracking-widest ${notification.isRead ? 'text-white/35' : 'text-blue-300'}">${notification.isRead ? 'Read' : 'New'}</span>
+            </div>
+            <p class="text-[10px] text-white/35 mt-3 uppercase tracking-widest">${formatNotificationTime(notification.createdAt)}</p>
+          </button>
+        `).join('');
+
+        container.querySelectorAll('.customer-notification-item').forEach((button, index) => {
+          button.addEventListener('click', () => openNotificationTarget(visibleNotifications[index]));
+        });
+      } catch (error) {
+        container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load notifications.</p>`;
+      }
+    }
+
+    async function resizeImageToDataUrl(file) {
+      const imageUrl = URL.createObjectURL(file);
+
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = imageUrl;
+        });
+
+        const scale = Math.min(1, MAX_UPLOAD_DIMENSION / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        return canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+      } finally {
+        URL.revokeObjectURL(imageUrl);
+      }
+    }
+
+    // Image Upload Logic
+    document.getElementById('picInput').addEventListener('change', async function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          base64Image = await resizeImageToDataUrl(file);
+          document.getElementById('avatarPreview').src = base64Image;
+        } catch (err) {
+          alert("Failed to process the selected image.");
+        }
+      }
+    });
+
+    // Save Profile Logic
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('saveBtn');
+      btn.innerText = "SAVING..."; btn.disabled = true;
+
+      const payload = {
+        bio: document.getElementById('bioInput').value,
+        profilePicture: base64Image
+      };
+
+      try {
+        const res = await fetch(`/api/customer/${localStorage.getItem('userId')}/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          localStorage.setItem('userProfilePicture', base64Image || '');
+          if (data.profilePicture) {
+            document.getElementById('avatarPreview').src = data.profilePicture;
+            document.getElementById('navProfilePic').src = data.profilePicture;
+            document.getElementById('navProfilePic').classList.remove('hidden');
+            document.getElementById('profileInitial').classList.add('hidden');
+          }
+          const profilePercentEl = document.getElementById('customerProfileCompletionPercent');
+          const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
+          if (profilePercentEl && typeof data.profileCompletionPercent !== 'undefined') profilePercentEl.innerText = `${data.profileCompletionPercent || 0}%`;
+          if (profileLabelEl && typeof data.isVerified !== 'undefined') profileLabelEl.innerText = data.isVerified ? 'Verified profile' : (data.profileCompletionLabel || 'Profile incomplete');
+          alert(data.message || "Profile updated successfully!");
+          setActiveView('settings');
+        } else {
+          let errorMessage = "Failed to update profile.";
+          if (data?.message) errorMessage = data.message;
+          alert(errorMessage);
+        }
+      } catch(err) {
+        alert("Server error while uploading the image. Please try a smaller image.");
+      } finally {
+        btn.innerText = "SAVE PROFILE CHANGES"; btn.disabled = false;
+      }
+    });
+
+    async function loadCustomerTickets() {
+      const customerId = localStorage.getItem('userId');
+      
+      try {
+        const response = await fetch(`/api/ticket/customer/${customerId}`);
+        globalTickets = await response.json();
+        renderTickets();
+      } catch (error) {
+        document.getElementById('ticketsListContainer').innerHTML = `<p class="text-red-500 p-4">Failed to load ticket history.</p>`;
+      }
+    }
+
+    function formatBookingDate(value) {
+      if (!value) return 'Schedule to be confirmed';
+      return new Date(value).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+
+    function formatPeso(value) {
+      return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        maximumFractionDigits: 0
+      }).format(value || 0);
+    }
+
+    function openBookingMessages(bookingId) {
+      window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
+    }
+
+    function formatPaymentMethod(value) {
+      if (!value) return 'Unpaid';
+      const map = {
+        gcash: 'GCash',
+        paymaya: 'PayMaya',
+        maya: 'PayMaya',
+        card: 'Card'
+      };
+      return map[value.toLowerCase()] || value;
+    }
+
+    function getBookingStatusClasses(status) {
+      if ((status || '').startsWith('Cancelled')) return 'bg-red-500/15 text-red-400';
+      if (status === 'Confirmed') return 'bg-emerald-500/15 text-emerald-400';
+      return 'bg-amber-500/15 text-amber-300';
+    }
+
+    function getPaymentStatusClasses(status) {
+      if (status === 'Paid') return 'text-emerald-400';
+      if (status === 'ServiceFeePaid') return 'text-blue-300';
+      if (status === 'AwaitingPayment' || status === 'AwaitingTalentFeePayment' || status === 'Refund Pending') return 'text-amber-300';
+      return 'text-white/35';
+    }
+
+    async function startBookingPayment(bookingId, paymentType = 'service') {
+      const currentOrigin = window.location.origin;
+      const successFlag = paymentType === 'talent' ? 'talentFeePaid=1' : 'bookingFeePaid=1';
+      const successUrl = `${currentOrigin}/pages/bookings/messages.html?bookingId=${bookingId}&${successFlag}`;
+      const cancelUrl = `${currentOrigin}/pages/bookings/messages.html?bookingId=${bookingId}`;
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ successUrl, cancelUrl, paymentType })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.checkoutUrl) {
+          throw new Error(data.message || 'Failed to start booking payment.');
+        }
+
+        window.location.href = data.checkoutUrl;
+      } catch (error) {
+        alert(error.message || 'Failed to start booking payment.');
+      }
+    }
+
+    async function confirmBookingPaymentFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const bookingId = params.get('bookingId');
+      const paymentType = params.get('talentFeePaid') === '1' ? 'talent' : (params.get('bookingFeePaid') || params.get('bookingPaid')) === '1' ? 'service' : '';
+
+      if (!paymentType || !bookingId) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/payment/confirm?paymentType=${paymentType}`, { method: 'POST' });
+        const data = await res.json();
+
+        if (res.ok) {
+          alert(data.message || 'Booking payment checked.');
+        } else {
+          alert(data.message || 'Could not confirm booking payment yet.');
+        }
+      } catch (error) {
+        alert('Could not verify booking payment right now.');
+      } finally {
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+
+    async function confirmTicketPaymentFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const ticketId = params.get('ticketId');
+      const ticketPaid = params.get('ticketPaid');
+
+      if (ticketPaid !== '1' || !ticketId) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
+        const data = await res.json();
+
+        if (res.ok) {
+          alert(data.message || 'Ticket payment checked.');
+        } else {
+          alert(data.message || 'Could not confirm ticket payment yet.');
+        }
+      } catch (error) {
+        alert('Could not verify ticket payment right now.');
+      } finally {
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+
+    async function loadCustomerBookings() {
+      const customerId = localStorage.getItem('userId');
+      const container = document.getElementById('customerBookingsContainer');
+      const previewContainer = document.getElementById('dashboardBookingsPreview');
+
+      try {
+        const res = await fetch(`/api/booking/customer/${customerId}`);
+        if (!res.ok) throw new Error();
+
+        customerBookings = await res.json();
+        document.getElementById('customerBookingPendingCount').innerText = customerBookings.filter(b => (b.status || '').includes('Pending') || (b.status || '').includes('Awaiting')).length;
+        document.getElementById('customerBookingAcceptedCount').innerText = customerBookings.filter(b => b.status === 'Confirmed').length;
+
+        if (customerBookings.length === 0) {
+          const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No booking requests yet.</p>`;
+          container.innerHTML = emptyState;
+          previewContainer.innerHTML = emptyState;
+          return;
+        }
+
+        const bookingMarkup = customerBookings.map(booking => `
+          <div class="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-white">${booking.targetName || booking.targetRole || 'Booking request'}</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">${booking.targetRole || 'Talent'} • ${booking.serviceType || 'Booking'} • ${booking.eventTitle || 'Booking inquiry'}</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getBookingStatusClasses(booking.status)}">${booking.status}</span>
+            </div>
+            <div class="text-xs text-white/60 space-y-1">
+              <p>${formatBookingDate(booking.eventDate)}</p>
+              <p>${booking.location || 'Location to be confirmed'}</p>
+              <p>Service fee: ${formatPeso(booking.bookingFee || 15)}${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openBookingMessages('${booking.id}')" class="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">
+                ${booking.hasMessages ? 'Open Messages' : 'Start Conversation'}
+              </button>
+              ${booking.paymentStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled') && booking.status !== 'Confirmed'
+                ? `<button onclick="startBookingPayment('${booking.id}')" class="flex-1 px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">${booking.paymentStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : 'Pay PHP 15 Fee'}</button>`
+                : ''}
+            </div>
+            ${booking.paymentStatus === 'Paid'
+              ? `<button onclick="showBookingReceipt('${booking.id}')" class="w-full px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/15 transition-colors">View Fee Receipt</button>`
+              : ''}
+            <p class="text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(booking.paymentStatus)}">
+              Service fee: ${booking.paymentStatus || 'Unpaid'}${booking.paymentMethod ? ` • ${formatPaymentMethod(booking.paymentMethod)}` : ''}
+            </p>
+          </div>
+        `);
+        container.innerHTML = bookingMarkup.join('');
+        previewContainer.innerHTML = bookingMarkup.slice(0, 3).join('');
+      } catch (error) {
+        const errorState = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load booking requests.</p>`;
+        container.innerHTML = errorState;
+        previewContainer.innerHTML = errorState;
+      }
+    }
+
+    async function showBookingReceipt(bookingId) {
+      try {
+        const res = await fetch(`/api/booking/${bookingId}`);
+        const booking = await res.json();
+        if (!res.ok) {
+          throw new Error(booking.message || 'Failed to load booking receipt.');
+        }
+
+        const serviceFeeAmount = Number(booking.bookingFee || 15);
+        const talentFeeAmount = Number(booking.budget || 0);
+        const serviceFeeStatus = booking.serviceFeeStatus || booking.paymentStatus || 'Unpaid';
+        const talentFeeStatus = booking.talentFeeStatus || 'Unpaid';
+        const hasTalentPayment = talentFeeAmount > 0;
+        const talentFeePaid = talentFeeStatus === 'Paid';
+        const totalPaid = serviceFeeAmount + (talentFeePaid ? talentFeeAmount : 0);
+
+        document.getElementById('brTarget').innerText = booking.targetName || 'Talent';
+        document.getElementById('brEvent').innerText = booking.eventTitle || 'Booking payment';
+        document.getElementById('brSchedule').innerText = `${formatBookingDate(booking.eventDate)}\n${booking.location || 'Location to be confirmed'}`;
+        document.getElementById('brStatus').innerText = hasTalentPayment
+          ? `Service fee: ${serviceFeeStatus} • Talent fee: ${talentFeeStatus}`
+          : serviceFeeStatus;
+        document.getElementById('brServiceFee').innerText = formatPeso(serviceFeeAmount);
+        document.getElementById('brMethod').innerText = formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod || '');
+        document.getElementById('brPaidAt').innerText = booking.serviceFeePaidAt ? formatBookingDate(booking.serviceFeePaidAt) : (booking.paidAt ? formatBookingDate(booking.paidAt) : 'Payment confirmed');
+        document.getElementById('brReference').innerText = booking.paymentReference || booking.checkoutReference || 'Reference unavailable';
+
+        const talentFeeRow = document.getElementById('brTalentFeeRow');
+        const talentMethodRow = document.getElementById('brTalentMethodRow');
+        const talentPaidAtRow = document.getElementById('brTalentPaidAtRow');
+        const talentReferenceRow = document.getElementById('brTalentReferenceRow');
+        if (hasTalentPayment) {
+          talentFeeRow.classList.remove('hidden');
+          talentMethodRow.classList.remove('hidden');
+          talentPaidAtRow.classList.remove('hidden');
+          talentReferenceRow.classList.remove('hidden');
+          document.getElementById('brTalentFee').innerText = `${formatPeso(talentFeeAmount)}${talentFeePaid ? '' : ' (unpaid)'}`;
+          document.getElementById('brTalentMethod').innerText = talentFeePaid ? formatPaymentMethod(booking.talentFeePaymentMethod || '') : 'Pending';
+          document.getElementById('brTalentPaidAt').innerText = talentFeePaid && booking.talentFeePaidAt ? formatBookingDate(booking.talentFeePaidAt) : 'Not paid yet';
+          document.getElementById('brTalentReference').innerText = talentFeePaid ? (booking.talentFeePaymentReference || booking.talentFeeCheckoutReference || 'Reference unavailable') : 'Pending';
+        } else {
+          talentFeeRow.classList.add('hidden');
+          talentMethodRow.classList.add('hidden');
+          talentPaidAtRow.classList.add('hidden');
+          talentReferenceRow.classList.add('hidden');
+        }
+
+        document.getElementById('brTotal').innerText = formatPeso(totalPaid);
+
+        const modal = document.getElementById('bookingReceiptModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } catch (error) {
+        alert(error.message || 'Failed to load booking receipt.');
+      }
+    }
+
+    function closeBookingReceipt() {
+      const modal = document.getElementById('bookingReceiptModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderTickets() {
+      const container = document.getElementById('ticketsListContainer');
+      const previewContainer = document.getElementById('dashboardTicketsPreview');
+      const now = new Date().getTime();
+      let activeTicketsCount = 0;
+
+      // 1. Process all tickets first to get the total Active count (regardless of filter)
+      let processedTickets = globalTickets.map((t, originalIndex) => {
+          const eventPassed24Hrs = new Date(t.eventTime).getTime() < now - (24 * 60 * 60 * 1000);
+          const isExpired = !t.isUsed && (t.eventStatus === 'Finished' || eventPassed24Hrs);
+          const isUpcoming = !t.isUsed && !isExpired;
+          
+          if(isUpcoming) activeTicketsCount++;
+          
+          return { ...t, originalIndex, isExpired, isUpcoming };
+      });
+
+      // Update Dashboard Top Stat
+      document.getElementById('activeTicketsCount').innerText = activeTicketsCount;
+
+      if(globalTickets.length === 0) {
+        const emptyState = `<div class="p-6 bg-black/40 border border-white/10 rounded-2xl text-center"><p class="text-white/50 text-sm">No tickets purchased yet. Go find some gigs!</p></div>`;
+        container.innerHTML = emptyState;
+        previewContainer.innerHTML = emptyState;
+        return;
+      }
+
+      // 2. Apply Filters
+      if (currentTicketFilter === 'upcoming') {
+        processedTickets = processedTickets.filter(t => t.isUpcoming);
+      } else if (currentTicketFilter === 'used') {
+        processedTickets = processedTickets.filter(t => t.isUsed);
+      } else if (currentTicketFilter === 'expired') {
+        processedTickets = processedTickets.filter(t => t.isExpired);
+      }
+
+      if(processedTickets.length === 0) {
+        container.innerHTML = `<div class="p-6 bg-black/40 border border-white/10 rounded-2xl text-center"><p class="text-white/50 text-sm">No tickets found for this category.</p></div>`;
+        previewContainer.innerHTML = `<div class="p-6 bg-black/40 border border-white/10 rounded-2xl text-center"><p class="text-white/50 text-sm">No recent tickets to preview.</p></div>`;
+        return;
+      }
+
+      // 3. Render
+      const ticketMarkup = [];
+      processedTickets.forEach(t => {
+        const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
+        
+        let statusBadge = '';
+        let opacityClass = '';
+
+        if (t.isUsed) {
+            statusBadge = `<span class="px-2 py-0.5 bg-neutral-600/30 text-neutral-400 text-[10px] font-bold uppercase tracking-widest rounded">Scanned / Used</span>`;
+            opacityClass = 'opacity-50 grayscale';
+        } else if (t.isExpired) {
+            statusBadge = `<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest rounded">Expired</span>`;
+            opacityClass = 'opacity-50 grayscale border-red-500/20';
+        } else {
+            statusBadge = `<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded">Valid Ticket</span>`;
+        }
+        
+        ticketMarkup.push(`
+          <div class="bg-black/40 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/20 transition-colors ${opacityClass}">
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                ${statusBadge}
+                <span class="text-[10px] font-bold uppercase tracking-widest text-red-500">${t.tierName} (Qty: ${t.quantity})</span>
+              </div>
+              <h3 class="text-lg font-bold text-white mb-2">${t.eventTitle}</h3>
+              <div class="space-y-1 text-xs text-white/60">
+                <p class="flex items-center gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${t.location}</p>
+                <p class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${evDate}</p>
+              </div>
+            </div>
+            <div class="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-2">
+              <span class="text-lg font-bold text-white border-b border-white/10 pb-1">₱${t.totalPrice.toFixed(2)}</span>
+              <button onclick="showReceipt(${t.originalIndex}, ${t.isExpired})" class="text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-xl transition-colors border border-white/10">
+                ${t.isUsed || t.isExpired ? 'View Stub' : 'View QR Ticket'}
+              </button>
+            </div>
+          </div>
+        `);
+      });
+      container.innerHTML = ticketMarkup.join('');
+      previewContainer.innerHTML = ticketMarkup.slice(0, 3).join('');
+      lucide.createIcons();
+    }
+
+    // Receipt Modal Logic
+    function showReceipt(originalIndex, isExpired) {
+      const t = globalTickets[originalIndex];
+      const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
+      const pDate = new Date(t.purchaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
+
+      document.getElementById('rTitle').innerText = t.eventTitle;
+      document.getElementById('rLocTime').innerText = `${t.location}\n${evDate}`;
+      document.getElementById('rTier').innerText = t.tierName;
+      document.getElementById('rQty').innerText = t.quantity;
+      document.getElementById('rMethod').innerText = formatPaymentMethod(t.paymentMethod || '');
+      document.getElementById('rDate').innerText = pDate;
+      document.getElementById('rTotal').innerText = `₱${t.totalPrice.toFixed(2)}`;
+      document.getElementById('rId').innerText = t.ticketId.split('-')[0].toUpperCase(); 
+
+      document.getElementById('rQrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${t.ticketId}`;
+
+      const overlay = document.getElementById('qrOverlay');
+      const overlayText = document.getElementById('qrOverlayText');
+      const warningDiv = document.getElementById('usedWarning');
+      const warningText = document.getElementById('warningText');
+      const instruction = document.getElementById('qrInstruction');
+
+      if (t.isUsed) {
+        overlay.classList.remove('hidden');
+        overlayText.innerText = "SCANNED";
+        warningDiv.classList.remove('hidden');
+        warningText.innerText = "THIS TICKET WAS SCANNED AND USED.";
+        instruction.innerText = "Ticket receipt stub.";
+      } else if (isExpired) {
+        overlay.classList.remove('hidden');
+        overlayText.innerText = "EXPIRED";
+        warningDiv.classList.remove('hidden');
+        warningText.innerText = "EVENT HAS FINISHED. TICKET EXPIRED.";
+        instruction.innerText = "This ticket is no longer valid.";
+      } else {
+        overlay.classList.add('hidden');
+        warningDiv.classList.add('hidden');
+        instruction.innerText = "Present this QR code at the entrance.";
+      }
+
+      const modal = document.getElementById('receiptModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeReceipt() {
+      const modal = document.getElementById('receiptModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+  </script>
+</body>
+</html>

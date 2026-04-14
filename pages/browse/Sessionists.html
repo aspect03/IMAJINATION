@@ -88,6 +88,9 @@
                 <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                   <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
                 </a>
+                <a id="profilePageLink" href="#" class="hidden items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="user-round" class="w-3.5 h-3.5"></i> Profile Page
+                </a>
               </div>
               <div class="p-2 border-t border-white/10">
                 <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
@@ -120,6 +123,14 @@
           <option value="bass">Bass</option>
           <option value="keyboard">Keyboard</option>
           <option value="vocalist">Vocalist</option>
+        </select>
+        <select id="sessionTypeSelect" class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30">
+          <option value="">Session Type</option>
+          <option value="solo">Solo</option>
+          <option value="duo">Duo</option>
+          <option value="trio">Trio</option>
+          <option value="band">Band</option>
+          <option value="group">Group</option>
         </select>
         
         <div class="ml-auto flex items-center gap-3 w-full lg:w-auto mt-3 lg:mt-0">
@@ -164,11 +175,18 @@
         }
 
         const dashLink = document.getElementById('dashboardLink');
+        const profilePageLink = document.getElementById('profilePageLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
         else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
         else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
         else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
+
+        if (role === 'Customer' && profilePageLink) {
+          profilePageLink.href = '/pages/dashboards/CustomerDashboard.html?view=settings';
+          profilePageLink.classList.remove('hidden');
+          profilePageLink.classList.add('flex');
+        }
 
         // Properly fetch avatar for any logged in role
         if (userId) {
@@ -319,22 +337,40 @@
         lucide.createIcons();
     }
 
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        const genre = document.getElementById('genreSelect').value.toLowerCase();
-        const filtered = allSessionists.filter(a => {
-            const matchName = a.displayName.toLowerCase().includes(query);
-            const matchGenre = genre === "" || (a.genres && a.genres.toLowerCase().includes(genre));
-            return matchName && matchGenre;
-        });
-        renderSessionists(filtered);
-    });
+      function resolveSessionistType(sessionist) {
+        const category = (sessionist.talentCategory || '').toLowerCase();
+        if (category) return category;
+        const members = (sessionist.memberNames || '')
+          .split(',')
+          .map(n => n.trim())
+          .filter(Boolean);
+        if (members.length === 1) return 'solo';
+        if (members.length === 2) return 'duo';
+        if (members.length === 3) return 'trio';
+        if (members.length > 3) return 'group';
+        return '';
+      }
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
-        document.getElementById('searchInput').value = "";
-        document.getElementById('genreSelect').value = "";
+      document.getElementById('searchBtn').addEventListener('click', () => {
+          const query = document.getElementById('searchInput').value.toLowerCase();
+          const genre = document.getElementById('genreSelect').value.toLowerCase();
+          const sessionType = document.getElementById('sessionTypeSelect').value.toLowerCase();
+          const filtered = allSessionists.filter(a => {
+              const matchName = a.displayName.toLowerCase().includes(query);
+              const matchGenre = genre === "" || (a.genres && a.genres.toLowerCase().includes(genre));
+              const resolvedType = resolveSessionistType(a);
+              const matchType = sessionType === "" || resolvedType.includes(sessionType);
+              return matchName && matchGenre && matchType;
+          });
+        renderSessionists(filtered);
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', () => {
+          document.getElementById('searchInput').value = "";
+          document.getElementById('genreSelect').value = "";
+          document.getElementById('sessionTypeSelect').value = "";
         renderSessionists(allSessionists);
-    });
+      });
   </script>
 </body>
 </html>

@@ -206,6 +206,15 @@
       if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
     });
 
+    function canCurrentUserBuyEvent(ev) {
+      const role = (localStorage.getItem('userRole') || '').trim().toLowerCase();
+      const userId = (localStorage.getItem('userId') || '').trim().toLowerCase();
+      const organizerId = String(ev.organizerId || '').trim().toLowerCase();
+      if (role !== 'organizer') return true;
+      if (!userId || !organizerId) return true;
+      return userId !== organizerId;
+    }
+
     const profileBtn = document.getElementById('profileBtn');
     const profileDropdown = document.getElementById('profileDropdown');
     if (profileBtn) {
@@ -376,15 +385,20 @@
       grid.innerHTML = ''; 
       if (eventsToRender.length === 0) return grid.innerHTML = `<p class="text-white/50 col-span-3 py-10 text-center text-lg mt-8">No events match your filters.</p>`;
 
-      eventsToRender.forEach(ev => {
-        const formattedDate = new Date(ev.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        const primaryGenre = ev.genres ? ev.genres.split(',')[0].trim().toUpperCase() : 'MUSIC';
-        const eType = ev.eventType || 'Live Gig';
-        const displayLoc = ev.city ? `${ev.city} - ${ev.location}` : ev.location;
-        
-        grid.innerHTML += `
-          <article class="group flex flex-col bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
-            <div class="relative aspect-[4/3] overflow-hidden bg-white/5">
+        eventsToRender.forEach(ev => {
+          const formattedDate = new Date(ev.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const primaryGenre = ev.genres ? ev.genres.split(',')[0].trim().toUpperCase() : 'MUSIC';
+          const eType = ev.eventType || 'Live Gig';
+          const displayLoc = ev.city ? `${ev.city} - ${ev.location}` : ev.location;
+          const eventUrl = `/pages/details/EventDetailPage.html?id=${ev.id}`;
+          const canBuy = canCurrentUserBuyEvent(ev);
+          const actionMarkup = canBuy
+            ? `<a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex items-center justify-center px-4 py-3 rounded-xl bg-[#cc292b] text-white text-xs font-semibold uppercase tracking-[0.14em] hover:bg-red-600 transition-colors cursor-pointer">Buy Ticket</a>`
+            : `<span class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/35 text-xs font-semibold uppercase tracking-[0.14em] cursor-not-allowed">Your Event</span>`;
+          
+          grid.innerHTML += `
+            <article class="group relative flex flex-col bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 transition-colors cursor-pointer" data-event-id="${ev.id}" onclick="window.location.href='${eventUrl}'">
+              <div class="relative aspect-[4/3] overflow-hidden bg-white/5">
               <img src="${ev.posterUrl}" loading="lazy" decoding="async" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=1200'" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500">
               <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/20"></div>
               <div class="absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] bg-[#cc292b] text-white shadow-lg">PHP ${ev.price}</div>
@@ -402,14 +416,14 @@
               <div class="flex items-center gap-2 text-white/60 text-sm mb-6">
                 <i data-lucide="map-pin" class="w-4 h-4"></i> ${displayLoc}
               </div>
-              <div class="mt-auto flex gap-3">
-                <a href="/pages/details/EventDetailPage.html?id=${ev.id}" data-event-id="${ev.id}" class="event-detail-link inline-flex flex-1 items-center justify-center py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 hover:border-white/20 transition-colors cursor-pointer">Details</a>
-                <a href="/pages/details/EventDetailPage.html?id=${ev.id}" data-event-id="${ev.id}" class="event-detail-link inline-flex items-center justify-center px-4 py-3 rounded-xl bg-[#cc292b] text-white text-xs font-semibold uppercase tracking-[0.14em] hover:bg-red-600 transition-colors cursor-pointer">Buy Ticket</a>
+                <div class="mt-auto flex gap-3">
+                  <a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex flex-1 items-center justify-center py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 hover:border-white/20 transition-colors cursor-pointer">Details</a>
+                  ${actionMarkup}
+                </div>
               </div>
-            </div>
-          </article>
-        `;
-      });
+            </article>
+          `;
+        });
       lucide.createIcons();
     }
 

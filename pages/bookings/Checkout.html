@@ -11,12 +11,10 @@
   <script src="/assets/js/performance-helpers.js"></script>
 </head>
 <body class="bg-neutral-950 text-white antialiased min-h-screen flex items-center justify-center p-6" style="font-family: 'Montserrat', sans-serif;">
-
   <div class="max-w-4xl w-full bg-neutral-900 border border-white/10 rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden">
-    
     <div class="w-full md:w-1/2 bg-black/50 p-8 flex flex-col relative">
       <div class="absolute inset-0 bg-gradient-to-br from-red-600/10 to-transparent pointer-events-none"></div>
-      
+
       <a href="#" onclick="history.back()" class="relative z-10 flex items-center gap-2 text-white/50 hover:text-white text-sm font-semibold mb-8 transition-colors">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
       </a>
@@ -24,35 +22,34 @@
       <div class="relative z-10 flex-1">
         <p class="text-[10px] text-red-500 uppercase tracking-widest font-bold mb-2">Order Summary</p>
         <h2 id="checkoutEventTitle" class="text-3xl font-extrabold text-white mb-4 leading-tight">Loading...</h2>
-        
+
         <div id="pricingPhaseBadge" class="hidden px-3 py-1 border rounded-md text-xs font-bold uppercase tracking-wider mb-6 w-fit">
           Loading Phase...
         </div>
-        
-        <img id="checkoutEventImg" src="" class="w-full h-48 object-cover rounded-xl border border-white/10 mb-6 hidden">
+
+        <img id="checkoutEventImg" src="" class="w-full h-48 object-cover rounded-xl border border-white/10 mb-6 hidden" alt="Event poster">
       </div>
 
       <div class="relative z-10 border-t border-white/10 pt-6 mt-6 space-y-3">
         <div class="flex justify-between items-center text-sm font-medium text-white/70">
           <span>Subtotal</span>
-          <span id="displaySubtotal">₱0.00</span>
+          <span id="displaySubtotal">PHP 0.00</span>
         </div>
         <div class="flex justify-between items-center text-sm font-medium text-white/70">
           <span>Convenience Fee (5%)</span>
-          <span id="displayFee">₱0.00</span>
+          <span id="displayFee">PHP 0.00</span>
         </div>
         <div class="flex justify-between items-center text-xl font-extrabold text-white pt-3 border-t border-white/10">
           <span>Total to Pay</span>
-          <span id="displayTotal" class="text-red-500">₱0.00</span>
+          <span id="displayTotal" class="text-red-500">PHP 0.00</span>
         </div>
       </div>
     </div>
 
     <div class="w-full md:w-1/2 p-8 bg-neutral-900">
       <h3 class="text-lg font-bold mb-6 border-b border-white/10 pb-4">Secure Checkout</h3>
-      
+
       <div class="space-y-6">
-        
         <div class="space-y-3">
           <label class="block text-xs font-semibold text-white/70 uppercase tracking-widest">1. Select Ticket Tier</label>
           <div id="tierOptionsContainer" class="space-y-2 max-h-48 overflow-y-auto pr-2 no-scrollbar"></div>
@@ -70,58 +67,107 @@
         </div>
 
         <button id="payNowBtn" class="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-widest rounded-xl transition-colors shadow-lg mt-4 flex justify-center items-center gap-2">
-          <i data-lucide="lock" class="w-4 h-4"></i> Proceed to Payment <span id="btnTotal">₱0.00</span>
+          <i data-lucide="lock" class="w-4 h-4"></i> Proceed to Payment <span id="btnTotal">PHP 0.00</span>
         </button>
-        
+
         <div class="flex justify-center items-center gap-2 text-[10px] text-white/40 mt-3">
           <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
           <span>Powered securely by <strong>PayMongo</strong> (GCash, PayMaya, Cards)</span>
         </div>
-
       </div>
     </div>
   </div>
 
   <script>lucide.createIcons();</script>
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      // 1. Authenticate
-      const customerId = localStorage.getItem('userId');
-      if(!customerId) return window.location.href = '/pages/auth/login.html';
+    function formatPeso(amount) {
+      const numericAmount = Number.isFinite(amount) ? amount : 0;
+      return `PHP ${numericAmount.toFixed(2)}`;
+    }
 
-      // 2. Get Event ID
+    async function showSystemAlert(message, title = 'Notice') {
+      if (window.systemDialog?.alert) {
+        await window.systemDialog.alert(message, { title, kicker: 'System Message' });
+        return;
+      }
+      window.alert(message);
+    }
+
+    async function readApiPayload(response) {
+      const text = await response.text().catch(() => '');
+      if (!text) return {};
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { message: text };
+      }
+    }
+
+    function updateTotal() {
+      const selectedTier = document.querySelector('input[name="tier"]:checked');
+      if (!selectedTier) return;
+
+      const basePrice = parseFloat(selectedTier.getAttribute('data-price'));
+      const qty = parseInt(document.getElementById('ticketQty').value, 10);
+
+      const subtotal = basePrice * qty;
+      const convenienceFee = subtotal * 0.05;
+      const total = subtotal + convenienceFee;
+
+      document.getElementById('displaySubtotal').innerText = formatPeso(subtotal);
+      document.getElementById('displayFee').innerText = formatPeso(convenienceFee);
+      document.getElementById('displayTotal').innerText = formatPeso(total);
+      document.getElementById('btnTotal').innerText = formatPeso(total);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const customerId = localStorage.getItem('userId');
+      const currentRole = localStorage.getItem('userRole');
+      if (!customerId) {
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
       const urlParams = new URLSearchParams(window.location.search);
       const eventId = urlParams.get('id');
-      if(!eventId) return history.back();
+      if (!eventId) {
+        history.back();
+        return;
+      }
 
-      // 3. Load Event Data
       try {
         const res = await fetch(`/api/ticket/event-checkout/${eventId}`);
-        if(!res.ok) throw new Error();
-        const ev = await res.json();
+        const ev = await readApiPayload(res);
+        if (!res.ok) throw new Error(ev.message || 'Failed to load checkout details.');
 
-        // Populate UI
         document.getElementById('checkoutEventTitle').innerText = ev.title;
         document.getElementById('checkoutEventImg').src = ev.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30';
         document.getElementById('checkoutEventImg').classList.remove('hidden');
 
-        // ==============================================================
-        // EXACT 2-HOUR MATH LOGIC
-        // ==============================================================
+        if (currentRole === 'Organizer' && ev.organizerId && ev.organizerId === customerId) {
+          await showSystemAlert('Event organizers cannot buy tickets for their own event.', 'Ticket Purchase Locked');
+          window.location.href = `/pages/details/EventDetailPage.html?id=${eventId}`;
+          return;
+        }
+
         const now = new Date();
         const evDate = new Date(ev.time);
-        
         const msDiff = evDate.getTime() - now.getTime();
         const hoursUntilEvent = msDiff / (1000 * 60 * 60);
 
         let multiplier = 1.0;
-        let phaseText = "Pre-Sale Phase";
-        let badgeClasses = "bg-blue-500/20 text-blue-400 border-blue-500/50";
+        let phaseText = 'Pre-Sale Phase';
+        let badgeClasses = 'bg-blue-500/20 text-blue-400 border-blue-500/50';
 
         if (hoursUntilEvent <= 0) {
-            multiplier = 1.20; phaseText = "Walk-In Phase (+20%)"; badgeClasses = "bg-red-500/20 text-red-400 border-red-500/50";
+          multiplier = 1.2;
+          phaseText = 'Walk-In Phase (+20%)';
+          badgeClasses = 'bg-red-500/20 text-red-400 border-red-500/50';
         } else if (hoursUntilEvent <= 2) {
-            multiplier = 1.10; phaseText = "Early Bird Phase (+10%)"; badgeClasses = "bg-yellow-500/20 text-yellow-400 border-yellow-500/50";
+          multiplier = 1.1;
+          phaseText = 'Early Bird Phase (+10%)';
+          badgeClasses = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
         }
 
         const badge = document.getElementById('pricingPhaseBadge');
@@ -129,158 +175,131 @@
         badge.classList.remove('hidden');
         badge.className = `inline-block px-3 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider mb-6 border ${badgeClasses}`;
 
-        // ==============================================================
-        // RENDER TIER OPTIONS
-        // ==============================================================
         const tierContainer = document.getElementById('tierOptionsContainer');
         tierContainer.innerHTML = '';
 
-        // 1. Base Tier (General Admission)
         const basePriceVal = ev.basePrice || 0;
         const finalBasePrice = (basePriceVal * multiplier).toFixed(2);
-        
+
         tierContainer.innerHTML += `
           <label class="cursor-pointer block">
             <input type="radio" name="tier" value="General Admission" data-price="${finalBasePrice}" class="peer hidden" checked>
             <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
               <span class="font-semibold text-white">General Admission</span>
-              <span class="font-bold text-red-400">₱${finalBasePrice}</span>
+              <span class="font-bold text-red-400">${formatPeso(parseFloat(finalBasePrice))}</span>
             </div>
           </label>
         `;
 
-        // 2. Extra Tier 1 (from direct DB columns)
-        if(ev.tierName && ev.tierPrice) {
+        if (ev.tierName && ev.tierPrice) {
           const finalTierPrice = (ev.tierPrice * multiplier).toFixed(2);
           tierContainer.innerHTML += `
             <label class="cursor-pointer block mt-2">
               <input type="radio" name="tier" value="${ev.tierName}" data-price="${finalTierPrice}" class="peer hidden">
               <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
                 <span class="font-semibold text-yellow-500">${ev.tierName}</span>
-                <span class="font-bold text-red-400">₱${finalTierPrice}</span>
+                <span class="font-bold text-red-400">${formatPeso(parseFloat(finalTierPrice))}</span>
               </div>
             </label>
           `;
         }
 
-        // 3. Bundled Tiers (parsed from string)
         if (ev.bundles) {
-            const parts = ev.bundles.split('|');
-            parts.forEach(part => {
-                if (part.includes('[Tier]')) {
-                    // Match pattern: "[Tier] Premium: P300 (10 slots)"
-                    const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
-                    if (match) {
-                        const parsedName = match[1].trim();
-                        const parsedPrice = parseFloat(match[2]);
-                        const finalParsedPrice = (parsedPrice * multiplier).toFixed(2);
-                        
-                        tierContainer.innerHTML += `
-                          <label class="cursor-pointer block mt-2">
-                            <input type="radio" name="tier" value="${parsedName}" data-price="${finalParsedPrice}" class="peer hidden">
-                            <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
-                              <span class="font-semibold text-purple-400">${parsedName}</span>
-                              <span class="font-bold text-red-400">₱${finalParsedPrice}</span>
-                            </div>
-                          </label>
-                        `;
-                    }
-                }
-            });
+          const parts = ev.bundles.split('|');
+          parts.forEach(part => {
+            if (!part.includes('[Tier]')) return;
+
+            const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
+            if (!match) return;
+
+            const parsedName = match[1].trim();
+            const parsedPrice = parseFloat(match[2]);
+            const finalParsedPrice = (parsedPrice * multiplier).toFixed(2);
+
+            tierContainer.innerHTML += `
+              <label class="cursor-pointer block mt-2">
+                <input type="radio" name="tier" value="${parsedName}" data-price="${finalParsedPrice}" class="peer hidden">
+                <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
+                  <span class="font-semibold text-purple-400">${parsedName}</span>
+                  <span class="font-bold text-red-400">${formatPeso(parseFloat(finalParsedPrice))}</span>
+                </div>
+              </label>
+            `;
+          });
         }
 
-        // Attach event listeners for real-time math
         document.querySelectorAll('input[name="tier"]').forEach(radio => radio.addEventListener('change', updateTotal));
         document.getElementById('ticketQty').addEventListener('change', updateTotal);
-        
-        // Initial Calculation
         updateTotal();
-
-      } catch(e) {
-        alert("Error loading checkout details.");
+      } catch (error) {
+        await showSystemAlert(error.message || 'Error loading checkout details.', 'Checkout Error');
         history.back();
       }
 
-      // ==============================================================
-      // PROCEED TO PAYMONGO
-      // ==============================================================
       document.getElementById('payNowBtn').addEventListener('click', async () => {
         const btn = document.getElementById('payNowBtn');
         btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Connecting...`;
         btn.disabled = true;
+        lucide.createIcons();
 
         const selectedTier = document.querySelector('input[name="tier"]:checked');
-        const qty = parseInt(document.getElementById('ticketQty').value);
-        
-        // Final Fee Logic
+        const qty = parseInt(document.getElementById('ticketQty').value, 10);
+
         const rawPrice = parseFloat(selectedTier.getAttribute('data-price')) * qty;
         const fee = rawPrice * 0.05;
         const finalTotalToCharge = rawPrice + fee;
 
-        // SMART URL FALLBACK: Fixes the 127.0.0.1 port connection refused issue
         const currentOrigin = window.location.origin;
         let dynamicSuccessUrl = `${window.location.origin}/pages/dashboards/CustomerDashboard.html`;
         let dynamicCancelUrl = `${window.location.origin}/pages/bookings/Checkout.html?id=${eventId}`;
-        
-        if (currentOrigin !== "null" && !currentOrigin.startsWith("file")) {
-            let basePath = window.location.pathname.replace('/pages/bookings/Checkout.html', '');
-            dynamicSuccessUrl = currentOrigin + basePath + '/pages/dashboards/CustomerDashboard.html';
-            dynamicCancelUrl = window.location.href;
+
+        if (currentOrigin !== 'null' && !currentOrigin.startsWith('file')) {
+          const basePath = window.location.pathname.replace('/pages/bookings/Checkout.html', '');
+          dynamicSuccessUrl = currentOrigin + basePath + '/pages/dashboards/CustomerDashboard.html';
+          dynamicCancelUrl = window.location.href;
         }
 
-        // Build Payload for C#
         const payload = {
-          eventId: eventId,
-          customerId: customerId,
+          eventId,
+          customerId,
           tierName: selectedTier.value,
           quantity: qty,
-          totalPrice: finalTotalToCharge, 
+          totalPrice: finalTotalToCharge,
           successUrl: dynamicSuccessUrl,
           cancelUrl: dynamicCancelUrl
         };
 
-        // Call the API
         try {
           const res = await fetch('/api/ticket/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          const data = await res.json();
-          
-          if(res.ok && data.checkoutUrl) {
-            // IT WORKED: Send to PayMongo
+          const data = await readApiPayload(res);
+
+          if (res.ok && data.checkoutUrl) {
             window.location.href = data.checkoutUrl;
-          } else {
-            // IT FAILED: Show exact reason
-            console.error("SERVER ERROR REASON:", data.message || data.title || data);
-            alert("Checkout Failed: " + (data.message || data.title || "Check Console"));
-            btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> Try Again`;
-            btn.disabled = false;
+            return;
           }
-        } catch(e) {
-          console.error("Network Error:", e);
-          alert("Could not connect to the server. Is your C# API running?");
+
+          console.error('SERVER ERROR REASON:', data.message || data.title || data);
+          await showSystemAlert(
+            `Checkout failed: ${data.message || data.title || `Request returned ${res.status}.`}`,
+            'Checkout Failed'
+          );
+        } catch (error) {
+          console.error('Network Error:', error);
+          await showSystemAlert(
+            error.message || 'Could not connect to the server. Check that the API is running.',
+            'Network Error'
+          );
+        } finally {
           btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> Proceed to Payment <span id="btnTotal">${formatPeso((parseFloat(document.querySelector('input[name="tier"]:checked')?.getAttribute('data-price') || '0') * parseInt(document.getElementById('ticketQty').value, 10)) * 1.05)}</span>`;
+          lucide.createIcons();
         }
       });
     });
-
-    // Updates the DOM whenever Tier or Quantity changes
-    function updateTotal() {
-      const selectedTier = document.querySelector('input[name="tier"]:checked');
-      const basePrice = parseFloat(selectedTier.getAttribute('data-price'));
-      const qty = parseInt(document.getElementById('ticketQty').value);
-      
-      const subtotal = basePrice * qty;
-      const convenienceFee = subtotal * 0.05; // 5% SYSTEM FEE
-      const total = subtotal + convenienceFee;
-      
-      document.getElementById('displaySubtotal').innerText = `₱${subtotal.toFixed(2)}`;
-      document.getElementById('displayFee').innerText = `₱${convenienceFee.toFixed(2)}`;
-      document.getElementById('displayTotal').innerText = `₱${total.toFixed(2)}`;
-      document.getElementById('btnTotal').innerText = `₱${total.toFixed(2)}`;
-    }
   </script>
 </body>
 </html>

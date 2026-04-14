@@ -912,7 +912,7 @@
           <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
             <div>
               <p class="font-semibold text-white">${escapeHtml((item.actionType || 'security_event').replaceAll('_', ' '))}</p>
-              <p class="text-xs text-white/45 mt-1">${escapeHtml(item.actorRole || 'System')} â€¢ ${escapeHtml(item.targetType || 'general')}</p>
+              <p class="text-xs text-white/45 mt-1">${escapeHtml(item.actorRole || 'System')} • ${escapeHtml(item.targetType || 'general')}</p>
               <p class="text-sm text-white/70 mt-3">${escapeHtml(item.details || 'No details recorded.')}</p>
             </div>
             <span class="text-xs text-white/45 whitespace-nowrap">${escapeHtml(formatDateTime(item.createdAt))}</span>

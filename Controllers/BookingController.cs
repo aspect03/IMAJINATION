@@ -52,13 +52,88 @@ namespace ImajinationAPI.Controllers
         private readonly string _connectionString;
         private readonly string _paymongoSecretKey;
         private readonly MessageProtectionService _messageProtection;
-        private const decimal BookingServiceFee = 15m;
+        private const decimal BookingServiceFee = 20m;
+        private const decimal PayMongoMinimumAmount = 20m;
 
         public BookingController(IConfiguration configuration, MessageProtectionService messageProtection)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _paymongoSecretKey = configuration["PayMongo:SecretKey"] ?? string.Empty;
             _messageProtection = messageProtection;
+        }
+
+        private static string NormalizePaymentStatus(string? rawStatus)
+        {
+            if (string.IsNullOrWhiteSpace(rawStatus))
+            {
+                return "Unpaid";
+            }
+
+            return rawStatus.Trim();
+        }
+
+        private static string NormalizeServiceFeeStatus(string? rawServiceFeeStatus, string? rawPaymentStatus)
+        {
+            var serviceStatus = NormalizePaymentStatus(rawServiceFeeStatus);
+            var paymentStatus = NormalizePaymentStatus(rawPaymentStatus);
+
+            if (serviceStatus.Equals("ServiceFeePaid", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Paid";
+            }
+
+            if (serviceStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) ||
+                serviceStatus.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase) ||
+                serviceStatus.Equals("NotRequired", StringComparison.OrdinalIgnoreCase) ||
+                serviceStatus.Equals("Refund Pending", StringComparison.OrdinalIgnoreCase) ||
+                serviceStatus.Equals("Unpaid", StringComparison.OrdinalIgnoreCase))
+            {
+                return serviceStatus;
+            }
+
+            if (paymentStatus.Equals("ServiceFeePaid", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Paid";
+            }
+
+            if (paymentStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) ||
+                paymentStatus.Equals("AwaitingPayment", StringComparison.OrdinalIgnoreCase) ||
+                paymentStatus.Equals("NotRequired", StringComparison.OrdinalIgnoreCase) ||
+                paymentStatus.Equals("Refund Pending", StringComparison.OrdinalIgnoreCase))
+            {
+                return paymentStatus;
+            }
+
+            return "Unpaid";
+        }
+
+        private static string NormalizeTalentFeeStatus(string? rawTalentFeeStatus)
+        {
+            var talentStatus = NormalizePaymentStatus(rawTalentFeeStatus);
+
+            if (talentStatus.Equals("AwaitingTalentFeePayment", StringComparison.OrdinalIgnoreCase))
+            {
+                return "AwaitingPayment";
+            }
+
+            return talentStatus;
+        }
+
+        private static async Task<int> CountActiveBookingsForCustomerAsync(NpgsqlConnection connection, Guid customerId, string targetRole)
+        {
+            const string sql = @"
+                SELECT COUNT(*)
+                FROM bookings
+                WHERE customer_id = @customerId
+                  AND LOWER(COALESCE(target_role, '')) = LOWER(@targetRole)
+                  AND COALESCE(status, 'Pending') NOT ILIKE 'Cancelled%'
+                  AND LOWER(COALESCE(status, 'Pending')) <> 'completed';";
+
+            using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = customerId;
+            cmd.Parameters.Add("@targetRole", NpgsqlDbType.Text).Value = targetRole;
+            var result = await cmd.ExecuteScalarAsync();
+            return result is null || result == DBNull.Value ? 0 : Convert.ToInt32(result);
         }
 
         [HttpPost]
@@ -88,6 +163,18 @@ namespace ImajinationAPI.Controllers
                 var paymentStatus = normalizedRequesterRole == "Organizer" ? "NotRequired" : "Unpaid";
                 var serviceFeeStatus = normalizedRequesterRole == "Organizer" ? "NotRequired" : "Unpaid";
                 await EnsureNotificationsTableExists(connection);
+
+                if (normalizedRequesterRole == "Customer")
+                {
+                    var activeBookingsForRole = await CountActiveBookingsForCustomerAsync(connection, req.customerId, normalizedRole);
+                    if (activeBookingsForRole >= 20)
+                    {
+                        return Conflict(new
+                        {
+                            message = $"You can only keep 20 active {normalizedRole.ToLowerInvariant()} bookings at the same time. Finish or cancel an existing request first."
+                        });
+                    }
+                }
 
                 var normalizedEventDate = NormalizeToUtc(req.eventDate);
                 if (await PlatformFeatureSupport.UserHasCalendarBlockAsync(connection, req.targetUserId, normalizedRole, normalizedEventDate))
@@ -226,10 +313,10 @@ namespace ImajinationAPI.Controllers
                         message = decryptedMessage,
                         status = reader.IsDBNull(15) ? "Pending" : reader.GetString(15),
                         createdAt = reader.IsDBNull(16) ? DateTime.UtcNow : reader.GetDateTime(16),
-                        paymentStatus = reader.IsDBNull(17) ? "Unpaid" : reader.GetString(17),
+                        paymentStatus = NormalizePaymentStatus(reader.IsDBNull(17) ? "Unpaid" : reader.GetString(17)),
                         paymentMethod = reader.IsDBNull(18) ? "" : reader.GetString(18),
-                        serviceFeeStatus = reader.IsDBNull(19) ? "Unpaid" : reader.GetString(19),
-                        talentFeeStatus = reader.IsDBNull(20) ? "Unpaid" : reader.GetString(20),
+                        serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(19) ? "Unpaid" : reader.GetString(19), reader.IsDBNull(17) ? "Unpaid" : reader.GetString(17)),
+                        talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(20) ? "Unpaid" : reader.GetString(20)),
                         serviceFeePaymentMethod = reader.IsDBNull(21) ? "" : reader.GetString(21),
                         talentFeePaymentMethod = reader.IsDBNull(22) ? "" : reader.GetString(22),
                         hasMessages = !reader.IsDBNull(23) && reader.GetBoolean(23)
@@ -321,10 +408,10 @@ namespace ImajinationAPI.Controllers
                         message = decryptedMessage,
                         status = reader.IsDBNull(16) ? "Pending" : reader.GetString(16),
                         createdAt = reader.IsDBNull(17) ? DateTime.UtcNow : reader.GetDateTime(17),
-                        paymentStatus = reader.IsDBNull(18) ? "Unpaid" : reader.GetString(18),
+                        paymentStatus = NormalizePaymentStatus(reader.IsDBNull(18) ? "Unpaid" : reader.GetString(18)),
                         paymentMethod = reader.IsDBNull(19) ? "" : reader.GetString(19),
-                        serviceFeeStatus = reader.IsDBNull(20) ? "Unpaid" : reader.GetString(20),
-                        talentFeeStatus = reader.IsDBNull(21) ? "Unpaid" : reader.GetString(21),
+                        serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(20) ? "Unpaid" : reader.GetString(20), reader.IsDBNull(18) ? "Unpaid" : reader.GetString(18)),
+                        talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(21) ? "Unpaid" : reader.GetString(21)),
                         serviceFeePaymentMethod = reader.IsDBNull(22) ? "" : reader.GetString(22),
                         talentFeePaymentMethod = reader.IsDBNull(23) ? "" : reader.GetString(23),
                         hasMessages = !reader.IsDBNull(24) && reader.GetBoolean(24)
@@ -403,9 +490,9 @@ namespace ImajinationAPI.Controllers
                         location = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                         serviceType = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
                         status = reader.IsDBNull(6) ? "Pending" : reader.GetString(6),
-                        paymentStatus = reader.IsDBNull(7) ? "Unpaid" : reader.GetString(7),
-                        serviceFeeStatus = reader.IsDBNull(8) ? "Unpaid" : reader.GetString(8),
-                        talentFeeStatus = reader.IsDBNull(9) ? "Unpaid" : reader.GetString(9),
+                        paymentStatus = NormalizePaymentStatus(reader.IsDBNull(7) ? "Unpaid" : reader.GetString(7)),
+                        serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(8) ? "Unpaid" : reader.GetString(8), reader.IsDBNull(7) ? "Unpaid" : reader.GetString(7)),
+                        talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(9) ? "Unpaid" : reader.GetString(9)),
                         bookingFee = reader.IsDBNull(10) ? 0m : reader.GetDecimal(10),
                         budget = reader.IsDBNull(11) ? 0m : reader.GetDecimal(11),
                         createdAt = reader.IsDBNull(12) ? DateTime.UtcNow : reader.GetDateTime(12),
@@ -443,6 +530,8 @@ namespace ImajinationAPI.Controllers
                 string targetRole;
                 string paymentStatus;
                 string serviceFeeStatus;
+                string currentStatus;
+                string talentFeeStatus;
                 decimal budget;
                 Guid customerId;
                 Guid targetUserId;
@@ -455,6 +544,8 @@ namespace ImajinationAPI.Controllers
                     SELECT COALESCE(target_role, 'Artist'),
                            COALESCE(payment_status, 'Unpaid'),
                            COALESCE(service_fee_status, COALESCE(payment_status, 'Unpaid')),
+                           COALESCE(status, 'Pending'),
+                           COALESCE(talent_fee_status, 'Unpaid'),
                            COALESCE(budget, 0),
                            customer_id,
                            target_user_id,
@@ -474,15 +565,17 @@ namespace ImajinationAPI.Controllers
                     }
 
                     targetRole = reader.IsDBNull(0) ? "Artist" : NormalizeTargetRole(reader.GetString(0));
-                    paymentStatus = reader.IsDBNull(1) ? "Unpaid" : reader.GetString(1);
-                    serviceFeeStatus = reader.IsDBNull(2) ? paymentStatus : reader.GetString(2);
-                    budget = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
-                    customerId = reader.IsDBNull(4) ? Guid.Empty : reader.GetGuid(4);
-                    targetUserId = reader.IsDBNull(5) ? Guid.Empty : reader.GetGuid(5);
-                    eventId = reader.IsDBNull(6) ? (Guid?)null : reader.GetGuid(6);
-                    eventTitle = reader.IsDBNull(7) ? "Booking Request" : reader.GetString(7);
-                    eventDate = reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8);
-                    location = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                    paymentStatus = NormalizePaymentStatus(reader.IsDBNull(1) ? "Unpaid" : reader.GetString(1));
+                    serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(2) ? paymentStatus : reader.GetString(2), paymentStatus);
+                    currentStatus = reader.IsDBNull(3) ? "Pending" : reader.GetString(3);
+                    talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(4) ? "Unpaid" : reader.GetString(4));
+                    budget = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5);
+                    customerId = reader.IsDBNull(6) ? Guid.Empty : reader.GetGuid(6);
+                    targetUserId = reader.IsDBNull(7) ? Guid.Empty : reader.GetGuid(7);
+                    eventId = reader.IsDBNull(8) ? (Guid?)null : reader.GetGuid(8);
+                    eventTitle = reader.IsDBNull(9) ? "Booking Request" : reader.GetString(9);
+                    eventDate = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10);
+                    location = reader.IsDBNull(11) ? "" : reader.GetString(11);
                 }
 
                 var normalizedStatus = req.status.Trim();
@@ -500,6 +593,25 @@ namespace ImajinationAPI.Controllers
                     serviceFeeStatus != "NotRequired")
                 {
                     return BadRequest(new { message = "The booking fee must be paid before this request can be confirmed." });
+                }
+
+                if (normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!currentStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) &&
+                        !currentStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return BadRequest(new { message = "Only confirmed bookings can be marked as completed." });
+                    }
+
+                    if (!eventDate.HasValue)
+                    {
+                        return BadRequest(new { message = "This booking needs an event date before it can be completed." });
+                    }
+
+                    if (eventDate.Value.ToUniversalTime() > DateTime.UtcNow)
+                    {
+                        return BadRequest(new { message = "This booking can only be completed after the event date has passed." });
+                    }
                 }
 
                 if (normalizedStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase))
@@ -525,6 +637,12 @@ namespace ImajinationAPI.Controllers
                 else if (normalizedStatus.StartsWith("Cancelled by ", StringComparison.OrdinalIgnoreCase) && serviceFeeStatus == "Paid")
                 {
                     nextPaymentStatus = "Refund Pending";
+                }
+                else if (normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    nextPaymentStatus = budget > 0 && !talentFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase)
+                        ? paymentStatus
+                        : serviceFeeStatus == "NotRequired" ? "NotRequired" : "Paid";
                 }
 
                 const string sql = "UPDATE bookings SET status = @status, payment_status = @paymentStatus WHERE id = @id";
@@ -553,11 +671,18 @@ namespace ImajinationAPI.Controllers
                 {
                     var customerMessage = normalizedStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase)
                         ? $"{targetRole} confirmed your booking for {eventTitle}."
+                        : normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+                            ? $"Your booking for {eventTitle} has been marked as completed."
                         : normalizedStatus.StartsWith("Cancelled by ", StringComparison.OrdinalIgnoreCase)
                             ? $"{targetRole} cancelled your booking for {eventTitle}."
                             : $"Your booking for {eventTitle} is now {normalizedStatus}.";
 
                     await InsertNotification(connection, customerId, "booking_status", "Booking updated", customerMessage, bookingId, "booking");
+                }
+
+                if (targetUserId != Guid.Empty && targetUserId != customerId && normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    await InsertNotification(connection, targetUserId, "booking_status", "Booking completed", $"The booking for {eventTitle} has been marked as completed.", bookingId, "booking");
                 }
 
                 return Ok(new { message = "Booking request updated.", status = normalizedStatus, paymentStatus = nextPaymentStatus });
@@ -649,11 +774,11 @@ namespace ImajinationAPI.Controllers
                     notes = _messageProtection.Unprotect(reader.IsDBNull(16) ? "" : reader.GetString(16)),
                     message = _messageProtection.Unprotect(reader.IsDBNull(17) ? "" : reader.GetString(17)),
                     status = reader.IsDBNull(18) ? "Pending" : reader.GetString(18),
-                    paymentStatus = reader.IsDBNull(19) ? "Unpaid" : reader.GetString(19),
+                    paymentStatus = NormalizePaymentStatus(reader.IsDBNull(19) ? "Unpaid" : reader.GetString(19)),
                     paidAt = reader.IsDBNull(20) ? (DateTime?)null : reader.GetDateTime(20),
                     paymentMethod = reader.IsDBNull(21) ? "" : reader.GetString(21),
-                    serviceFeeStatus = reader.IsDBNull(22) ? "Unpaid" : reader.GetString(22),
-                    talentFeeStatus = reader.IsDBNull(23) ? "Unpaid" : reader.GetString(23),
+                    serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(22) ? "Unpaid" : reader.GetString(22), reader.IsDBNull(19) ? "Unpaid" : reader.GetString(19)),
+                    talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(23) ? "Unpaid" : reader.GetString(23)),
                     serviceFeePaidAt = reader.IsDBNull(24) ? (DateTime?)null : reader.GetDateTime(24),
                     talentFeePaidAt = reader.IsDBNull(25) ? (DateTime?)null : reader.GetDateTime(25),
                     serviceFeePaymentMethod = reader.IsDBNull(26) ? "" : reader.GetString(26),
@@ -813,6 +938,7 @@ namespace ImajinationAPI.Controllers
         }
 
         [HttpPost("{bookingId}/checkout")]
+        [HttpPost("checkout/{bookingId}")]
         public async Task<IActionResult> CreateBookingCheckout(Guid bookingId, [FromBody] BookingCheckoutRequest req)
         {
             try
@@ -853,9 +979,9 @@ namespace ImajinationAPI.Controllers
                     bookingFee = reader.IsDBNull(1) ? BookingServiceFee : reader.GetDecimal(1);
                     budget = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
                     status = reader.IsDBNull(3) ? "Pending" : reader.GetString(3);
-                    paymentStatus = reader.IsDBNull(4) ? "Unpaid" : reader.GetString(4);
-                    serviceFeeStatus = reader.IsDBNull(5) ? paymentStatus : reader.GetString(5);
-                    talentFeeStatus = reader.IsDBNull(6) ? "Unpaid" : reader.GetString(6);
+                    paymentStatus = NormalizePaymentStatus(reader.IsDBNull(4) ? "Unpaid" : reader.GetString(4));
+                    serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(5) ? paymentStatus : reader.GetString(5), paymentStatus);
+                    talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(6) ? "Unpaid" : reader.GetString(6));
                 }
 
                 var paymentType = string.Equals(req.paymentType, "talent", StringComparison.OrdinalIgnoreCase)
@@ -863,9 +989,19 @@ namespace ImajinationAPI.Controllers
                     : "service";
                 var amountToCharge = paymentType == "talent" ? budget : bookingFee;
 
+                if (paymentType == "service" && amountToCharge < PayMongoMinimumAmount)
+                {
+                    amountToCharge = PayMongoMinimumAmount;
+                }
+
                 if (status.StartsWith("Cancelled", StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(new { message = "This booking is no longer eligible for payment." });
+                }
+
+                if (string.IsNullOrWhiteSpace(_paymongoSecretKey))
+                {
+                    return StatusCode(500, new { message = "PayMongo is not configured yet. Add PayMongo:SecretKey before starting checkout." });
                 }
 
                 if (paymentType == "service" && serviceFeeStatus == "Paid")
@@ -881,6 +1017,11 @@ namespace ImajinationAPI.Controllers
                 if (paymentType == "talent" && talentFeeStatus == "Paid")
                 {
                     return Conflict(new { message = "The promised talent fee has already been paid." });
+                }
+
+                if (amountToCharge < PayMongoMinimumAmount)
+                {
+                    return BadRequest(new { message = $"PayMongo requires a minimum amount of {FormatPeso(PayMongoMinimumAmount)}." });
                 }
 
                 if (paymentType == "talent" && amountToCharge <= 0)
@@ -937,7 +1078,12 @@ namespace ImajinationAPI.Controllers
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return StatusCode((int)response.StatusCode, new { message = "PayMongo API Error", details = responseString });
+                    var payMongoMessage = GetPayMongoHttpErrorMessage(
+                        (int)response.StatusCode,
+                        responseString,
+                        "PayMongo could not create the checkout session. Please verify the amount and payment settings."
+                    );
+                    return StatusCode((int)response.StatusCode, new { message = payMongoMessage, details = responseString });
                 }
 
                 using var doc = JsonDocument.Parse(responseString);
@@ -961,6 +1107,7 @@ namespace ImajinationAPI.Controllers
                         UPDATE bookings
                         SET payment_status = 'AwaitingPayment',
                             service_fee_status = 'AwaitingPayment',
+                            booking_fee = @amountToCharge,
                             paymongo_checkout_id = @checkoutId,
                             paymongo_checkout_url = @checkoutUrl,
                             paymongo_checkout_reference = @checkoutReference
@@ -970,6 +1117,7 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.Add("@checkoutId", NpgsqlDbType.Text).Value = (object?)checkoutId ?? DBNull.Value;
                 updateCmd.Parameters.Add("@checkoutUrl", NpgsqlDbType.Text).Value = (object?)checkoutUrl ?? DBNull.Value;
                 updateCmd.Parameters.Add("@checkoutReference", NpgsqlDbType.Text).Value = (object?)checkoutReference ?? DBNull.Value;
+                updateCmd.Parameters.Add("@amountToCharge", NpgsqlDbType.Numeric).Value = amountToCharge;
                 updateCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
                 await updateCmd.ExecuteNonQueryAsync();
 
@@ -1037,12 +1185,12 @@ namespace ImajinationAPI.Controllers
                     }
 
                     checkoutId = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                    paymentStatus = reader.IsDBNull(1) ? "Unpaid" : reader.GetString(1);
+                    paymentStatus = NormalizePaymentStatus(reader.IsDBNull(1) ? "Unpaid" : reader.GetString(1));
                     checkoutReference = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     status = reader.IsDBNull(3) ? "Pending" : reader.GetString(3);
                     targetRole = reader.IsDBNull(4) ? "Artist" : NormalizeTargetRole(reader.GetString(4));
-                    serviceFeeStatus = reader.IsDBNull(5) ? paymentStatus : reader.GetString(5);
-                    talentFeeStatus = reader.IsDBNull(6) ? "Unpaid" : reader.GetString(6);
+                    serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(5) ? paymentStatus : reader.GetString(5), paymentStatus);
+                    talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(6) ? "Unpaid" : reader.GetString(6));
                     talentCheckoutId = reader.IsDBNull(7) ? "" : reader.GetString(7);
                     talentCheckoutReference = reader.IsDBNull(8) ? "" : reader.GetString(8);
                     customerId = reader.IsDBNull(9) ? Guid.Empty : reader.GetGuid(9);
@@ -1498,6 +1646,56 @@ namespace ImajinationAPI.Controllers
         private static string FormatPeso(decimal amount)
         {
             return $"PHP {amount:0.00}";
+        }
+
+        private static string GetPayMongoErrorMessage(string responseString, string fallbackMessage)
+        {
+            if (string.IsNullOrWhiteSpace(responseString))
+            {
+                return fallbackMessage;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(responseString);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("errors", out var errors) &&
+                    errors.ValueKind == JsonValueKind.Array &&
+                    errors.GetArrayLength() > 0)
+                {
+                    var firstError = errors[0];
+
+                    if (firstError.TryGetProperty("detail", out var detail) &&
+                        detail.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(detail.GetString()))
+                    {
+                        return detail.GetString()!;
+                    }
+
+                    if (firstError.TryGetProperty("code", out var code) &&
+                        code.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(code.GetString()))
+                    {
+                        return $"PayMongo error: {code.GetString()}";
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return fallbackMessage;
+        }
+
+        private static string GetPayMongoHttpErrorMessage(int statusCode, string responseString, string fallbackMessage)
+        {
+            if (statusCode == StatusCodes.Status401Unauthorized)
+            {
+                return "PayMongo rejected the configured secret key. Use the exact test secret key for local checkout.";
+            }
+
+            return GetPayMongoErrorMessage(responseString, fallbackMessage);
         }
     }
 }

@@ -315,7 +315,7 @@
         </div>
         <div class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
           <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Service fee</p>
-          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 15.00 booking fee first. Organizers can send direct event booking requests and continue in chat.</p>
+          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 20.00 booking fee first. Organizers can send direct event booking requests and continue in chat.</p>
         </div>
         <p id="bookingStatus" class="text-xs text-white/50">Customers and organizers can send booking requests here.</p>
         <button id="submitBookingBtn" type="submit" class="w-full py-3.5 rounded-xl bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors">
@@ -504,7 +504,7 @@
       syncBookingBudgetWithBasePrice(false);
       document.getElementById('bookingStatus').innerText = role === 'Organizer'
         ? `You are sending an organizer booking request to ${currentSessionistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
-        : `You are booking ${currentSessionistName}. The PHP 15.00 service fee is collected before the sessionist can review your request.`;
+        : `You are booking ${currentSessionistName}. The PHP 20.00 service fee is collected before the sessionist can review your request.`;
       bookingModal.classList.remove('hidden');
       bookingModal.classList.add('flex');
     }
@@ -512,6 +512,49 @@
     function closeBookingModal() {
       bookingModal.classList.add('hidden');
       bookingModal.classList.remove('flex');
+    }
+
+    async function readApiPayload(response) {
+      const text = await response.text().catch(() => '');
+      if (!text) return {};
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { message: text };
+      }
+    }
+
+    async function requestBookingCheckout(bookingId, body) {
+      const routes = [
+        `/api/booking/${bookingId}/checkout`,
+        `/api/booking/checkout/${bookingId}`
+      ];
+
+      let lastResponse = null;
+      let lastPayload = {};
+
+      for (const route of routes) {
+        const response = await fetch(route, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const payload = await readApiPayload(response);
+        lastResponse = response;
+        lastPayload = payload;
+
+        if (response.ok) {
+          return { response, payload };
+        }
+
+        if (response.status !== 404) {
+          return { response, payload };
+        }
+      }
+
+      return { response: lastResponse, payload: lastPayload };
     }
 
     document.getElementById('bookingForm').addEventListener('submit', async (event) => {
@@ -544,7 +587,7 @@
           body: JSON.stringify(payload)
         });
 
-        const data = await response.json().catch(() => ({}));
+        const data = await readApiPayload(response);
         if (!response.ok) throw new Error(data.message || 'Failed to send booking request.');
 
         const bookingId = data.bookingId;
@@ -556,18 +599,13 @@
           return;
         }
 
-        document.getElementById('bookingStatus').innerText = 'Booking created. Redirecting to the PHP 15.00 service fee checkout...';
+        document.getElementById('bookingStatus').innerText = 'Booking created. Redirecting to the PHP 20.00 service fee checkout...';
 
         const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}&bookingFeePaid=1`;
         const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}`;
-        const checkoutRes = await fetch(`/api/booking/${bookingId}/checkout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ successUrl, cancelUrl })
-        });
-        const checkoutData = await checkoutRes.json().catch(() => ({}));
+        const { response: checkoutRes, payload: checkoutData } = await requestBookingCheckout(bookingId, { successUrl, cancelUrl });
         if (!checkoutRes.ok || !checkoutData.checkoutUrl) {
-          throw new Error(checkoutData.message || 'Failed to start booking fee payment.');
+          throw new Error(checkoutData.message || checkoutData.details || `Failed to start booking fee payment (${checkoutRes.status}).`);
         }
 
         window.location.href = checkoutData.checkoutUrl;

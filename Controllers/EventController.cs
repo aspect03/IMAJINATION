@@ -422,6 +422,8 @@ namespace ImajinationAPI.Controllers
                 var sanitizedSponsors = SecuritySupport.SanitizePlainText(req.sponsors, 1000, true);
                 var sanitizedSaleName = SecuritySupport.SanitizePlainText(req.saleName, 120, false);
                 var sanitizedSaleType = SecuritySupport.SanitizePlainText(req.saleType, 40, false);
+                var sanitizedStatus = SecuritySupport.SanitizePlainText(req.status, 40, false);
+                var normalizedStatus = string.Equals(sanitizedStatus, "Draft", StringComparison.OrdinalIgnoreCase) ? "Draft" : "Upcoming";
                 var normalizedPoster = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.posterUrl, 3_500_000, out var posterError);
                 if (posterError is not null)
                 {
@@ -435,9 +437,9 @@ namespace ImajinationAPI.Controllers
 
                 string sql = @"
                     INSERT INTO events 
-                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, artist_lineup, sessionist_lineup) 
+                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, status, artist_lineup, sessionist_lineup) 
                     VALUES 
-                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @artistLineup, @sessionistLineup)";
+                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @status, @artistLineup, @sessionistLineup)";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", eventId);
@@ -466,6 +468,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@saleValue", (object?)req.saleValue ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleStartsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleEndsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@status", normalizedStatus);
                 cmd.Parameters.AddWithValue("@artistLineup", SerializeLineup(normalizedArtistLineup));
                 cmd.Parameters.AddWithValue("@sessionistLineup", SerializeLineup(normalizedSessionistLineup));
 
@@ -480,7 +483,7 @@ namespace ImajinationAPI.Controllers
                     HttpContext,
                     $"Organizer created event '{sanitizedTitle}'.");
                 await NotifyLineupAddedAsync(connection, eventId, req.title, mergedLineup);
-                return Ok(new { message = "Event successfully created!" });
+                return Ok(new { message = normalizedStatus == "Draft" ? "Draft saved successfully!" : "Event successfully created!" });
             }
             catch (Exception ex)
             {
@@ -1124,6 +1127,8 @@ namespace ImajinationAPI.Controllers
                 var sanitizedSponsors = SecuritySupport.SanitizePlainText(req.sponsors, 1000, true);
                 var sanitizedSaleName = SecuritySupport.SanitizePlainText(req.saleName, 120, false);
                 var sanitizedSaleType = SecuritySupport.SanitizePlainText(req.saleType, 40, false);
+                var sanitizedStatus = SecuritySupport.SanitizePlainText(req.status, 40, false);
+                var normalizedStatus = string.Equals(sanitizedStatus, "Draft", StringComparison.OrdinalIgnoreCase) ? "Draft" : "Upcoming";
                 var normalizedPoster = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.posterUrl, 3_500_000, out var posterError);
                 if (posterError is not null)
                 {
@@ -1182,6 +1187,7 @@ namespace ImajinationAPI.Controllers
                         sale_value = COALESCE(@saleValue, sale_value),
                         sale_starts_at = COALESCE(@saleStartsAt, sale_starts_at),
                         sale_ends_at = COALESCE(@saleEndsAt, sale_ends_at),
+                        status = @status,
                         artist_lineup = @artistLineup,
                         sessionist_lineup = @sessionistLineup
                     WHERE id = @id AND organizer_id = @orgId";
@@ -1214,6 +1220,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@saleValue", (object?)req.saleValue ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleStartsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleEndsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@status", normalizedStatus);
                 cmd.Parameters.AddWithValue("@artistLineup", SerializeLineup(normalizedArtistLineup));
                 cmd.Parameters.AddWithValue("@sessionistLineup", SerializeLineup(normalizedSessionistLineup));
 
@@ -1246,7 +1253,7 @@ namespace ImajinationAPI.Controllers
                     await NotifyLineupRemovedAsync(connection, removedId, id, string.IsNullOrWhiteSpace(req.title) ? previousTitle : req.title);
                 }
 
-                return Ok(new { message = "Event successfully updated!" });
+                return Ok(new { message = normalizedStatus == "Draft" ? "Draft updated successfully!" : "Event successfully updated!" });
             }
             catch (Exception ex)
             {

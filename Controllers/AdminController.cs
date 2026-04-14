@@ -758,21 +758,21 @@ namespace ImajinationAPI.Controllers
                 mail.IsBodyHtml = true;
                 mail.Body = approved
                     ? $@"
-                        <div style='font-family:Montserrat,Arial,sans-serif;background:#0a0a0a;padding:32px;color:#fff;'>
-                          <div style='max-width:620px;margin:auto;background:#171717;border:1px solid #262626;border-radius:24px;padding:32px;'>
-                            <p style='font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#f87171;margin:0 0 12px;'>Organizer Approval</p>
-                            <h2 style='margin:0 0 14px;'>Hello {WebUtility.HtmlEncode(displayName)}, your organizer account is now approved.</h2>
-                            <p style='color:#d4d4d8;line-height:1.7;margin:0 0 18px;'>An administrator reviewed your organizer registration and approved it. You can now sign in, complete your profile, and begin creating events inside Imajination.</p>
-                            <div style='padding:16px 18px;background:#052e16;border:1px solid #166534;border-radius:16px;color:#bbf7d0;'>You can now access the organizer dashboard using the email you registered with.</div>
+                        <div style='font-family:Montserrat,Arial,sans-serif;background:#09090b;padding:40px 20px;color:#fff;'>
+                          <div style='max-width:640px;margin:auto;background:#171717;border:1px solid #2a2a2a;border-radius:28px;padding:36px;box-shadow:0 24px 80px rgba(0,0,0,0.45);'>
+                            <p style='font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#f87171;margin:0 0 16px;font-weight:700;'>Organizer Approval</p>
+                            <h2 style='margin:0 0 14px;font-size:36px;line-height:1.12;font-weight:800;color:#ffffff;'>Hello {WebUtility.HtmlEncode(displayName)}, your organizer account is now approved.</h2>
+                            <p style='color:#d4d4d8;line-height:1.8;margin:0 0 22px;font-size:15px;'>An administrator reviewed your organizer registration and approved it. You can now sign in, complete your profile, and begin creating events inside Imajination.</p>
+                            <div style='padding:18px 20px;background:#052e16;border:1px solid #166534;border-radius:18px;color:#bbf7d0;font-size:15px;line-height:1.6;'>You can now access the organizer dashboard using the email you registered with.</div>
                           </div>
                         </div>"
                     : $@"
-                        <div style='font-family:Montserrat,Arial,sans-serif;background:#0a0a0a;padding:32px;color:#fff;'>
-                          <div style='max-width:620px;margin:auto;background:#171717;border:1px solid #262626;border-radius:24px;padding:32px;'>
-                            <p style='font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#f87171;margin:0 0 12px;'>Organizer Approval</p>
-                            <h2 style='margin:0 0 14px;'>Hello {WebUtility.HtmlEncode(displayName)}, your organizer account was not approved.</h2>
-                            <p style='color:#d4d4d8;line-height:1.7;margin:0 0 18px;'>An administrator reviewed your organizer registration and did not approve it at this time. If you believe this was a mistake, please contact support or submit updated organizer details before trying again.</p>
-                            <div style='padding:16px 18px;background:#3f0d0d;border:1px solid #7f1d1d;border-radius:16px;color:#fecaca;'>Your organizer sign-in will stay blocked until an administrator approves the account.</div>
+                        <div style='font-family:Montserrat,Arial,sans-serif;background:#09090b;padding:40px 20px;color:#fff;'>
+                          <div style='max-width:640px;margin:auto;background:#171717;border:1px solid #2a2a2a;border-radius:28px;padding:36px;box-shadow:0 24px 80px rgba(0,0,0,0.45);'>
+                            <p style='font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#f87171;margin:0 0 16px;font-weight:700;'>Organizer Approval</p>
+                            <h2 style='margin:0 0 14px;font-size:36px;line-height:1.12;font-weight:800;color:#ffffff;'>Hello {WebUtility.HtmlEncode(displayName)}, your organizer account was not approved.</h2>
+                            <p style='color:#d4d4d8;line-height:1.8;margin:0 0 22px;font-size:15px;'>An administrator reviewed your organizer registration and did not approve it at this time. If you believe this was a mistake, please contact support or submit updated organizer details before trying again.</p>
+                            <div style='padding:18px 20px;background:#3f0d0d;border:1px solid #7f1d1d;border-radius:18px;color:#fecaca;font-size:15px;line-height:1.6;'>Your organizer sign-in will stay blocked until an administrator approves the account.</div>
                           </div>
                         </div>";
 

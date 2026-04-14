@@ -132,7 +132,7 @@
             <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
               <div>
                 <h2 class="text-lg font-bold text-white">Booking Requests</h2>
-                <p class="text-sm text-white/50 mt-1">Customers now pay the PHP 15.00 service fee first, then the chat opens for you to confirm or cancel.</p>
+                <p class="text-sm text-white/50 mt-1">Customers now pay the PHP 20.00 service fee first, then the chat opens for you to confirm or cancel.</p>
               </div>
               <div class="grid grid-cols-2 gap-3 sm:w-auto">
                 <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
@@ -616,6 +616,7 @@
 
     function getArtistBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'bg-red-500/15 text-red-400';
+      if (status === 'Completed') return 'bg-blue-500/15 text-blue-300';
       if (status === 'Confirmed') return 'bg-emerald-500/15 text-emerald-400';
       return 'bg-amber-500/15 text-amber-300';
     }
@@ -634,7 +635,7 @@
 
     function normalizeArtistSchedules() {
       const bookingSchedules = artistBookings
-        .filter(booking => booking.status === 'Confirmed' && booking.eventDate)
+        .filter(booking => (booking.status === 'Confirmed' || booking.status === 'Completed') && booking.eventDate)
         .map(booking => ({
           id: `booking-${booking.id}`,
           type: 'Booking',
@@ -751,7 +752,7 @@
 
     function updateArtistDashboardStats() {
       const pendingCount = artistBookings.filter(b => (b.status || '').includes('Pending') || (b.status || '').includes('Awaiting')).length;
-      const confirmedCount = artistBookings.filter(b => b.status === 'Confirmed').length;
+      const confirmedCount = artistBookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length;
       const upcomingCount = normalizeArtistSchedules().filter(item => item.date >= new Date()).length;
 
       document.getElementById('artistPendingStatCount').innerText = pendingCount;
@@ -773,7 +774,7 @@
         artistBookings = await res.json();
 
         document.getElementById('artistBookingPendingCount').innerText = artistBookings.filter(b => (b.status || '').includes('Pending') || (b.status || '').includes('Awaiting')).length;
-        document.getElementById('artistBookingAcceptedCount').innerText = artistBookings.filter(b => b.status === 'Confirmed').length;
+        document.getElementById('artistBookingAcceptedCount').innerText = artistBookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length;
         renderArtistSchedules();
         updateArtistDashboardStats();
 
@@ -796,7 +797,7 @@
                 <div><span class="text-white/40 block mb-1">Service</span>${booking.serviceType || 'Booking'}</div>
               </div>
               <p class="text-[10px] uppercase tracking-widest ${getArtistPaymentStatusClasses(booking.paymentStatus)} pt-2">Service fee: ${booking.paymentStatus || 'Unpaid'}</p>
-              <p class="text-xs text-white/55">PHP ${(booking.bookingFee || 15).toFixed(2)} fee${booking.budget ? ` • Offer ${new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(booking.budget || 0)}` : ''}</p>
+              <p class="text-xs text-white/55">PHP ${(booking.bookingFee || 20).toFixed(2)} fee${booking.budget ? ` • Offer ${new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(booking.budget || 0)}` : ''}</p>
               <p class="text-sm text-white/70 pt-2">${booking.notes || booking.message || 'No notes provided.'}</p>
             </div>
             <div class="flex flex-row lg:flex-col gap-2">

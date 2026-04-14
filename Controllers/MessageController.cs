@@ -119,6 +119,32 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureMessagesTableExists(connection);
 
+                const string bookingGuardSql = @"
+                    SELECT
+                        COALESCE(service_fee_status, ''),
+                        COALESCE(payment_status, '')
+                    FROM bookings
+                    WHERE id = @bookingId;";
+
+                using (var bookingGuardCmd = new NpgsqlCommand(bookingGuardSql, connection))
+                {
+                    bookingGuardCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+                    using var guardReader = await bookingGuardCmd.ExecuteReaderAsync();
+                    if (!await guardReader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Booking request not found." });
+                    }
+
+                    var serviceFeeStatus = guardReader.IsDBNull(0) ? "" : guardReader.GetString(0);
+                    var paymentStatus = guardReader.IsDBNull(1) ? "" : guardReader.GetString(1);
+                    var normalizedServiceFee = NormalizeServiceFeeStatus(serviceFeeStatus, paymentStatus);
+                    if (!string.Equals(normalizedServiceFee, "Paid", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return StatusCode(403, new { message = "Pay the booking service fee first before opening messages." });
+                    }
+                }
+
                 const string sql = @"
                     SELECT id, sender_id, receiver_id, message_text, created_at
                     FROM booking_messages
@@ -165,8 +191,13 @@ namespace ImajinationAPI.Controllers
 
                 Guid customerId;
                 Guid targetUserId;
+                string serviceFeeStatus = string.Empty;
+                string paymentStatus = string.Empty;
 
-                const string bookingSql = "SELECT customer_id, target_user_id FROM bookings WHERE id = @bookingId";
+                const string bookingSql = @"
+                    SELECT customer_id, target_user_id, COALESCE(service_fee_status, ''), COALESCE(payment_status, '')
+                    FROM bookings
+                    WHERE id = @bookingId";
                 using (var bookingCmd = new NpgsqlCommand(bookingSql, connection))
                 {
                     bookingCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
@@ -178,6 +209,15 @@ namespace ImajinationAPI.Controllers
 
                     customerId = reader.GetGuid(0);
                     targetUserId = reader.GetGuid(1);
+                    serviceFeeStatus = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    paymentStatus = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                }
+
+                var normalizedServiceFee = NormalizeServiceFeeStatus(serviceFeeStatus, paymentStatus);
+                if (!string.Equals(normalizedServiceFee, "Paid", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(403, new { message = "Pay the booking service fee first before sending messages." });
                 }
 
                 var receiverId = req.senderId == customerId ? targetUserId : customerId;
@@ -216,6 +256,26 @@ namespace ImajinationAPI.Controllers
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static string NormalizeServiceFeeStatus(string? serviceFeeStatus, string? paymentStatus)
+        {
+            var rawServiceStatus = (serviceFeeStatus ?? string.Empty).Trim();
+            var rawPaymentStatus = (paymentStatus ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(rawServiceStatus))
+            {
+                if (string.Equals(rawPaymentStatus, "ServiceFeePaid", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "Paid";
+                }
+
+                return string.IsNullOrWhiteSpace(rawPaymentStatus) ? "Unpaid" : rawPaymentStatus;
+            }
+
+            return string.Equals(rawServiceStatus, "ServiceFeePaid", StringComparison.OrdinalIgnoreCase)
+                ? "Paid"
+                : rawServiceStatus;
         }
     }
 }

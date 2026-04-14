@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -83,8 +83,11 @@
               <button onclick="switchTab('dashboard')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
                 <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
               </button>
+              <button onclick="switchTab('tickets')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                <i data-lucide="history" class="w-4 h-4"></i> Gig History
+              </button>
               <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
-                <i data-lucide="settings" class="w-4 h-4"></i> Settings
+                <i data-lucide="user-round" class="w-4 h-4"></i> Profile Page
               </button>
             </div>
             <div class="p-2 border-t border-white/10">
@@ -164,9 +167,9 @@
           </div>
         </div>
         <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Saved Events</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Saved Favorites</p>
           <div class="flex justify-between items-end">
-            <span class="text-4xl font-extrabold text-white">5</span>
+            <span id="savedFavoritesCount" class="text-4xl font-extrabold text-white">0</span>
             <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"><i data-lucide="heart" class="w-5 h-5 text-white/70"></i></div>
           </div>
         </div>
@@ -241,6 +244,18 @@
                     <p class="font-semibold text-sm text-white">Explore artists</p>
                     <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Follow artists you like and get updates.</p>
                   </a>
+                </div>
+              </div>
+              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+                <div class="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-white">Saved Favorites</h2>
+                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Artists and sessionists you bookmarked</p>
+                  </div>
+                  <i data-lucide="heart" class="w-4 h-4 text-red-400"></i>
+                </div>
+                <div id="customerFavoritesPreview" class="space-y-3">
+                  <p class="text-sm text-white/50">Loading favorites...</p>
                 </div>
               </div>
               <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
@@ -329,6 +344,16 @@
                 Save Profile Changes
               </button>
             </form>
+
+            <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+              <div class="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">3. Saved Favorites</h3>
+                <span class="text-[10px] uppercase tracking-[0.18em] text-white/35">Profile Library</span>
+              </div>
+              <div id="customerFavoritesProfileList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <p class="text-sm text-white/50">Loading favorites...</p>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -423,12 +448,21 @@
     let globalTickets = []; 
     let customerBookings = [];
     let customerNotifications = [];
+    let customerFavorites = [];
     let base64Image = null;
     let currentTicketFilter = 'all';
     let customerNotificationInterval = null;
     const MAX_UPLOAD_DIMENSION = 512;
     const JPEG_QUALITY = 0.82;
     const CUSTOMER_VIEWS = new Set(['dashboard', 'tickets', 'bookings', 'settings']);
+
+    async function showSystemAlert(message, title = 'Notice') {
+      if (window.systemDialog?.alert) {
+        await window.systemDialog.alert(message, { title, kicker: 'System Message' });
+        return;
+      }
+      window.alert(message);
+    }
 
     function closeProfileDropdown() {
       const dropdown = document.getElementById('profileDropdown');
@@ -451,8 +485,8 @@
           subtitle: 'Manage your tickets and track your upcoming gigs.'
         },
         tickets: {
-          title: 'Your tickets,',
-          subtitle: 'Review active, used, and expired event passes in one place.'
+          title: 'Your gig history,',
+          subtitle: 'Open each event from your ticket history and review past or upcoming passes in one place.'
         },
         bookings: {
           title: 'Your bookings,',
@@ -610,6 +644,7 @@
       loadCustomerTickets();
       loadCustomerBookings();
       loadCustomerNotifications();
+      loadCustomerFavorites();
       customerNotificationInterval = window.setInterval(loadCustomerNotifications, 30000);
 
       const params = new URLSearchParams(window.location.search);
@@ -727,6 +762,69 @@
       }
     }
 
+    function getFavoriteProfileLink(item) {
+      const role = (item.targetRole || '').toLowerCase();
+      if (role === 'artist') return `/pages/details/ArtistDetails.html?id=${item.targetUserId}`;
+      if (role === 'sessionist') return `/pages/details/SessionistDetailsPage.html?id=${item.targetUserId}`;
+      return '#';
+    }
+
+    function renderCustomerFavorites() {
+      const preview = document.getElementById('customerFavoritesPreview');
+      const profileList = document.getElementById('customerFavoritesProfileList');
+      const countEl = document.getElementById('savedFavoritesCount');
+      if (countEl) countEl.innerText = String(customerFavorites.length);
+
+      if (!preview || !profileList) return;
+
+      if (!customerFavorites.length) {
+        const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No saved favorites yet. Start bookmarking artists and sessionists you like.</p>`;
+        preview.innerHTML = emptyState;
+        profileList.innerHTML = emptyState;
+        return;
+      }
+
+      preview.innerHTML = customerFavorites.slice(0, 3).map(item => `
+        <a href="${getFavoriteProfileLink(item)}" class="flex items-center gap-3 p-3 rounded-2xl border border-white/10 bg-black/30 hover:border-white/20 transition-colors">
+          <div class="w-12 h-12 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
+            <img src="${item.profilePicture || ''}" class="w-full h-full object-cover" onerror="this.style.display='none'">
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-white truncate">${item.displayName || 'Saved talent'}</p>
+            <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">${item.targetRole || 'Talent'}${item.isVerified ? ' • Verified' : ''}</p>
+          </div>
+        </a>
+      `).join('');
+
+      profileList.innerHTML = customerFavorites.map(item => `
+        <a href="${getFavoriteProfileLink(item)}" class="flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-black/30 hover:border-white/20 transition-colors">
+          <div class="w-14 h-14 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
+            <img src="${item.profilePicture || ''}" class="w-full h-full object-cover" onerror="this.style.display='none'">
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-white truncate">${item.displayName || 'Saved talent'}</p>
+            <p class="text-[10px] uppercase tracking-widest text-red-400 mt-1">${item.targetRole || 'Talent'}</p>
+            <p class="text-xs text-white/50 truncate mt-2">${item.genres || 'No genres listed yet.'}</p>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    async function loadCustomerFavorites() {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+
+      try {
+        const res = await fetch(`/api/customer/${userId}/favorites`);
+        if (!res.ok) throw new Error();
+        customerFavorites = await res.json();
+      } catch (error) {
+        customerFavorites = [];
+      }
+
+      renderCustomerFavorites();
+    }
+
     async function resizeImageToDataUrl(file) {
       const imageUrl = URL.createObjectURL(file);
 
@@ -760,7 +858,7 @@
           base64Image = await resizeImageToDataUrl(file);
           document.getElementById('avatarPreview').src = base64Image;
         } catch (err) {
-          alert("Failed to process the selected image.");
+          showSystemAlert("Failed to process the selected image.");
         }
       }
     });
@@ -796,15 +894,15 @@
           const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
           if (profilePercentEl && typeof data.profileCompletionPercent !== 'undefined') profilePercentEl.innerText = `${data.profileCompletionPercent || 0}%`;
           if (profileLabelEl && typeof data.isVerified !== 'undefined') profileLabelEl.innerText = data.isVerified ? 'Verified profile' : (data.profileCompletionLabel || 'Profile incomplete');
-          alert(data.message || "Profile updated successfully!");
+          await showSystemAlert(data.message || "Profile updated successfully!", 'Profile Updated');
           setActiveView('settings');
         } else {
           let errorMessage = "Failed to update profile.";
           if (data?.message) errorMessage = data.message;
-          alert(errorMessage);
+          await showSystemAlert(errorMessage, 'Update Failed');
         }
       } catch(err) {
-        alert("Server error while uploading the image. Please try a smaller image.");
+        await showSystemAlert("Server error while uploading the image. Please try a smaller image.", 'Upload Failed');
       } finally {
         btn.innerText = "SAVE PROFILE CHANGES"; btn.disabled = false;
       }
@@ -845,6 +943,15 @@
       window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
     }
 
+    function openBookingPrimaryAction(bookingId, serviceFeeStatus) {
+      if (serviceFeeStatus !== 'Paid' && serviceFeeStatus !== 'NotRequired') {
+        showSystemAlert('Pay the booking fee first before you can open messages for this booking.', 'Booking Fee Required');
+        return;
+      }
+
+      openBookingMessages(bookingId);
+    }
+
     function formatPaymentMethod(value) {
       if (!value) return 'Unpaid';
       const map = {
@@ -858,6 +965,7 @@
 
     function getBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'bg-red-500/15 text-red-400';
+      if (status === 'Completed') return 'bg-blue-500/15 text-blue-300';
       if (status === 'Confirmed') return 'bg-emerald-500/15 text-emerald-400';
       return 'bg-amber-500/15 text-amber-300';
     }
@@ -867,6 +975,25 @@
       if (status === 'ServiceFeePaid') return 'text-blue-300';
       if (status === 'AwaitingPayment' || status === 'AwaitingTalentFeePayment' || status === 'Refund Pending') return 'text-amber-300';
       return 'text-white/35';
+    }
+
+    function normalizeServiceFeeStatus(serviceFeeStatus, paymentStatus) {
+      const rawServiceStatus = (serviceFeeStatus || '').trim();
+      const rawPaymentStatus = (paymentStatus || '').trim();
+
+      if (!rawServiceStatus) {
+        if (rawPaymentStatus === 'ServiceFeePaid') return 'Paid';
+        return rawPaymentStatus || 'Unpaid';
+      }
+
+      if (rawServiceStatus === 'ServiceFeePaid') return 'Paid';
+      return rawServiceStatus;
+    }
+
+    function normalizeTalentFeeStatus(talentFeeStatus) {
+      const rawStatus = (talentFeeStatus || '').trim();
+      if (rawStatus === 'AwaitingTalentFeePayment') return 'AwaitingPayment';
+      return rawStatus || 'Unpaid';
     }
 
     async function startBookingPayment(bookingId, paymentType = 'service') {
@@ -889,7 +1016,7 @@
 
         window.location.href = data.checkoutUrl;
       } catch (error) {
-        alert(error.message || 'Failed to start booking payment.');
+        await showSystemAlert(error.message || 'Failed to start booking payment.', 'Payment Error');
       }
     }
 
@@ -907,12 +1034,12 @@
         const data = await res.json();
 
         if (res.ok) {
-          alert(data.message || 'Booking payment checked.');
+          await showSystemAlert(data.message || 'Booking payment checked.', 'Payment Checked');
         } else {
-          alert(data.message || 'Could not confirm booking payment yet.');
+          await showSystemAlert(data.message || 'Could not confirm booking payment yet.', 'Payment Pending');
         }
       } catch (error) {
-        alert('Could not verify booking payment right now.');
+        await showSystemAlert('Could not verify booking payment right now.', 'Verification Error');
       } finally {
         const cleanUrl = `${window.location.origin}${window.location.pathname}`;
         window.history.replaceState({}, document.title, cleanUrl);
@@ -933,12 +1060,12 @@
         const data = await res.json();
 
         if (res.ok) {
-          alert(data.message || 'Ticket payment checked.');
+          await showSystemAlert(data.message || 'Ticket payment checked.', 'Payment Checked');
         } else {
-          alert(data.message || 'Could not confirm ticket payment yet.');
+          await showSystemAlert(data.message || 'Could not confirm ticket payment yet.', 'Payment Pending');
         }
       } catch (error) {
-        alert('Could not verify ticket payment right now.');
+        await showSystemAlert('Could not verify ticket payment right now.', 'Verification Error');
       } finally {
         const cleanUrl = `${window.location.origin}${window.location.pathname}`;
         window.history.replaceState({}, document.title, cleanUrl);
@@ -956,7 +1083,7 @@
 
         customerBookings = await res.json();
         document.getElementById('customerBookingPendingCount').innerText = customerBookings.filter(b => (b.status || '').includes('Pending') || (b.status || '').includes('Awaiting')).length;
-        document.getElementById('customerBookingAcceptedCount').innerText = customerBookings.filter(b => b.status === 'Confirmed').length;
+        document.getElementById('customerBookingAcceptedCount').innerText = customerBookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length;
 
         if (customerBookings.length === 0) {
           const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No booking requests yet.</p>`;
@@ -965,7 +1092,19 @@
           return;
         }
 
-        const bookingMarkup = customerBookings.map(booking => `
+        const bookingMarkup = customerBookings.map(booking => {
+          const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
+          const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
+          const canPayServiceFee = serviceFeeStatus !== 'Paid'
+            && serviceFeeStatus !== 'NotRequired'
+            && !(booking.status || '').startsWith('Cancelled');
+          const canPayTalentFee = serviceFeeStatus === 'Paid'
+            && booking.status === 'Confirmed'
+            && Number(booking.budget || 0) > 0
+            && talentFeeStatus !== 'Paid'
+            && !(booking.status || '').startsWith('Cancelled');
+
+          return `
           <div class="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-3">
             <div class="flex items-center justify-between gap-3">
               <div>
@@ -977,24 +1116,28 @@
             <div class="text-xs text-white/60 space-y-1">
               <p>${formatBookingDate(booking.eventDate)}</p>
               <p>${booking.location || 'Location to be confirmed'}</p>
-              <p>Service fee: ${formatPeso(booking.bookingFee || 15)}${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
+              <p>Service fee: ${formatPeso(booking.bookingFee || 20)}${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
             </div>
-            <div class="flex gap-2">
-              <button onclick="openBookingMessages('${booking.id}')" class="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">
-                ${booking.hasMessages ? 'Open Messages' : 'Start Conversation'}
+            <div class="flex flex-wrap gap-2">
+              <button onclick="openBookingPrimaryAction('${booking.id}', '${serviceFeeStatus}')" class="px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">
+                ${serviceFeeStatus === 'Paid' || serviceFeeStatus === 'NotRequired'
+                  ? (booking.hasMessages ? 'Open Messages' : 'Start Conversation')
+                  : 'Messages Locked'}
               </button>
-              ${booking.paymentStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled') && booking.status !== 'Confirmed'
-                ? `<button onclick="startBookingPayment('${booking.id}')" class="flex-1 px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">${booking.paymentStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : 'Pay PHP 15 Fee'}</button>`
+              ${canPayServiceFee
+                ? `<button onclick="startBookingPayment('${booking.id}', 'service')" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors whitespace-nowrap">${serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 20)} Fee`}</button>`
+                : canPayTalentFee
+                  ? `<button onclick="startBookingPayment('${booking.id}', 'talent')" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors whitespace-nowrap">${talentFeeStatus === 'AwaitingPayment' ? 'Continue Talent Fee Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee`}</button>`
+                  : ''}
+              ${serviceFeeStatus === 'Paid'
+                ? `<button onclick="showBookingReceipt('${booking.id}')" class="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/15 transition-colors whitespace-nowrap">View Fee Receipt</button>`
                 : ''}
             </div>
-            ${booking.paymentStatus === 'Paid'
-              ? `<button onclick="showBookingReceipt('${booking.id}')" class="w-full px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/15 transition-colors">View Fee Receipt</button>`
-              : ''}
-            <p class="text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(booking.paymentStatus)}">
-              Service fee: ${booking.paymentStatus || 'Unpaid'}${booking.paymentMethod ? ` • ${formatPaymentMethod(booking.paymentMethod)}` : ''}
+            <p class="text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(serviceFeeStatus)}">
+              Service fee: ${serviceFeeStatus}${booking.serviceFeePaymentMethod || booking.paymentMethod ? ` • ${formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod)}` : ''}
             </p>
           </div>
-        `);
+        `;});
         container.innerHTML = bookingMarkup.join('');
         previewContainer.innerHTML = bookingMarkup.slice(0, 3).join('');
       } catch (error) {
@@ -1012,10 +1155,10 @@
           throw new Error(booking.message || 'Failed to load booking receipt.');
         }
 
-        const serviceFeeAmount = Number(booking.bookingFee || 15);
+        const serviceFeeAmount = Number(booking.bookingFee || 20);
         const talentFeeAmount = Number(booking.budget || 0);
-        const serviceFeeStatus = booking.serviceFeeStatus || booking.paymentStatus || 'Unpaid';
-        const talentFeeStatus = booking.talentFeeStatus || 'Unpaid';
+        const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
+        const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
         const hasTalentPayment = talentFeeAmount > 0;
         const talentFeePaid = talentFeeStatus === 'Paid';
         const totalPaid = serviceFeeAmount + (talentFeePaid ? talentFeeAmount : 0);
@@ -1057,7 +1200,7 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
       } catch (error) {
-        alert(error.message || 'Failed to load booking receipt.');
+        await showSystemAlert(error.message || 'Failed to load booking receipt.', 'Receipt Error');
       }
     }
 
@@ -1128,13 +1271,13 @@
         }
         
         ticketMarkup.push(`
-          <div class="bg-black/40 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/20 transition-colors ${opacityClass}">
+          <div onclick="window.location.href='/pages/details/EventDetailPage.html?id=${t.eventId || ''}'" class="cursor-pointer bg-black/40 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/20 transition-colors ${opacityClass}">
             <div>
               <div class="flex items-center gap-2 mb-2">
                 ${statusBadge}
                 <span class="text-[10px] font-bold uppercase tracking-widest text-red-500">${t.tierName} (Qty: ${t.quantity})</span>
               </div>
-              <h3 class="text-lg font-bold text-white mb-2">${t.eventTitle}</h3>
+              <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" class="text-lg font-bold text-white mb-2 hover:text-red-300 transition-colors inline-flex">${t.eventTitle}</a>
               <div class="space-y-1 text-xs text-white/60">
                 <p class="flex items-center gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${t.location}</p>
                 <p class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${evDate}</p>
@@ -1142,9 +1285,14 @@
             </div>
             <div class="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-2">
               <span class="text-lg font-bold text-white border-b border-white/10 pb-1">₱${t.totalPrice.toFixed(2)}</span>
-              <button onclick="showReceipt(${t.originalIndex}, ${t.isExpired})" class="text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-6 py-2.5 rounded-xl transition-colors border border-white/10">
+              <div class="flex items-center gap-2">
+              <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" onclick="event.stopPropagation()" class="text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl transition-colors border border-white/10 whitespace-nowrap">
+                Open Event
+              </a>
+              <button onclick="event.stopPropagation(); showReceipt(${t.originalIndex}, ${t.isExpired})" class="text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl transition-colors border border-white/10 whitespace-nowrap">
                 ${t.isUsed || t.isExpired ? 'View Stub' : 'View QR Ticket'}
               </button>
+              </div>
             </div>
           </div>
         `);

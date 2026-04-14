@@ -207,6 +207,31 @@
       mediaWarmupStream = null;
     }
 
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function resetScannerInstance() {
+      if (html5QrCode) {
+        try {
+          if (scannerActive) {
+            await html5QrCode.stop();
+          }
+        } catch (error) {
+          // Ignore stop failures while resetting.
+        }
+
+        try {
+          await html5QrCode.clear();
+        } catch (error) {
+          // Some browsers throw here after a failed start; recreate anyway.
+        }
+      }
+
+      scannerActive = false;
+      html5QrCode = new Html5Qrcode("reader");
+    }
+
     async function warmupCameraAccess() {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera API not supported on this device.');
@@ -228,6 +253,7 @@
         return true;
       } finally {
         stopWarmupStream();
+        await wait(350);
       }
     }
 
@@ -278,6 +304,7 @@
       try {
         hideCameraHelp();
         clearCameraDebug();
+        await resetScannerInstance();
         scannerStatus.innerText = "Requesting camera access...";
         setCameraDebug('Warm-up camera request started.', {
           secureContext: window.isSecureContext,
@@ -339,6 +366,7 @@
 
       try {
         await html5QrCode.stop();
+        await html5QrCode.clear();
       } catch (error) {
         // Ignore stop errors so the scanner can recover gracefully.
       } finally {

@@ -1,0 +1,10 @@
+bin
+obj
+node_modules
+out
+temp-build-verify
+backups
+runtime-test-out.log
+runtime-test-err.log
+.env
+credentials.json

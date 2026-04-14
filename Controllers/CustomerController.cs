@@ -25,6 +25,64 @@ namespace ImajinationAPI.Controllers
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
         }
 
+        [HttpGet("{id}/favorites")]
+        public async Task<IActionResult> GetCustomerFavorites(Guid id)
+        {
+            try
+            {
+                var favorites = new List<object>();
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+
+                const string sql = @"
+                    SELECT
+                        f.target_user_id,
+                        COALESCE(f.target_role, ''),
+                        COALESCE(u.stagename, ''),
+                        COALESCE(u.firstname, ''),
+                        COALESCE(u.lastname, ''),
+                        COALESCE(u.profile_picture, ''),
+                        COALESCE(u.genres, ''),
+                        COALESCE(u.is_verified, FALSE),
+                        f.created_at
+                    FROM customer_favorites f
+                    INNER JOIN users u ON u.id = f.target_user_id
+                    WHERE f.customer_id = @customerId
+                    ORDER BY f.created_at DESC;";
+
+                using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = id;
+
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var role = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                    var stageName = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                    var first = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    var last = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                    var displayName = !string.IsNullOrWhiteSpace(stageName) ? stageName : $"{first} {last}".Trim();
+
+                    favorites.Add(new
+                    {
+                        targetUserId = reader.GetGuid(0),
+                        targetRole = role,
+                        displayName,
+                        profilePicture = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                        genres = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                        isVerified = !reader.IsDBNull(7) && reader.GetBoolean(7),
+                        createdAt = reader.IsDBNull(8) ? DateTime.UtcNow : reader.GetDateTime(8)
+                    });
+                }
+
+                return Ok(favorites);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load favorites: " + ex.Message });
+            }
+        }
+
         // GET SINGLE CUSTOMER DETAILS
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCustomerById(Guid id)

@@ -30,11 +30,62 @@ namespace ImajinationAPI.Controllers
     {
         private readonly string _connectionString;
         private readonly string _paymongoSecretKey;
+        private const decimal PayMongoMinimumAmount = 20m;
 
         public TicketController(IConfiguration configuration)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _paymongoSecretKey = configuration["PayMongo:SecretKey"] ?? string.Empty;
+        }
+
+        private static string GetPayMongoErrorMessage(string responseString, string fallbackMessage)
+        {
+            if (string.IsNullOrWhiteSpace(responseString))
+            {
+                return fallbackMessage;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(responseString);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("errors", out var errors) &&
+                    errors.ValueKind == JsonValueKind.Array &&
+                    errors.GetArrayLength() > 0)
+                {
+                    var firstError = errors[0];
+
+                    if (firstError.TryGetProperty("detail", out var detail) &&
+                        detail.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(detail.GetString()))
+                    {
+                        return detail.GetString()!;
+                    }
+
+                    if (firstError.TryGetProperty("code", out var code) &&
+                        code.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(code.GetString()))
+                    {
+                        return $"PayMongo error: {code.GetString()}";
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return fallbackMessage;
+        }
+
+        private static string GetPayMongoHttpErrorMessage(int statusCode, string responseString, string fallbackMessage)
+        {
+            if (statusCode == StatusCodes.Status401Unauthorized)
+            {
+                return "PayMongo rejected the configured secret key. Use the exact test secret key for local checkout.";
+            }
+
+            return GetPayMongoErrorMessage(responseString, fallbackMessage);
         }
 
         [HttpGet("event-checkout/{id}")]
@@ -49,6 +100,7 @@ namespace ImajinationAPI.Controllers
                 string sql = @"
                     SELECT title,
                            poster_url,
+                           organizer_id,
                            base_price,
                            tier_name,
                            tier_price,
@@ -69,13 +121,14 @@ namespace ImajinationAPI.Controllers
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
                 {
-                    var basePrice = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
-                    var tierPrice = reader.IsDBNull(4) ? null : (decimal?)reader.GetDecimal(4);
-                    var saleName = reader.IsDBNull(9) ? null : reader.GetString(9);
-                    var saleType = reader.IsDBNull(10) ? null : reader.GetString(10);
-                    var saleValue = reader.IsDBNull(11) ? null : (decimal?)reader.GetDecimal(11);
-                    var saleStartsAt = reader.IsDBNull(12) ? null : (DateTime?)reader.GetDateTime(12);
-                    var saleEndsAt = reader.IsDBNull(13) ? null : (DateTime?)reader.GetDateTime(13);
+                    var organizerId = reader.IsDBNull(2) ? Guid.Empty : reader.GetGuid(2);
+                    var basePrice = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
+                    var tierPrice = reader.IsDBNull(5) ? null : (decimal?)reader.GetDecimal(5);
+                    var saleName = reader.IsDBNull(10) ? null : reader.GetString(10);
+                    var saleType = reader.IsDBNull(11) ? null : reader.GetString(11);
+                    var saleValue = reader.IsDBNull(12) ? null : (decimal?)reader.GetDecimal(12);
+                    var saleStartsAt = reader.IsDBNull(13) ? null : (DateTime?)reader.GetDateTime(13);
+                    var saleEndsAt = reader.IsDBNull(14) ? null : (DateTime?)reader.GetDateTime(14);
                     var saleActive = IsSaleActive(saleStartsAt, saleEndsAt);
                     var adjustedBasePrice = ApplySale(basePrice, saleType, saleValue, saleActive);
                     decimal? adjustedTierPrice = tierPrice.HasValue
@@ -86,15 +139,16 @@ namespace ImajinationAPI.Controllers
                     {
                         title = reader.GetString(0),
                         posterUrl = reader.IsDBNull(1) ? "https://images.unsplash.com/photo-1492684223066-81342ee5ff30" : reader.GetString(1),
+                        organizerId,
                         basePrice,
                         displayBasePrice = adjustedBasePrice,
-                        tierName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                        tierName = reader.IsDBNull(4) ? null : reader.GetString(4),
                         tierPrice,
                         displayTierPrice = adjustedTierPrice,
-                        slots = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
-                        ticketsSold = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
-                        bundles = reader.IsDBNull(7) ? null : reader.GetString(7),
-                        time = reader.IsDBNull(8) ? DateTime.Now : reader.GetDateTime(8),
+                        slots = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                        ticketsSold = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                        bundles = reader.IsDBNull(8) ? null : reader.GetString(8),
+                        time = reader.IsDBNull(9) ? DateTime.Now : reader.GetDateTime(9),
                         saleName,
                         saleType,
                         saleValue,
@@ -128,12 +182,22 @@ namespace ImajinationAPI.Controllers
                 Guid parsedCustomerId = Guid.Parse(req.customerId);
 
                 string eventTitle = "Imajination Ticket";
-                string getTitleSql = "SELECT title FROM events WHERE id = @id";
+                Guid organizerId = Guid.Empty;
+                string getTitleSql = "SELECT title, organizer_id FROM events WHERE id = @id";
                 using (var titleCmd = new NpgsqlCommand(getTitleSql, connection))
                 {
                     titleCmd.Parameters.AddWithValue("@id", parsedEventId);
-                    var result = await titleCmd.ExecuteScalarAsync();
-                    if (result != null) eventTitle = result.ToString();
+                    using var reader = await titleCmd.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        if (!reader.IsDBNull(0)) eventTitle = reader.GetString(0);
+                        if (!reader.IsDBNull(1)) organizerId = reader.GetGuid(1);
+                    }
+                }
+
+                if (organizerId != Guid.Empty && organizerId == parsedCustomerId)
+                {
+                    return BadRequest(new { message = "Event organizers cannot buy tickets for their own event." });
                 }
 
                 string insertSql = @"
@@ -157,6 +221,16 @@ namespace ImajinationAPI.Controllers
                 int amountInCentavos = (int)(req.totalPrice * 100); 
                 var successUrl = AppendQuery(req.successUrl, $"ticketPaid=1&ticketId={newTicketId}");
                 var cancelUrl = AppendQuery(req.cancelUrl, $"ticketPending=1&ticketId={newTicketId}");
+
+                if (string.IsNullOrWhiteSpace(_paymongoSecretKey))
+                {
+                    return StatusCode(500, new { message = "PayMongo is not configured yet. Add PayMongo:SecretKey before starting checkout." });
+                }
+
+                if (req.totalPrice < PayMongoMinimumAmount)
+                {
+                    return BadRequest(new { message = $"PayMongo requires a minimum amount of ₱{PayMongoMinimumAmount:0.00}." });
+                }
 
                 var paymongoPayload = new
                 {
@@ -189,7 +263,12 @@ namespace ImajinationAPI.Controllers
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return StatusCode((int)response.StatusCode, new { message = "PayMongo API Error", details = responseString });
+                    var payMongoMessage = GetPayMongoHttpErrorMessage(
+                        (int)response.StatusCode,
+                        responseString,
+                        "PayMongo could not create the checkout session. Please verify the amount and payment settings."
+                    );
+                    return StatusCode((int)response.StatusCode, new { message = payMongoMessage, details = responseString });
                 }
 
                 using JsonDocument doc = JsonDocument.Parse(responseString);
@@ -253,7 +332,7 @@ namespace ImajinationAPI.Controllers
 
                 // FIX: Added 'e.status' so the frontend knows if the event is Finished!
                 string sql = @"
-                    SELECT t.id, t.tier_name, t.quantity, t.total_price, t.payment_method, t.purchase_date, t.is_used,
+                    SELECT t.id, t.event_id, t.tier_name, t.quantity, t.total_price, t.payment_method, t.purchase_date, t.is_used,
                            e.title, e.event_time, e.location, e.status, COALESCE(t.paymongo_payment_reference, ''), COALESCE(t.paymongo_checkout_reference, '')
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id
@@ -269,18 +348,19 @@ namespace ImajinationAPI.Controllers
                     tickets.Add(new
                     {
                         ticketId = reader.GetGuid(0),
-                        tierName = reader.GetString(1),
-                        quantity = reader.GetInt32(2),
-                        totalPrice = reader.GetDecimal(3),
-                        paymentMethod = reader.GetString(4),
-                        purchaseDate = reader.GetDateTime(5),
-                        isUsed = reader.IsDBNull(6) ? false : reader.GetBoolean(6),
-                        eventTitle = reader.GetString(7),
-                        eventTime = reader.GetDateTime(8),
-                        location = reader.GetString(9),
-                        eventStatus = reader.IsDBNull(10) ? "Upcoming" : reader.GetString(10),
-                        paymentReference = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                        checkoutReference = reader.IsDBNull(12) ? "" : reader.GetString(12)
+                        eventId = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
+                        tierName = reader.GetString(2),
+                        quantity = reader.GetInt32(3),
+                        totalPrice = reader.GetDecimal(4),
+                        paymentMethod = reader.GetString(5),
+                        purchaseDate = reader.GetDateTime(6),
+                        isUsed = reader.IsDBNull(7) ? false : reader.GetBoolean(7),
+                        eventTitle = reader.GetString(8),
+                        eventTime = reader.GetDateTime(9),
+                        location = reader.GetString(10),
+                        eventStatus = reader.IsDBNull(11) ? "Upcoming" : reader.GetString(11),
+                        paymentReference = reader.IsDBNull(12) ? "" : reader.GetString(12),
+                        checkoutReference = reader.IsDBNull(13) ? "" : reader.GetString(13)
                     });
                 }
                 return Ok(tickets);

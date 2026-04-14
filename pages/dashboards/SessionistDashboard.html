@@ -703,6 +703,7 @@
 
     function getSessionistBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'bg-red-500/10 border-red-500/20 text-red-400';
+      if (status === 'Completed') return 'bg-blue-500/10 border-blue-500/20 text-blue-300';
       if (status === 'Confirmed') return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
       return 'bg-amber-500/10 border-amber-500/20 text-amber-300';
     }
@@ -721,7 +722,7 @@
 
     function normalizeSessionistSchedules() {
       const bookingSchedules = sessionistBookings
-        .filter(booking => booking.status === 'Confirmed' && booking.eventDate)
+        .filter(booking => (booking.status === 'Confirmed' || booking.status === 'Completed') && booking.eventDate)
         .map(booking => ({
           id: `booking-${booking.id}`,
           type: 'Booking',
@@ -836,7 +837,7 @@
 
     function updateSessionistDashboardStats() {
       const pendingCount = sessionistBookings.filter(b => (b.status || '').includes('Pending') || (b.status || '').includes('Awaiting')).length;
-      const confirmedCount = sessionistBookings.filter(b => b.status === 'Confirmed').length;
+      const confirmedCount = sessionistBookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length;
       const upcomingCount = normalizeSessionistSchedules().filter(item => item.date >= new Date()).length;
 
       const pendingEl = document.getElementById('sessionistPendingStatCount');
@@ -906,7 +907,7 @@
                 <p class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${booking.location || 'Location to be confirmed'}</p>
               </div>
               <p class="text-[10px] uppercase tracking-widest ${getSessionistPaymentStatusClasses(booking.paymentStatus)} mb-3">Service fee: ${booking.paymentStatus || 'Unpaid'}</p>
-              <p class="text-xs text-white/55 mb-3">PHP ${(booking.bookingFee || 15).toFixed(2)} fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
+              <p class="text-xs text-white/55 mb-3">PHP ${(booking.bookingFee || 20).toFixed(2)} fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
               <p class="text-sm text-white/70">${booking.notes || booking.message || 'No notes provided.'}</p>
             </div>
             <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto">

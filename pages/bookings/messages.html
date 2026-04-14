@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -67,16 +67,22 @@
       </div>
 
       <div id="chatArea" class="hidden flex-1 flex flex-col min-h-0">
-        <div class="p-6 border-b border-white/10 bg-black/20">
+        <div class="p-6 border-b border-white/10 bg-black/20 shrink-0">
           <div class="w-full max-w-3xl bg-black/60 border border-red-500/20 rounded-2xl p-5 shadow-[0_10px_30px_-20px_rgba(239,68,68,0.4)]">
-            <div class="flex items-center gap-3 mb-4 border-b border-white/10 pb-4">
-              <div class="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center">
-                <i data-lucide="file-signature" class="w-5 h-5 text-red-500"></i>
+            <div class="flex items-center justify-between gap-3 mb-4 border-b border-white/10 pb-4">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center">
+                  <i data-lucide="file-signature" class="w-5 h-5 text-red-500"></i>
+                </div>
+                <div>
+                  <h4 class="text-base font-bold text-white tracking-tight">Booking Summary</h4>
+                  <p class="text-xs text-white/60">Talk through the details here before confirming.</p>
+                </div>
               </div>
-              <div>
-                <h4 class="text-base font-bold text-white tracking-tight">Booking Summary</h4>
-                <p class="text-xs text-white/60">Talk through the details here before confirming.</p>
-              </div>
+              <button id="openContractPanelBtn" type="button" class="hidden inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                Contract
+              </button>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-white/80">
               <div>
@@ -102,27 +108,55 @@
             </div>
             <div id="paymentActionRow" class="hidden mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p id="paymentStatusText" class="text-[10px] uppercase tracking-widest text-white/50">Payment: Unpaid</p>
-              <button id="payBookingBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
-                Pay Now
+              <div class="flex flex-wrap items-center gap-3">
+                <button id="completeBookingBtn" type="button" class="hidden px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-colors">
+                  Mark Completed
+                </button>
+                <button id="payBookingBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
+                  Pay Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="messageList" class="flex-1 overflow-y-auto p-6 space-y-6">
+          <p class="text-sm text-white/50">Loading messages...</p>
+        </div>
+
+        <footer class="p-4 bg-black/40 border-t border-white/10 shrink-0 backdrop-blur-md">
+          <form id="messageForm" class="flex items-end gap-3 max-w-5xl mx-auto">
+            <textarea id="messageInput" rows="1" placeholder="Type your message..." class="flex-1 max-h-32 min-h-[44px] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 resize-none text-white"></textarea>
+            <button id="sendMessageBtn" type="submit" class="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+              <i data-lucide="send" class="w-5 h-5"></i>
+            </button>
+          </form>
+        </footer>
+      </div>
+
+      <div id="contractPanel" class="hidden fixed inset-0 z-40">
+        <button id="contractPanelBackdrop" type="button" class="absolute inset-0 bg-black/75 backdrop-blur-sm" aria-label="Close contract panel"></button>
+        <div class="absolute inset-x-4 top-1/2 mx-auto flex w-full max-w-2xl -translate-y-1/2 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#120f0f] shadow-2xl">
+          <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10 shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <i data-lucide="file-text" class="w-4 h-4 text-white/60"></i>
+              </div>
+              <div>
+                <p class="text-sm font-bold text-white">Contract Draft</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Tentative agreement</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="contractStatusBadge" class="text-[10px] font-semibold uppercase tracking-widest text-white/60 bg-white/5 border border-white/10 px-3 py-1 rounded-full">Draft</span>
+              <button id="closeContractPanelBtn" type="button" class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                <i data-lucide="x" class="w-4 h-4"></i>
               </button>
             </div>
           </div>
 
-          <div id="contractCard" class="hidden mt-6 w-full max-w-3xl bg-black/60 border border-white/10 rounded-2xl p-5">
-            <div class="flex items-center justify-between gap-3 mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <i data-lucide="file-text" class="w-4 h-4 text-white/60"></i>
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-white">Contract Draft</p>
-                  <p class="text-[10px] uppercase tracking-widest text-white/40">Tentative agreement</p>
-                </div>
-              </div>
-              <span id="contractStatusBadge" class="text-[10px] font-semibold uppercase tracking-widest text-white/60 bg-white/5 border border-white/10 px-3 py-1 rounded-full">Draft</span>
-            </div>
-
-            <div id="contractEmptyState" class="hidden text-sm text-white/60 border border-white/10 rounded-xl p-4">
+          <div class="max-h-[70vh] overflow-y-auto p-5">
+            <div id="contractEmptyState" class="hidden text-sm text-white/60 border border-white/10 rounded-xl p-4 mb-4">
               No contract draft yet for this booking.
             </div>
 
@@ -139,7 +173,7 @@
               </div>
               <div>
                 <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Terms</label>
-                <textarea id="contractTermsInput" rows="5" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none"></textarea>
+                <textarea id="contractTermsInput" rows="8" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none"></textarea>
               </div>
               <div id="contractEditRow" class="flex flex-wrap gap-3 items-center">
                 <select id="contractStatusSelect" class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold uppercase tracking-widest text-white/70">
@@ -168,19 +202,6 @@
             </div>
           </div>
         </div>
-
-        <div id="messageList" class="flex-1 overflow-y-auto p-6 space-y-6">
-          <p class="text-sm text-white/50">Loading messages...</p>
-        </div>
-
-        <footer class="p-4 bg-black/40 border-t border-white/10 shrink-0 backdrop-blur-md">
-          <form id="messageForm" class="flex items-end gap-3 max-w-5xl mx-auto">
-            <textarea id="messageInput" rows="1" placeholder="Type your message..." class="flex-1 max-h-32 min-h-[44px] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 resize-none text-white"></textarea>
-            <button id="sendMessageBtn" type="submit" class="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors shadow-lg">
-              <i data-lucide="send" class="w-5 h-5"></i>
-            </button>
-          </form>
-        </footer>
       </div>
     </section>
   </main>
@@ -200,6 +221,14 @@
     let activeBooking = null;
     let activeContract = null;
 
+    async function showSystemAlert(message, title = 'Notice') {
+      if (window.systemDialog?.alert) {
+        await window.systemDialog.alert(message, { title, kicker: 'System Message' });
+        return;
+      }
+      window.alert(message);
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
       if (!userId) {
         window.location.href = '/pages/auth/login.html';
@@ -210,11 +239,18 @@
       document.getElementById('conversationSearch').addEventListener('input', renderConversationList);
       document.getElementById('messageForm').addEventListener('submit', sendMessage);
       document.getElementById('payBookingBtn').addEventListener('click', startBookingPayment);
+      document.getElementById('completeBookingBtn').addEventListener('click', markBookingCompleted);
       document.getElementById('saveContractBtn').addEventListener('click', saveContractDraft);
       document.getElementById('sendContractBtn').addEventListener('click', sendContractForApproval);
       document.getElementById('createContractBtn').addEventListener('click', createContractDraft);
       document.getElementById('acceptContractBtn').addEventListener('click', () => updateContractStatus('Accepted'));
       document.getElementById('rejectContractBtn').addEventListener('click', () => updateContractStatus('Rejected'));
+      document.getElementById('openContractPanelBtn').addEventListener('click', openContractPanel);
+      document.getElementById('closeContractPanelBtn').addEventListener('click', closeContractPanel);
+      document.getElementById('contractPanelBackdrop').addEventListener('click', closeContractPanel);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeContractPanel();
+      });
 
       await handleBookingFeeReturn();
       await loadConversations();
@@ -230,6 +266,17 @@
       else if (userRole === 'Sessionist') backLink.href = '/pages/dashboards/SessionistDashboard.html';
       else if (userRole === 'Organizer') backLink.href = '/pages/dashboards/OrganizerDashboard.html';
       else if (userRole === 'Customer') backLink.href = '/pages/dashboards/CustomerDashboard.html';
+    }
+
+    function openContractPanel() {
+      document.getElementById('contractPanel').classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      lucide.createIcons();
+    }
+
+    function closeContractPanel() {
+      document.getElementById('contractPanel').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
     }
 
     function formatDateTime(value) {
@@ -264,6 +311,7 @@
 
     function getBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'text-red-400';
+      if (status === 'Completed') return 'text-blue-300';
       if (status === 'Confirmed') return 'text-emerald-400';
       return 'text-amber-300';
     }
@@ -275,6 +323,38 @@
       return 'text-white/50';
     }
 
+    function normalizeServiceFeeStatus(serviceFeeStatus, paymentStatus) {
+      const rawServiceStatus = (serviceFeeStatus || '').trim();
+      const rawPaymentStatus = (paymentStatus || '').trim();
+
+      if (!rawServiceStatus) {
+        if (rawPaymentStatus === 'ServiceFeePaid') return 'Paid';
+        return rawPaymentStatus || 'Unpaid';
+      }
+
+      if (rawServiceStatus === 'ServiceFeePaid') return 'Paid';
+      return rawServiceStatus;
+    }
+
+    function normalizeTalentFeeStatus(talentFeeStatus) {
+      const rawStatus = (talentFeeStatus || '').trim();
+      if (rawStatus === 'AwaitingTalentFeePayment') return 'AwaitingPayment';
+      return rawStatus || 'Unpaid';
+    }
+
+    function canMarkBookingCompleted(booking) {
+      if (!booking || booking.status !== 'Confirmed' || !booking.eventDate) {
+        return false;
+      }
+
+      const eventDate = new Date(booking.eventDate);
+      if (Number.isNaN(eventDate.getTime())) {
+        return false;
+      }
+
+      return eventDate.getTime() <= Date.now();
+    }
+
     async function handleBookingFeeReturn() {
       const paymentType = talentFeePaid === '1' ? 'talent' : bookingFeePaid === '1' ? 'service' : '';
       if (!paymentType || !requestedBookingId) {
@@ -284,11 +364,11 @@
       try {
         const res = await fetch(`/api/booking/${requestedBookingId}/payment/confirm?paymentType=${paymentType}`, { method: 'POST' });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          alert(data.message || 'Could not confirm booking payment yet.');
-        }
-      } catch (error) {
-        alert('Could not verify booking payment right now.');
+          if (!res.ok) {
+            await showSystemAlert(data.message || 'Could not confirm booking payment yet.', 'Payment Pending');
+          }
+        } catch (error) {
+        await showSystemAlert('Could not verify booking payment right now.', 'Verification Error');
       } finally {
         const cleanUrl = `${window.location.origin}${window.location.pathname}?bookingId=${requestedBookingId}`;
         window.history.replaceState({}, document.title, cleanUrl);
@@ -343,6 +423,7 @@
 
     async function openConversation(bookingId) {
       activeBookingId = bookingId;
+      closeContractPanel();
       renderConversationList();
 
       document.getElementById('emptyState').classList.add('hidden');
@@ -355,8 +436,13 @@
           fetch(`/api/message/booking/${bookingId}`)
         ]);
 
-        if (!bookingRes.ok || !messageRes.ok) {
-          throw new Error();
+        if (!bookingRes.ok) {
+          throw new Error('Failed to load booking details.');
+        }
+
+        if (!messageRes.ok) {
+          const data = await messageRes.json().catch(() => ({}));
+          throw new Error(data.message || 'Failed to load messages.');
         }
 
         activeBooking = await bookingRes.json();
@@ -366,7 +452,7 @@
         await loadBookingContract(bookingId);
         renderMessages(messages);
       } catch (error) {
-        document.getElementById('messageList').innerHTML = '<p class="text-sm text-red-400">Failed to load this conversation.</p>';
+        document.getElementById('messageList').innerHTML = `<div class="w-full max-w-2xl mx-auto mt-8 p-5 rounded-2xl bg-black/60 border border-red-500/20 text-center"><p class="text-sm text-red-300 font-semibold">${escapeHtml(error.message || 'Failed to load this conversation.')}</p></div>`;
       }
     }
 
@@ -380,15 +466,16 @@
       document.getElementById('bookingStatus').innerText = booking.status || 'Pending';
       document.getElementById('bookingStatus').className = `font-medium ${getBookingStatusClasses(booking.status)}`;
       document.getElementById('bookingEventDate').innerText = formatDateTime(booking.eventDate);
-      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 15)} service fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}`;
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}`;
       document.getElementById('bookingLocation').innerText = booking.location || 'Location to be confirmed';
-      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 15)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}`;
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}`;
 
       const paymentRow = document.getElementById('paymentActionRow');
       const paymentStatusText = document.getElementById('paymentStatusText');
       const payButton = document.getElementById('payBookingBtn');
-      const serviceFeeStatus = booking.serviceFeeStatus || booking.paymentStatus || 'Unpaid';
-      const talentFeeStatus = booking.talentFeeStatus || 'Unpaid';
+      const completeButton = document.getElementById('completeBookingBtn');
+      const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
+      const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
       const canPayServiceFee = userRole === 'Customer' && serviceFeeStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled');
       const canPayTalentFee = userRole === 'Customer'
         && serviceFeeStatus === 'Paid'
@@ -399,10 +486,11 @@
 
       paymentStatusText.innerText = `Service fee: ${serviceFeeStatus}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}`;
       paymentStatusText.className = `text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(canPayTalentFee ? talentFeeStatus : serviceFeeStatus)}`;
+      completeButton.classList.toggle('hidden', !canMarkBookingCompleted(booking));
 
       if (canPayServiceFee) {
         payButton.dataset.paymentType = 'service';
-        payButton.innerText = serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : 'Pay PHP 15 Fee';
+        payButton.innerText = serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 20)} Fee`;
         paymentRow.classList.remove('hidden');
       } else if (canPayTalentFee) {
         payButton.dataset.paymentType = 'talent';
@@ -410,8 +498,13 @@
         paymentRow.classList.remove('hidden');
       } else {
         payButton.dataset.paymentType = 'service';
-        paymentRow.classList.add('hidden');
+        payButton.classList.add('hidden');
+        paymentRow.classList.toggle('hidden', completeButton.classList.contains('hidden'));
+        return;
       }
+
+      payButton.classList.remove('hidden');
+      paymentRow.classList.remove('hidden');
     }
 
     function getContractAccess() {
@@ -421,9 +514,10 @@
     }
 
     async function loadBookingContract(bookingId) {
-      const card = document.getElementById('contractCard');
-      if (!card || !bookingId) return;
-      card.classList.remove('hidden');
+      const panel = document.getElementById('contractPanel');
+      const trigger = document.getElementById('openContractPanelBtn');
+      if (!panel || !trigger || !bookingId) return;
+      trigger.classList.remove('hidden');
 
       try {
         const res = await fetch(`/api/booking/${bookingId}/contract`);
@@ -453,8 +547,11 @@
       const editRow = document.getElementById('contractEditRow');
       const responseRow = document.getElementById('contractResponseRow');
       const createBtn = document.getElementById('createContractBtn');
+      const trigger = document.getElementById('openContractPanelBtn');
 
       const { canEdit, canRespond } = getContractAccess();
+      const shouldExposeContract = canEdit || canRespond;
+      trigger.classList.toggle('hidden', !shouldExposeContract);
 
       if (!contract) {
         statusBadge.innerText = 'Draft';
@@ -595,10 +692,39 @@
 
         window.location.href = data.checkoutUrl;
       } catch (error) {
-        alert(error.message || 'Failed to start booking payment.');
+        await showSystemAlert(error.message || 'Failed to start booking payment.', 'Payment Error');
       } finally {
         payButton.disabled = false;
         payButton.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function markBookingCompleted() {
+      if (!activeBookingId) return;
+
+      const button = document.getElementById('completeBookingBtn');
+      button.disabled = true;
+      button.classList.add('opacity-60', 'cursor-not-allowed');
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to mark booking as completed.');
+        }
+
+        await showSystemAlert(data.message || 'Booking marked as completed.', 'Booking Completed');
+        await loadConversations();
+        await openConversation(activeBookingId);
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to mark booking as completed.', 'Completion Error');
+      } finally {
+        button.disabled = false;
+        button.classList.remove('opacity-60', 'cursor-not-allowed');
       }
     }
 
@@ -665,7 +791,7 @@
         await loadConversations();
         await openConversation(activeBookingId);
       } catch (error) {
-        alert(error.message || 'Failed to send message.');
+        await showSystemAlert(error.message || 'Failed to send message.', 'Message Error');
       } finally {
         button.disabled = false;
         button.classList.remove('opacity-60', 'cursor-not-allowed');

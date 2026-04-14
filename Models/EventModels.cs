@@ -41,6 +41,7 @@ namespace ImajinationAPI.Models
         public decimal? saleValue { get; set; }
         public DateTime? saleStartsAt { get; set; }
         public DateTime? saleEndsAt { get; set; }
+        public string? status { get; set; }
         public List<TalentLineupItemDto>? artistLineup { get; set; }
         public List<TalentLineupItemDto>? sessionistLineup { get; set; }
     }

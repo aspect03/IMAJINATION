@@ -1270,15 +1270,19 @@
       try {
         const data = await safeFetchJSON(`/api/event/organizer/${orgId}/attendees`);
         attendeesCache = Array.isArray(data) ? data : (data?.attendees || []);
-        
+      } catch (error) {
+        console.warn("Attendees fetch error:", error);
+        attendeesCache = [];
+      }
+
+      try {
         dom.setText('attendeeTransactionCount', attendeesCache.length);
         dom.setText('attendeePeopleCount', attendeesCache.reduce((sum, attendee) => sum + (attendee.quantity || 0), 0));
         dom.setText('attendeeUsedCount', attendeesCache.filter(attendee => attendee.isUsed).length);
         renderFilteredAttendees();
       } catch (error) {
-        console.warn("Attendees fetch error:", error);
-        attendeesCache = [];
-        if(container) container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-xl text-center">Failed to load attendee activity.</p>`;
+        console.warn("Attendees render error:", error);
+        if(container) container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-xl text-center">Failed to render attendee activity.</p>`;
       }
     }
 
@@ -1348,7 +1352,7 @@
           </div>
           <div class="flex flex-row lg:flex-col gap-2">
             <button onclick="window.location.href='/pages/bookings/messages.html?bookingId=${item.id}'" class="px-4 py-2 bg-white/5 border border-white/10 text-sm font-semibold rounded-xl hover:bg-white/10 transition-colors">Open chat</button>
-            ${item.eventId ? `<button onclick="openEventScanner('${item.eventId}', ${JSON.stringify(item.eventTitle || 'Untitled Event')})" class="px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-300 text-sm font-semibold rounded-xl hover:bg-red-600/20 transition-colors">Open event</button>` : ''}
+            ${item.eventId ? `<button onclick="openEventScanner('${item.eventId}', ${JSON.stringify(item.eventTitle || 'Untitled Event').replace(/"/g, '&quot;')})" class="px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-300 text-sm font-semibold rounded-xl hover:bg-red-600/20 transition-colors">Open event</button>` : ''}
           </div>
         </div>
       `).join('');
@@ -1359,7 +1363,12 @@
       try {
         const data = await safeFetchJSON(`/api/booking/organizer/${orgId}`);
         organizerBookingsCache = Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.warn("Organizer bookings fetch error:", error);
+        organizerBookingsCache = [];
+      }
 
+      try {
         dom.setText('organizerTalentPendingCount', organizerBookingsCache.filter(item => String(item.status || '').toLowerCase().includes('pending')).length);
         dom.setText('organizerTalentServiceFeeCount', organizerBookingsCache.filter(item => {
           const value = String(item.serviceFeeStatus || '').toLowerCase();
@@ -1372,9 +1381,8 @@
         dom.setText('organizerTalentRefundCount', organizerBookingsCache.filter(item => String(item.paymentStatus || '').toLowerCase().includes('refund')).length);
         renderOrganizerBookings();
       } catch (error) {
-        console.warn("Organizer bookings fetch error:", error);
-        organizerBookingsCache = [];
-        if (container) container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-xl text-center">Failed to load organizer bookings.</p>`;
+        console.warn("Organizer bookings render error:", error);
+        if (container) container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-xl text-center">Failed to render organizer bookings.</p>`;
       }
     }
 
@@ -1394,7 +1402,7 @@
           (attendee.attendeeName || '').toLowerCase().includes(searchValue) ||
           (attendee.email || '').toLowerCase().includes(searchValue) ||
           (attendee.eventTitle || '').toLowerCase().includes(searchValue) ||
-          (attendee.ticketId || '').toLowerCase().includes(searchValue)
+          String(attendee.ticketId || '').toLowerCase().includes(searchValue)
         );
       }
 

@@ -40,11 +40,6 @@
       <p id="cameraHelpText" class="mt-2 text-sm leading-6 text-amber-100/90"></p>
     </div>
 
-    <div id="cameraDebugBox" class="w-full max-w-md mb-5 hidden rounded-2xl border border-sky-500/25 bg-sky-500/10 px-4 py-4 text-left">
-      <p class="text-xs font-bold uppercase tracking-[0.28em] text-sky-300">Scanner Debug</p>
-      <pre id="cameraDebugText" class="mt-2 whitespace-pre-wrap break-words text-xs leading-6 text-sky-100/90"></pre>
-    </div>
-
     <div class="w-full max-w-md bg-neutral-900 border border-white/10 rounded-3xl p-4 shadow-2xl relative overflow-hidden">
       <div id="reader" class="rounded-2xl overflow-hidden bg-black w-full aspect-square flex items-center justify-center text-white/30">
         Camera loading...
@@ -89,11 +84,10 @@
     let selectedEventTitle = '';
     let cameraWarningShown = false;
     let mediaWarmupStream = null;
+    let scannerStartInFlight = false;
     const scannerStatus = document.getElementById('scannerStatus');
     const cameraHelpBox = document.getElementById('cameraHelpBox');
     const cameraHelpText = document.getElementById('cameraHelpText');
-    const cameraDebugBox = document.getElementById('cameraDebugBox');
-    const cameraDebugText = document.getElementById('cameraDebugText');
     const html5QrCodeConfig = {
       fps: 12,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
@@ -162,17 +156,11 @@
     }
 
     function setCameraDebug(message, details = {}) {
-      const blocks = [message];
-      if (details && Object.keys(details).length > 0) {
-        blocks.push(JSON.stringify(details, null, 2));
-      }
-      cameraDebugText.textContent = blocks.join('\n\n');
-      cameraDebugBox.classList.remove('hidden');
+      return;
     }
 
     function clearCameraDebug() {
-      cameraDebugText.textContent = '';
-      cameraDebugBox.classList.add('hidden');
+      return;
     }
 
     function describeCameraError(error) {
@@ -232,6 +220,11 @@
       html5QrCode = new Html5Qrcode("reader");
     }
 
+    async function createFreshScannerInstance() {
+      await resetScannerInstance();
+      await wait(200);
+    }
+
     async function warmupCameraAccess() {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera API not supported on this device.');
@@ -253,7 +246,7 @@
         return true;
       } finally {
         stopWarmupStream();
-        await wait(350);
+        await wait(600);
       }
     }
 
@@ -268,6 +261,7 @@
       let lastError = null;
       for (const cameraConfig of attempts) {
         try {
+          await createFreshScannerInstance();
           await html5QrCode.start(
             cameraConfig,
             html5QrCodeConfig,
@@ -277,6 +271,9 @@
           return;
         } catch (error) {
           lastError = error;
+          if (String(error?.message || '').toLowerCase().includes('transition')) {
+            await wait(300);
+          }
         }
       }
 
@@ -285,7 +282,7 @@
 
     async function startScanner() {
       if (!selectedEventId) return;
-      if (scannerActive) return;
+      if (scannerActive || scannerStartInFlight) return;
 
       if (!canUseCameraScanner()) {
         const guidance = 'This browser is blocking camera access because the page is not running on HTTPS or localhost. Use an HTTPS ngrok link for live scanning, or upload the QR image instead.';
@@ -302,6 +299,7 @@
       }
 
       try {
+        scannerStartInFlight = true;
         hideCameraHelp();
         clearCameraDebug();
         await resetScannerInstance();
@@ -358,6 +356,8 @@
         document.getElementById('startScannerBtn').innerText = "Try Camera Again";
         document.getElementById('startScannerBtn').disabled = false;
         document.getElementById('startScannerBtn').classList.remove('opacity-60', 'cursor-not-allowed');
+      } finally {
+        scannerStartInFlight = false;
       }
     }
 
@@ -465,7 +465,6 @@
       document.getElementById('scanResult').classList.add('hidden');
       isScanning = true; 
       scannerStatus.innerText = "Tap Start Camera to scan the next ticket.";
-      startScanner();
     }
   </script>
 </body>

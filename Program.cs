@@ -147,7 +147,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] =
-        "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
+        "camera=(self), microphone=(), geolocation=(), payment=(), usb=()";
 
     await next();
 });

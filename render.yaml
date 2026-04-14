@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: imajination-api
+    runtime: dotnet
+    plan: free
+    rootDir: .
+    buildCommand: dotnet publish "IMAJINATION BACKUP.csproj" -c Release -o out
+    startCommand: dotnet out/IMAJINATION BACKUP.dll
+    autoDeploy: true

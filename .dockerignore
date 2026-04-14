@@ -1,0 +1,12 @@
+.git
+.gitignore
+bin
+obj
+node_modules
+out
+temp-build-verify
+backups
+.env
+credentials.json
+runtime-test-out.log
+runtime-test-err.log

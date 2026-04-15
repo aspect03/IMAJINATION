@@ -89,6 +89,9 @@
               <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
                 <i data-lucide="user-round" class="w-4 h-4"></i> Profile Page
               </button>
+              <button onclick="switchTab('settings')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
+                <i data-lucide="settings" class="w-4 h-4"></i> Edit Profile
+              </button>
             </div>
             <div class="p-2 border-t border-white/10">
               <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left">
@@ -122,6 +125,10 @@
         </button>
         <button type="button" data-view="bookings" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="messages-square" class="w-4 h-4"></i> Bookings</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+        </button>
+        <button type="button" data-view="profile" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="user-round" class="w-4 h-4"></i> Profile Page</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
         <button type="button" data-view="settings" class="customer-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
@@ -208,28 +215,6 @@
 
             <div class="space-y-6">
               <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
-                <div class="flex items-center justify-between gap-4 mb-6">
-                  <div>
-                    <h2 class="text-sm font-bold uppercase tracking-widest text-white">Booking Requests</h2>
-                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Track inquiries and continue the conversation</p>
-                  </div>
-                  <button type="button" onclick="setActiveView('bookings')" class="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors">View all</button>
-                </div>
-                <div class="grid grid-cols-2 gap-3 mb-5">
-                  <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
-                    <p class="text-[10px] uppercase tracking-widest text-white/40">Pending</p>
-                    <p id="customerBookingPendingCount" class="text-2xl font-bold text-white mt-1">0</p>
-                  </div>
-                  <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
-                    <p class="text-[10px] uppercase tracking-widest text-white/40">Confirmed</p>
-                    <p id="customerBookingAcceptedCount" class="text-2xl font-bold text-white mt-1">0</p>
-                  </div>
-                </div>
-                <div id="dashboardBookingsPreview" class="space-y-3">
-                  <p class="text-sm text-white/50">Loading booking requests...</p>
-                </div>
-              </div>
-              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
                 <h2 class="text-sm font-bold uppercase tracking-widest text-white mb-6">Quick actions</h2>
                 <div class="space-y-3">
                   <button onclick="setActiveView('settings')" class="w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
@@ -306,6 +291,53 @@
             </div>
             <div id="customerBookingsContainer" class="space-y-3">
               <p class="text-sm text-white/50">Loading booking requests...</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-profile" data-view-panel="profile" class="customer-view hidden">
+          <div class="max-w-4xl mx-auto space-y-6">
+            <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="flex items-center gap-5">
+                  <div class="w-24 h-24 rounded-full overflow-hidden border-4 border-black bg-neutral-900 shadow-xl">
+                    <img id="profilePageAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300" class="w-full h-full object-cover">
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">Customer Profile</p>
+                    <h2 id="profilePageName" class="text-3xl font-extrabold tracking-tight text-white mt-2">Guest</h2>
+                    <p id="profilePageRole" class="text-xs uppercase tracking-[0.18em] text-white/40 mt-2">Customer</p>
+                  </div>
+                </div>
+                <button type="button" onclick="setActiveView('settings')" class="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.18em] rounded-xl hover:bg-white/10 transition-colors">
+                  <i data-lucide="user-cog" class="w-4 h-4"></i> Edit Profile
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
+                <div class="flex items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
+                  <div>
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-white">About Me</h3>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Public profile description</p>
+                  </div>
+                </div>
+                <p id="profilePageBio" class="text-sm text-white/70 leading-relaxed whitespace-pre-line">No bio added yet.</p>
+              </div>
+
+              <div class="space-y-6">
+                <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-6 backdrop-blur-md shadow-2xl">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-white/45">Profile Completion</p>
+                  <p id="profilePageCompletionPercent" class="text-4xl font-extrabold text-emerald-400 mt-4">0%</p>
+                  <p id="profilePageCompletionLabel" class="text-[10px] uppercase tracking-[0.18em] text-white/35 mt-3">Profile loading</p>
+                </div>
+                <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-6 backdrop-blur-md shadow-2xl">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-white/45">Saved Favorites</p>
+                  <p id="profilePageFavoritesCount" class="text-4xl font-extrabold text-white mt-4">0</p>
+                  <p class="text-[10px] uppercase tracking-[0.18em] text-white/35 mt-3">Artists and sessionists bookmarked</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -454,7 +486,7 @@
     let customerNotificationInterval = null;
     const MAX_UPLOAD_DIMENSION = 512;
     const JPEG_QUALITY = 0.82;
-    const CUSTOMER_VIEWS = new Set(['dashboard', 'tickets', 'bookings', 'settings']);
+    const CUSTOMER_VIEWS = new Set(['dashboard', 'tickets', 'bookings', 'profile', 'settings']);
 
     async function showSystemAlert(message, title = 'Notice') {
       if (window.systemDialog?.alert) {
@@ -492,6 +524,10 @@
           title: 'Your bookings,',
           subtitle: 'Track talent inquiries, messages, and payment progress.'
         },
+        profile: {
+          title: 'Your profile,',
+          subtitle: 'View the public profile details tied to your customer account.'
+        },
         settings: {
           title: 'Profile settings,',
           subtitle: 'Update your picture and public bio for the platform.'
@@ -521,8 +557,7 @@
     }
 
     function switchTab(tabName) {
-      const mappedView = tabName === 'profile' ? 'settings' : tabName;
-      setActiveView(mappedView);
+      setActiveView(tabName);
     }
 
     // Filter Tickets Logic
@@ -562,6 +597,8 @@
       document.getElementById('dropdownName').innerText = firstName;
       document.getElementById('profileInitial').innerText = firstName.charAt(0).toUpperCase();
       document.getElementById('sidebarName').innerText = firstName;
+      const profilePageNameEl = document.getElementById('profilePageName');
+      if (profilePageNameEl) profilePageNameEl.innerText = firstName;
 
       document.querySelectorAll('.customer-nav-btn').forEach((button) => {
         button.addEventListener('click', (event) => {
@@ -570,11 +607,19 @@
         });
       });
 
+      const params = new URLSearchParams(window.location.search);
+      const requestedView = params.get('view');
+      const savedView = sessionStorage.getItem('customerActiveView');
+      const initialView = CUSTOMER_VIEWS.has(requestedView || '') ? requestedView : (CUSTOMER_VIEWS.has(savedView || '') ? savedView : 'dashboard');
+      setActiveView(initialView);
+
       if (storedProfilePicture) {
           document.getElementById('navProfilePic').src = storedProfilePicture;
           document.getElementById('navProfilePic').classList.remove('hidden');
           document.getElementById('profileInitial').classList.add('hidden');
           document.getElementById('avatarPreview').src = storedProfilePicture;
+          const profilePageAvatarEl = document.getElementById('profilePageAvatar');
+          if (profilePageAvatarEl) profilePageAvatarEl.src = storedProfilePicture;
           base64Image = storedProfilePicture;
       }
 
@@ -624,6 +669,8 @@
                       document.getElementById('profileInitial').classList.add('hidden');
                       
                       document.getElementById('avatarPreview').src = customer.profilePicture;
+                      const profilePageAvatarEl = document.getElementById('profilePageAvatar');
+                      if (profilePageAvatarEl) profilePageAvatarEl.src = customer.profilePicture;
                       base64Image = customer.profilePicture;
                       localStorage.setItem('userProfilePicture', customer.profilePicture);
                   }
@@ -631,10 +678,22 @@
                   if(customer.bio && !customer.bio.includes("hasn't written")) {
                       document.getElementById('bioInput').value = customer.bio;
                   }
+                  const profilePageBioEl = document.getElementById('profilePageBio');
+                  if (profilePageBioEl) {
+                    profilePageBioEl.innerText = customer.bio && !customer.bio.includes("hasn't written")
+                      ? customer.bio
+                      : 'No bio added yet.';
+                  }
+                  const profilePageName = document.getElementById('profilePageName');
+                  if (profilePageName) profilePageName.innerText = customer.displayName || firstName || 'Guest';
                   const profilePercentEl = document.getElementById('customerProfileCompletionPercent');
                   const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
                   if (profilePercentEl) profilePercentEl.innerText = `${customer.profileCompletionPercent || 0}%`;
                   if (profileLabelEl) profileLabelEl.innerText = customer.isVerified ? 'Verified profile' : (customer.profileCompletionLabel || 'Profile incomplete');
+                  const profilePagePercentEl = document.getElementById('profilePageCompletionPercent');
+                  const profilePageLabelEl = document.getElementById('profilePageCompletionLabel');
+                  if (profilePagePercentEl) profilePagePercentEl.innerText = `${customer.profileCompletionPercent || 0}%`;
+                  if (profilePageLabelEl) profilePageLabelEl.innerText = customer.isVerified ? 'Verified profile' : (customer.profileCompletionLabel || 'Profile incomplete');
               }
           } catch(e) {}
       }
@@ -647,10 +706,23 @@
       loadCustomerFavorites();
       customerNotificationInterval = window.setInterval(loadCustomerNotifications, 30000);
 
-      const params = new URLSearchParams(window.location.search);
-      const requestedView = params.get('view');
-      const savedView = sessionStorage.getItem('customerActiveView');
-      setActiveView(CUSTOMER_VIEWS.has(requestedView || '') ? requestedView : (CUSTOMER_VIEWS.has(savedView || '') ? savedView : 'dashboard'));
+      window.addEventListener('focus', () => {
+        loadCustomerFavorites();
+      });
+      window.addEventListener('pageshow', () => {
+        loadCustomerFavorites();
+      });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          loadCustomerFavorites();
+        }
+      });
+      window.addEventListener('storage', (event) => {
+        if (event.key === 'customerFavoritesUpdatedAt') {
+          loadCustomerFavorites();
+        }
+      });
+
     });
 
     function handleLogout() {
@@ -773,7 +845,9 @@
       const preview = document.getElementById('customerFavoritesPreview');
       const profileList = document.getElementById('customerFavoritesProfileList');
       const countEl = document.getElementById('savedFavoritesCount');
+      const profileCountEl = document.getElementById('profilePageFavoritesCount');
       if (countEl) countEl.innerText = String(customerFavorites.length);
+      if (profileCountEl) profileCountEl.innerText = String(customerFavorites.length);
 
       if (!preview || !profileList) return;
 
@@ -931,6 +1005,24 @@
       });
     }
 
+    function formatPurchaseDateTime(value) {
+      if (!value) return 'Date unavailable';
+      const normalizedValue = typeof value === 'string' && !/[zZ]|[+-]\d{2}:\d{2}$/.test(value)
+        ? `${value}Z`
+        : value;
+      const date = new Date(normalizedValue);
+      if (isNaN(date)) return 'Date unavailable';
+      return date.toLocaleString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila'
+      });
+    }
+
     function formatPeso(value) {
       return new Intl.NumberFormat('en-PH', {
         style: 'currency',
@@ -1082,13 +1174,10 @@
         if (!res.ok) throw new Error();
 
         customerBookings = await res.json();
-        document.getElementById('customerBookingPendingCount').innerText = customerBookings.filter(b => (b.status || '').includes('Pending') || (b.status || '').includes('Awaiting')).length;
-        document.getElementById('customerBookingAcceptedCount').innerText = customerBookings.filter(b => b.status === 'Confirmed' || b.status === 'Completed').length;
-
         if (customerBookings.length === 0) {
           const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No booking requests yet.</p>`;
           container.innerHTML = emptyState;
-          previewContainer.innerHTML = emptyState;
+          if (previewContainer) previewContainer.innerHTML = emptyState;
           return;
         }
 
@@ -1139,11 +1228,11 @@
           </div>
         `;});
         container.innerHTML = bookingMarkup.join('');
-        previewContainer.innerHTML = bookingMarkup.slice(0, 3).join('');
+        if (previewContainer) previewContainer.innerHTML = bookingMarkup.slice(0, 3).join('');
       } catch (error) {
         const errorState = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load booking requests.</p>`;
         container.innerHTML = errorState;
-        previewContainer.innerHTML = errorState;
+        if (previewContainer) previewContainer.innerHTML = errorState;
       }
     }
 
@@ -1306,7 +1395,7 @@
     function showReceipt(originalIndex, isExpired) {
       const t = globalTickets[originalIndex];
       const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
-      const pDate = new Date(t.purchaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
+      const pDate = formatPurchaseDateTime(t.purchaseDate);
 
       document.getElementById('rTitle').innerText = t.eventTitle;
       document.getElementById('rLocTime').innerText = `${t.location}\n${evDate}`;

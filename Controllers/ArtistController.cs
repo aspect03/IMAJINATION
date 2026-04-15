@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using ImajinationAPI.Services;
+using System.Threading;
 
 namespace ImajinationAPI.Controllers
 {
@@ -24,6 +25,8 @@ namespace ImajinationAPI.Controllers
     public class ArtistController : ControllerBase
     {
         private readonly string _connectionString;
+        private static readonly SemaphoreSlim ArtistSchemaLock = new(1, 1);
+        private static volatile bool _artistSchemaEnsured;
 
         public ArtistController(IConfiguration configuration)
         {
@@ -57,6 +60,57 @@ namespace ImajinationAPI.Controllers
             await cmd.ExecuteNonQueryAsync();
         }
 
+        private async Task EnsureTalentInteractionTables(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS customer_favorites (
+                    id uuid PRIMARY KEY,
+                    customer_id uuid NOT NULL,
+                    target_user_id uuid NOT NULL,
+                    target_role varchar(50) NOT NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_customer_favorite UNIQUE (customer_id, target_user_id, target_role)
+                );
+
+                CREATE TABLE IF NOT EXISTS talent_reviews (
+                    id uuid PRIMARY KEY,
+                    customer_id uuid NOT NULL,
+                    target_user_id uuid NOT NULL,
+                    target_role varchar(50) NOT NULL,
+                    rating int NOT NULL,
+                    feedback text NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    updated_at timestamptz NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_customer_review UNIQUE (customer_id, target_user_id, target_role)
+                );";
+
+            using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private async Task EnsureArtistSchemaOnce(NpgsqlConnection connection)
+        {
+            if (_artistSchemaEnsured) return;
+
+            await ArtistSchemaLock.WaitAsync();
+            try
+            {
+                if (_artistSchemaEnsured) return;
+
+                await EnsureAvailabilityColumn(connection);
+                await EnsureTalentRegistrationColumns(connection);
+                await EnsureVerifiedGigsTableExists(connection);
+                await EnsureTalentInteractionTables(connection);
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                _artistSchemaEnsured = true;
+            }
+            finally
+            {
+                ArtistSchemaLock.Release();
+            }
+        }
+
         // 1. GET ALL ARTISTS (For the Explore page & Organizer Create Event Dropdown)
         [HttpGet("all")]
         public async Task<IActionResult> GetAllArtists()
@@ -66,15 +120,39 @@ namespace ImajinationAPI.Controllers
                 var artists = new List<object>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                await EnsureAvailabilityColumn(connection);
-                await EnsureTalentRegistrationColumns(connection);
-                await EnsureVerifiedGigsTableExists(connection);
-                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
-                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await EnsureArtistSchemaOnce(connection);
 
                 // Select only users who signed up with the 'Artist' role
-                string sql = "SELECT id, stagename, firstname, lastname, profile_picture, genres, COALESCE(is_available, TRUE), COALESCE(is_verified, FALSE), bio, spotify_link, talent_category, member_names, COALESCE(base_price, 0) FROM users WHERE role = 'Artist'";
+                string sql = @"
+                    SELECT
+                        u.id,
+                        u.stagename,
+                        u.firstname,
+                        u.lastname,
+                        u.profile_picture,
+                        u.genres,
+                        COALESCE(u.is_available, TRUE),
+                        COALESCE(u.is_verified, FALSE),
+                        u.bio,
+                        u.spotify_link,
+                        u.talent_category,
+                        u.member_names,
+                        COALESCE(u.base_price, 0),
+                        COALESCE(review_stats.average_rating, 0),
+                        COALESCE(review_stats.review_count, 0)
+                    FROM users u
+                    LEFT JOIN (
+                        SELECT
+                            target_user_id,
+                            ROUND(AVG(rating)::numeric, 1) AS average_rating,
+                            COUNT(*) AS review_count
+                        FROM talent_reviews
+                        WHERE LOWER(COALESCE(target_role, '')) = 'artist'
+                        GROUP BY target_user_id
+                    ) review_stats ON review_stats.target_user_id = u.id
+                    WHERE u.role = 'Artist'";
                 using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.CommandTimeout = 5;
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -95,6 +173,8 @@ namespace ImajinationAPI.Controllers
                         talentCategory = reader.IsDBNull(10) ? "" : reader.GetString(10),
                         memberNames = reader.IsDBNull(11) ? "" : reader.GetString(11),
                         basePrice = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12),
+                        averageRating = reader.IsDBNull(13) ? 0 : reader.GetDecimal(13),
+                        reviewCount = reader.IsDBNull(14) ? 0 : Convert.ToInt32(reader.GetInt64(14)),
                         profileCompletionPercent = CommunitySupport.CalculateProfileCompletion(
                             "Artist",
                             first,
@@ -123,14 +203,12 @@ namespace ImajinationAPI.Controllers
             {
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                await EnsureAvailabilityColumn(connection);
-                await EnsureTalentRegistrationColumns(connection);
-                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
-                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await EnsureArtistSchemaOnce(connection);
 
                 string sql = "SELECT stagename, firstname, lastname, profile_picture, bio, genres, spotify_link, COALESCE(is_available, TRUE), COALESCE(is_verified, FALSE), talent_category, member_names, COALESCE(base_price, 0) FROM users WHERE id = @id";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", id);
+                cmd.CommandTimeout = 5;
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
@@ -162,6 +240,7 @@ namespace ImajinationAPI.Controllers
 
                     using var eventsCmd = new NpgsqlCommand(relatedEventsSql, connection);
                     eventsCmd.Parameters.AddWithValue("@needle", $"%{id}%");
+                    eventsCmd.CommandTimeout = 5;
 
                     using var eventReader = await eventsCmd.ExecuteReaderAsync();
                     while (await eventReader.ReadAsync())
@@ -196,6 +275,7 @@ namespace ImajinationAPI.Controllers
 
                     using var verifiedCmd = new NpgsqlCommand(verifiedGigsSql, connection);
                     verifiedCmd.Parameters.AddWithValue("@id", id);
+                    verifiedCmd.CommandTimeout = 5;
 
                     using var verifiedReader = await verifiedCmd.ExecuteReaderAsync();
                     while (await verifiedReader.ReadAsync())
@@ -244,9 +324,7 @@ namespace ImajinationAPI.Controllers
             {
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                await EnsureAvailabilityColumn(connection);
-                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
-                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await EnsureArtistSchemaOnce(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
                 var sanitizedBio = SecuritySupport.SanitizePlainText(req.bio, 2500, true);
@@ -269,6 +347,7 @@ namespace ImajinationAPI.Controllers
                     WHERE id = @id AND role = 'Artist'";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.CommandTimeout = 5;
                 cmd.Parameters.AddWithValue("@id", id);
                 cmd.Parameters.AddWithValue("@bio", string.IsNullOrWhiteSpace(sanitizedBio) ? DBNull.Value : sanitizedBio);
                 cmd.Parameters.AddWithValue("@genres", string.IsNullOrWhiteSpace(sanitizedGenres) ? DBNull.Value : sanitizedGenres);
@@ -307,6 +386,7 @@ namespace ImajinationAPI.Controllers
                 using (var profileCmd = new NpgsqlCommand(profileSql, connection))
                 {
                     profileCmd.Parameters.AddWithValue("@id", id);
+                    profileCmd.CommandTimeout = 5;
                     using var reader = await profileCmd.ExecuteReaderAsync();
                     if (await reader.ReadAsync())
                     {
@@ -355,12 +435,13 @@ namespace ImajinationAPI.Controllers
             {
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                await EnsureAvailabilityColumn(connection);
+                await EnsureArtistSchemaOnce(connection);
 
                 const string sql = "UPDATE users SET is_available = @isAvailable WHERE id = @id AND role = 'Artist'";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", id);
                 cmd.Parameters.AddWithValue("@isAvailable", req.isAvailable);
+                cmd.CommandTimeout = 5;
 
                 var rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0)
@@ -385,12 +466,12 @@ namespace ImajinationAPI.Controllers
                 var artists = new List<object>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
-                await EnsureAvailabilityColumn(connection);
-                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await EnsureArtistSchemaOnce(connection);
 
                 // LIMIT 4 to keep the landing page fast
                 string sql = "SELECT id, stagename, firstname, lastname, profile_picture, genres, COALESCE(is_available, TRUE), COALESCE(is_verified, FALSE) FROM users WHERE role = 'Artist' LIMIT 4";
                 using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.CommandTimeout = 5;
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())

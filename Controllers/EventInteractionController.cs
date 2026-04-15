@@ -35,6 +35,9 @@ namespace ImajinationAPI.Controllers
                 decimal averageRating = 0;
                 int reviewCount = 0;
                 bool canReview = false;
+                bool hasPurchasedTicket = false;
+                bool hasScannedTicket = false;
+                string reviewEligibilityMessage = "Sign in as a Customer and attend the event before reviews become available.";
                 var reviews = new List<object>();
 
                 const string statsSql = @"
@@ -57,20 +60,44 @@ namespace ImajinationAPI.Controllers
                 {
                     const string eligibilitySql = @"
                         SELECT EXISTS (
-                            SELECT 1
-                            FROM tickets t
-                            INNER JOIN events e ON e.id = t.event_id
-                            WHERE t.event_id = @eventId
-                              AND t.customer_id = @customerId
-                              AND e.event_time <= NOW()
-                              AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
-                        );";
+                                   SELECT 1
+                                   FROM tickets t
+                                   WHERE t.event_id = @eventId
+                                     AND t.customer_id = @customerId
+                                     AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
+                               ),
+                               EXISTS (
+                                   SELECT 1
+                                   FROM tickets t
+                                   WHERE t.event_id = @eventId
+                                     AND t.customer_id = @customerId
+                                     AND COALESCE(t.is_used, FALSE) = TRUE
+                                     AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
+                               );";
 
                     await using var eligibilityCmd = new NpgsqlCommand(eligibilitySql, connection);
                     eligibilityCmd.Parameters.Add("@eventId", NpgsqlDbType.Uuid).Value = eventId;
                     eligibilityCmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = customerId.Value;
-                    var result = await eligibilityCmd.ExecuteScalarAsync();
-                    canReview = result is bool allowed && allowed;
+                    await using var eligibilityReader = await eligibilityCmd.ExecuteReaderAsync();
+                    if (await eligibilityReader.ReadAsync())
+                    {
+                        hasPurchasedTicket = !eligibilityReader.IsDBNull(0) && eligibilityReader.GetBoolean(0);
+                        hasScannedTicket = !eligibilityReader.IsDBNull(1) && eligibilityReader.GetBoolean(1);
+                        canReview = hasScannedTicket;
+                    }
+
+                    if (hasScannedTicket)
+                    {
+                        reviewEligibilityMessage = "Your ticket was scanned for this event, so you can leave a review now.";
+                    }
+                    else if (hasPurchasedTicket)
+                    {
+                        reviewEligibilityMessage = "Your ticket purchase was found, but reviews unlock only after the organizer scans your ticket at the venue.";
+                    }
+                    else
+                    {
+                        reviewEligibilityMessage = "No eligible ticket for this event was found on this customer account yet.";
+                    }
                 }
 
                 const string reviewSql = @"
@@ -106,6 +133,9 @@ namespace ImajinationAPI.Controllers
                     averageRating = Math.Round(averageRating, 1),
                     reviewCount,
                     canReview,
+                    hasPurchasedTicket,
+                    hasScannedTicket,
+                    reviewEligibilityMessage,
                     reviews
                 });
             }
@@ -141,10 +171,16 @@ namespace ImajinationAPI.Controllers
                     SELECT EXISTS (
                                SELECT 1
                                FROM tickets t
-                               INNER JOIN events e ON e.id = t.event_id
                                WHERE t.event_id = @eventId
                                  AND t.customer_id = @customerId
-                                 AND e.event_time <= NOW()
+                                 AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
+                           ),
+                           EXISTS (
+                               SELECT 1
+                               FROM tickets t
+                               WHERE t.event_id = @eventId
+                                 AND t.customer_id = @customerId
+                                 AND COALESCE(t.is_used, FALSE) = TRUE
                                  AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
                            ),
                            COALESCE(e.organizer_id, '00000000-0000-0000-0000-000000000000'::uuid),
@@ -162,14 +198,18 @@ namespace ImajinationAPI.Controllers
                         return NotFound(new { message = "Event not found." });
                     }
 
-                    var canReview = !reader.IsDBNull(0) && reader.GetBoolean(0);
-                    if (!canReview)
+                    var hasPurchasedTicket = !reader.IsDBNull(0) && reader.GetBoolean(0);
+                    var hasScannedTicket = !reader.IsDBNull(1) && reader.GetBoolean(1);
+                    if (!hasScannedTicket)
                     {
-                        return BadRequest(new { message = "You can only rate an event after attending or purchasing a finished event." });
+                        var message = hasPurchasedTicket
+                            ? "You can only review this event after your ticket has been scanned by the organizer at the venue."
+                            : "No eligible ticket for this event was found on this customer account.";
+                        return BadRequest(new { message });
                     }
 
-                    organizerId = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1);
-                    eventTitle = reader.IsDBNull(2) ? "Event" : reader.GetString(2);
+                    organizerId = reader.IsDBNull(2) ? Guid.Empty : reader.GetGuid(2);
+                    eventTitle = reader.IsDBNull(3) ? "Event" : reader.GetString(3);
                 }
 
                 const string sql = @"

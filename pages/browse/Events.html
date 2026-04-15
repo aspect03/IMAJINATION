@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
   <style>
     select {
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
@@ -148,7 +149,7 @@
   <script>
     lucide.createIcons();
 
-    document.addEventListener('DOMContentLoaded', async () => {
+    function initializeEventsNavbarIdentity() {
       const firstName = (localStorage.getItem('userFirstName') || '').trim();
       const username = (localStorage.getItem('username') || '').trim();
       const role = (localStorage.getItem('userRole') || '').trim();
@@ -156,52 +157,53 @@
       const storedProfilePicture = localStorage.getItem('userProfilePicture');
       const displayName = firstName || username || role || 'User';
 
-      if (userId && role) {
-        document.getElementById('authLoggedOut').classList.add('hidden');
-        document.getElementById('authLoggedIn').classList.remove('hidden');
-        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
-        document.getElementById('dropdownName').innerText = displayName;
-        document.getElementById('dropdownRole').innerText = role;
+      if (!(userId && role)) return;
 
-        if (storedProfilePicture) {
-          const picEl = document.getElementById('navProfilePic');
-          picEl.src = storedProfilePicture;
-          picEl.classList.remove('hidden');
-          document.getElementById('profileInitial').classList.add('hidden');
-        }
+      document.getElementById('authLoggedOut').classList.add('hidden');
+      document.getElementById('authLoggedIn').classList.remove('hidden');
+      document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+      document.getElementById('dropdownName').innerText = displayName;
+      document.getElementById('dropdownRole').innerText = role;
 
-        const dashLink = document.getElementById('dashboardLink');
-        if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
-        else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
-        else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
-
-        // Fetch User Profile Pic Dynamically for all roles
-        if (userId) {
-            try {
-                let endpoint = '';
-                if(role === 'Artist') endpoint = 'artist';
-                else if(role === 'Sessionist') endpoint = 'sessionist';
-                else if(role === 'Customer') endpoint = 'customer';
-                
-                if(endpoint) {
-                    const res = await fetch(`/api/${endpoint}/${userId}`);
-                    if (res.ok) {
-                        const profile = await res.json();
-                        if(profile.profilePicture) {
-                            const picEl = document.getElementById('navProfilePic');
-                            picEl.src = profile.profilePicture;
-                            picEl.classList.remove('hidden');
-                            document.getElementById('profileInitial').classList.add('hidden');
-                            localStorage.setItem('userProfilePicture', profile.profilePicture);
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
+      if (storedProfilePicture) {
+        const picEl = document.getElementById('navProfilePic');
+        picEl.src = storedProfilePicture;
+        picEl.classList.remove('hidden');
+        document.getElementById('profileInitial').classList.add('hidden');
       }
 
+      const dashLink = document.getElementById('dashboardLink');
+      if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+      else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+      else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+      else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
+
+      const endpoint = role === 'Artist'
+        ? 'artist'
+        : role === 'Sessionist'
+          ? 'sessionist'
+          : role === 'Customer'
+            ? 'customer'
+            : '';
+
+      if (!endpoint) return;
+
+      fetch(`/api/${endpoint}/${userId}`)
+        .then((res) => res.ok ? res.json() : null)
+        .then((profile) => {
+          if (!profile?.profilePicture) return;
+          const picEl = document.getElementById('navProfilePic');
+          picEl.src = profile.profilePicture;
+          picEl.classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+          localStorage.setItem('userProfilePicture', profile.profilePicture);
+        })
+        .catch(() => {});
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeEventsNavbarIdentity();
       fetchEvents();
       if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
     });
@@ -230,6 +232,7 @@
     const eventsCacheKey = 'eventsPageCacheV1';
     const eventsCacheTtlMs = 2 * 60 * 1000;
     const eventDetailCachePrefix = 'eventDetailCacheV1:';
+    let applyEventFiltersFrame = 0;
 
     async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
@@ -456,6 +459,19 @@
       document.getElementById('filterPrice').value = '';
       renderEvents(allEvents);
     });
+
+    function scheduleEventFilters() {
+      if (applyEventFiltersFrame) cancelAnimationFrame(applyEventFiltersFrame);
+      applyEventFiltersFrame = requestAnimationFrame(() => {
+        applyEventFiltersFrame = 0;
+        document.getElementById('applyFiltersBtn').click();
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', scheduleEventFilters);
+    document.getElementById('filterGenre').addEventListener('change', scheduleEventFilters);
+    document.getElementById('filterType').addEventListener('change', scheduleEventFilters);
+    document.getElementById('filterPrice').addEventListener('change', scheduleEventFilters);
 
     document.addEventListener('click', (event) => {
       const detailLink = event.target.closest('.event-detail-link');

@@ -13,6 +13,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -115,8 +116,8 @@
                 <button id="favoriteBtn" type="button" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-transparent text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-white/5 transition-colors">
                   <i data-lucide="heart" class="w-3.5 h-3.5 text-white/60"></i> Add to Favorites
                 </button>
-                <button id="reportSessionistBtn" type="button" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-transparent text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-white/5 transition-colors">
-                  <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-white/60"></i> Report
+                <button id="reportSessionistBtn" type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-white/15 bg-transparent text-white/70 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Sessionist" aria-label="Report Sessionist">
+                  <i data-lucide="shield-alert" class="w-4 h-4"></i>
                 </button>
               </div>
             </div>
@@ -691,15 +692,36 @@
         document.getElementById('reviewCount').innerText = sessionistInteractionSummary.reviewCount || 0;
         updateFavoriteButton(sessionistInteractionSummary.isFavorited);
         renderReviews(sessionistInteractionSummary.reviews || []);
+        await syncSessionistFavoriteStateFromCustomerFavorites();
       } catch (error) {
         document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
+        await syncSessionistFavoriteStateFromCustomerFavorites();
+      }
+    }
+
+    async function syncSessionistFavoriteStateFromCustomerFavorites() {
+      const customerId = localStorage.getItem('userRole') === 'Customer' ? localStorage.getItem('userId') : '';
+      if (!customerId || !currentSessionistId) return;
+
+      try {
+        const res = await fetch(`/api/customer/${customerId}/favorites`);
+        if (!res.ok) return;
+
+        const favorites = await res.json();
+        const isFavorited = Array.isArray(favorites) && favorites.some(item =>
+          String(item.targetUserId || '').toLowerCase() === String(currentSessionistId).toLowerCase()
+            && String(item.targetRole || '').toLowerCase() === 'sessionist');
+
+        updateFavoriteButton(isFavorited);
+      } catch {
+        // Keep the existing button state if the favorites refresh fails.
       }
     }
 
     function updateFavoriteButton(isFavorited) {
       const favoriteBtn = document.getElementById('favoriteBtn');
       favoriteBtn.dataset.active = isFavorited ? 'true' : 'false';
-      favoriteBtn.className = `mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors ${isFavorited ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/15' : 'border-white/15 bg-transparent text-white hover:bg-white/5'}`;
+      favoriteBtn.className = `inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors ${isFavorited ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/15' : 'border-white/15 bg-transparent text-white hover:bg-white/5'}`;
       favoriteBtn.innerHTML = `<i data-lucide="heart" class="w-3.5 h-3.5 ${isFavorited ? 'text-red-400 fill-current' : 'text-white/60'}"></i> ${isFavorited ? 'Saved To Favorites' : 'Add to Favorites'}`;
       lucide.createIcons();
     }
@@ -731,7 +753,10 @@
       const role = localStorage.getItem('userRole');
       const customerId = localStorage.getItem('userId');
       if (role !== 'Customer' || !customerId) {
-        alert('Please sign in as a Customer to use favorites.');
+        await window.systemDialog.alert('Please sign in as a Customer to use favorites.', {
+          title: 'Customer Access Only',
+          kicker: 'Favorites'
+        });
         window.location.href = '/pages/auth/login.html';
         return;
       }
@@ -749,9 +774,13 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to update favorites.');
         updateFavoriteButton(data.isFavorited);
+        localStorage.setItem('customerFavoritesUpdatedAt', String(Date.now()));
         await loadSessionistInteractions();
       } catch (error) {
-        alert(error.message || 'Failed to update favorites.');
+        await window.systemDialog.alert(error.message || 'Failed to update favorites.', {
+          title: 'Favorites Failed',
+          kicker: 'Customer Action'
+        });
       }
     });
 
@@ -806,6 +835,13 @@
         profileDropdown.style.pointerEvents = profileDropdown.classList.contains('show') ? 'auto' : 'none';
       });
     }
+    function getEventStatusBadgeClass(status) {
+      const normalized = String(status || 'Upcoming').trim().toLowerCase();
+      if (normalized === 'finished' || normalized === 'completed') return 'bg-slate-500/15 border border-slate-400/20 text-slate-200';
+      if (normalized === 'draft' || normalized === 'pending') return 'bg-amber-500/15 border border-amber-400/20 text-amber-300';
+      if (normalized.includes('cancel') || normalized === 'suspended' || normalized === 'flagged') return 'bg-red-500/15 border border-red-400/20 text-red-300';
+      return 'bg-emerald-500/15 border border-emerald-400/20 text-emerald-300';
+    }
     function renderRelatedEvents(events) {
       const container = document.getElementById('relatedEventsList');
 
@@ -819,7 +855,7 @@
           <p class="text-sm font-bold text-white">${event.title}</p>
           <p class="mt-2 text-xs text-white/55">${new Date(event.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
           <p class="mt-1 text-xs text-white/45">${event.city ? `${event.city} - ${event.location}` : event.location}</p>
-          <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest ${event.status === 'Finished' ? 'bg-neutral-500/20 text-neutral-300' : 'bg-emerald-500/15 text-emerald-400'}">${event.status}</span>
+          <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest ${getEventStatusBadgeClass(event.status)}">${event.status}</span>
         </a>
       `).join('');
     }

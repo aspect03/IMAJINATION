@@ -53,16 +53,16 @@ namespace ImajinationAPI.Controllers
                         COALESCE(AVG(r.rating), 0),
                         COUNT(r.id),
                         (
-                            SELECT COUNT(*)
+                            SELECT COUNT(DISTINCT f.customer_id)
                             FROM customer_favorites f
                             WHERE f.target_user_id = @targetUserId
-                              AND f.target_role = @targetRole
+                              AND LOWER(TRIM(COALESCE(f.target_role, ''))) = LOWER(TRIM(@targetRole))
                         ) AS favorite_count,
                         EXISTS (
                             SELECT 1
                             FROM customer_favorites f
                             WHERE f.target_user_id = @targetUserId
-                              AND f.target_role = @targetRole
+                              AND LOWER(TRIM(COALESCE(f.target_role, ''))) = LOWER(TRIM(@targetRole))
                               AND f.customer_id = @customerId
                         ) AS is_favorited
                     FROM talent_reviews r
@@ -156,9 +156,10 @@ namespace ImajinationAPI.Controllers
                     FROM customer_favorites
                     WHERE customer_id = @customerId
                       AND target_user_id = @targetUserId
-                      AND target_role = @targetRole;";
+                      AND LOWER(TRIM(COALESCE(target_role, ''))) = LOWER(TRIM(@targetRole))
+                    LIMIT 1;";
 
-                Guid? favoriteId = null;
+                var hasFavorite = false;
                 using (var checkCmd = new NpgsqlCommand(checkSql, connection))
                 {
                     checkCmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = req.customerId;
@@ -166,17 +167,20 @@ namespace ImajinationAPI.Controllers
                     checkCmd.Parameters.Add("@targetRole", NpgsqlDbType.Text).Value = normalizedRole;
 
                     var result = await checkCmd.ExecuteScalarAsync();
-                    if (result is Guid id)
-                    {
-                        favoriteId = id;
-                    }
+                    hasFavorite = result is Guid;
                 }
 
-                if (favoriteId.HasValue)
+                if (hasFavorite)
                 {
-                    const string deleteSql = "DELETE FROM customer_favorites WHERE id = @id;";
+                    const string deleteSql = @"
+                        DELETE FROM customer_favorites
+                        WHERE customer_id = @customerId
+                          AND target_user_id = @targetUserId
+                          AND LOWER(TRIM(COALESCE(target_role, ''))) = LOWER(TRIM(@targetRole));";
                     using var deleteCmd = new NpgsqlCommand(deleteSql, connection);
-                    deleteCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = favoriteId.Value;
+                    deleteCmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = req.customerId;
+                    deleteCmd.Parameters.Add("@targetUserId", NpgsqlDbType.Uuid).Value = req.targetUserId;
+                    deleteCmd.Parameters.Add("@targetRole", NpgsqlDbType.Text).Value = normalizedRole;
                     await deleteCmd.ExecuteNonQueryAsync();
 
                     return Ok(new { message = "Removed from favorites.", isFavorited = false });
@@ -184,7 +188,8 @@ namespace ImajinationAPI.Controllers
 
                 const string insertSql = @"
                     INSERT INTO customer_favorites (id, customer_id, target_user_id, target_role, created_at)
-                    VALUES (@id, @customerId, @targetUserId, @targetRole, NOW());";
+                    VALUES (@id, @customerId, @targetUserId, @targetRole, NOW())
+                    ON CONFLICT DO NOTHING;";
 
                 using (var insertCmd = new NpgsqlCommand(insertSql, connection))
                 {
@@ -195,16 +200,23 @@ namespace ImajinationAPI.Controllers
                     await insertCmd.ExecuteNonQueryAsync();
                 }
 
-                var customerName = await GetCustomerDisplayNameAsync(connection, req.customerId);
-                await NotificationSupport.InsertNotificationIfNotExistsAsync(
-                    connection,
-                    req.targetUserId,
-                    "favorite_added",
-                    "New favorite",
-                    $"{customerName} added your profile to favorites.",
-                    req.customerId,
-                    "user",
-                    12);
+                try
+                {
+                    var customerName = await GetCustomerDisplayNameAsync(connection, req.customerId);
+                    await NotificationSupport.InsertNotificationIfNotExistsAsync(
+                        connection,
+                        req.targetUserId,
+                        "favorite_added",
+                        "New favorite",
+                        $"{customerName} added your profile to favorites.",
+                        req.customerId,
+                        "user",
+                        12);
+                }
+                catch
+                {
+                    // Keep favorite toggles working even if notification writing fails.
+                }
 
                 return Ok(new { message = "Added to favorites.", isFavorited = true });
             }

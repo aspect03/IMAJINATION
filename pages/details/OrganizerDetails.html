@@ -13,6 +13,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -142,8 +143,8 @@
                 </div>
               </div>
 
-              <button id="reportOrganizerBtn" type="button" class="mt-6 w-full py-3.5 bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-white/10 transition-colors">
-                Report Organizer
+              <button id="reportOrganizerBtn" type="button" class="mt-4 inline-flex items-center justify-center w-10 h-10 rounded-full border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Organizer" aria-label="Report Organizer">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
               </button>
             </aside>
 
@@ -191,6 +192,14 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function getEventStatusBadgeClass(status) {
+      const normalized = String(status || 'Upcoming').trim().toLowerCase();
+      if (normalized === 'finished' || normalized === 'completed') return 'bg-slate-500/15 border border-slate-400/20 text-slate-200';
+      if (normalized === 'draft' || normalized === 'pending') return 'bg-amber-500/15 border border-amber-400/20 text-amber-300';
+      if (normalized.includes('cancel') || normalized === 'suspended' || normalized === 'flagged') return 'bg-red-500/15 border border-red-400/20 text-red-300';
+      return 'bg-emerald-500/15 border border-emerald-400/20 text-emerald-300';
     }
 
     function formatDateTime(value) {
@@ -324,7 +333,7 @@
               <p class="text-sm font-semibold text-white truncate">${escapeHtml(gig.title || 'Untitled Event')}</p>
               <p class="text-xs text-white/50 mt-1">${escapeHtml(formatDateTime(gig.time))} • ${escapeHtml(gig.city || gig.location || 'Metro Manila')}</p>
             </div>
-            <span class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest bg-white/5 border border-white/10 text-white/65">${escapeHtml(gig.status || 'Upcoming')}</span>
+            <span class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest ${getEventStatusBadgeClass(gig.status)}">${escapeHtml(gig.status || 'Upcoming')}</span>
           </div>
         </a>
       `).join('');

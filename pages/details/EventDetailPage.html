@@ -13,6 +13,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -219,11 +220,11 @@
           </div>
 
           <div class="mt-8 grid grid-cols-1 xl:grid-cols-5 gap-6">
-            <div class="xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+            <div id="eventReviewPanel" class="xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md hidden">
               <div class="flex items-center justify-between mb-5">
                 <div>
                   <h3 class="text-sm font-bold uppercase tracking-widest text-white">Rate This Event</h3>
-                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Only after attending or buying a finished event</p>
+                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Available only after the organizer scans your ticket at the event</p>
                 </div>
                 <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">
                   <i data-lucide="star" class="w-3.5 h-3.5 text-yellow-400"></i> Event Reviews
@@ -249,6 +250,21 @@
                   Submit Event Review
                 </button>
               </form>
+            </div>
+
+            <div id="eventReviewLockedPanel" class="xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+              <div class="flex items-center justify-between mb-5">
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white">Event Reviews</h3>
+                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Unlocked only after the organizer scans your ticket</p>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-300"></i> Review Access
+                </div>
+              </div>
+              <p id="eventReviewLockedStatus" class="text-sm text-white/60 leading-relaxed">
+                Sign in as a Customer and attend the event before reviews become available.
+              </p>
             </div>
 
             <div class="xl:col-span-3 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
@@ -803,6 +819,76 @@
       `).join('');
     }
 
+    function updateEventReviewEligibility(canReview, hasCustomerContext, lockedMessage = '') {
+      const panel = document.getElementById('eventReviewPanel');
+      const lockedPanel = document.getElementById('eventReviewLockedPanel');
+      const lockedStatus = document.getElementById('eventReviewLockedStatus');
+      const status = document.getElementById('eventReviewStatus');
+      const submitBtn = document.getElementById('submitEventReviewBtn');
+
+      if (!panel || !lockedPanel || !lockedStatus || !status || !submitBtn) return;
+
+      if (canReview) {
+        panel.classList.remove('hidden');
+        lockedPanel.classList.add('hidden');
+        status.innerText = 'Your ticket was scanned for this event, so you can leave a review now.';
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        return;
+      }
+
+      panel.classList.add('hidden');
+      lockedPanel.classList.remove('hidden');
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      if (hasCustomerContext) {
+        const message = lockedMessage || 'Event reviews unlock only after the organizer scans your ticket at the venue.';
+        lockedStatus.innerText = message;
+        status.innerText = message;
+      } else {
+        lockedStatus.innerText = 'Sign in as a Customer and attend the event before reviews become available.';
+        status.innerText = 'Sign in as a Customer and attend the event before reviews become available.';
+      }
+    }
+
+    async function getCustomerReviewTicketState(customerId, eventId) {
+      if (!customerId || !eventId) {
+        return {
+          hasPurchasedTicket: false,
+          hasScannedTicket: false,
+          message: 'Sign in as a Customer and attend the event before reviews become available.'
+        };
+      }
+
+      try {
+        const response = await fetch(`/api/ticket/customer/${customerId}`);
+        if (!response.ok) throw new Error('Failed to inspect customer tickets.');
+        const tickets = await response.json();
+        const matchingTickets = Array.isArray(tickets)
+          ? tickets.filter(ticket => String(ticket.eventId || '') === String(eventId))
+          : [];
+        const hasPurchasedTicket = matchingTickets.length > 0;
+        const hasScannedTicket = matchingTickets.some(ticket => ticket.isUsed === true);
+
+        return {
+          hasPurchasedTicket,
+          hasScannedTicket,
+          message: hasScannedTicket
+            ? 'Your ticket was scanned for this event, so you can leave a review now.'
+            : hasPurchasedTicket
+              ? 'Your ticket purchase was found, but reviews unlock only after the organizer scans your ticket at the venue.'
+              : 'No eligible ticket for this event was found on this customer account yet.'
+        };
+      } catch (error) {
+        return {
+          hasPurchasedTicket: false,
+          hasScannedTicket: false,
+          message: 'We could not verify your ticket status for reviews right now.'
+        };
+      }
+    }
+
     async function loadEventReviewSummary(eventId) {
       const customerId = localStorage.getItem('userRole') === 'Customer' ? localStorage.getItem('userId') : '';
       try {
@@ -810,13 +896,21 @@
         const response = await fetch(`/api/eventinteraction/summary/${eventId}${query}`);
         if (!response.ok) throw new Error('Failed to load event reviews.');
         const data = await response.json();
+        if (customerId) {
+          const fallbackState = await getCustomerReviewTicketState(customerId, eventId);
+          if (!data.canReview && fallbackState.hasScannedTicket) {
+            data.canReview = true;
+          }
+          if (!data.reviewEligibilityMessage || fallbackState.hasScannedTicket || fallbackState.hasPurchasedTicket) {
+            data.reviewEligibilityMessage = fallbackState.message;
+          }
+        }
         document.getElementById('eventRatingAverage').innerText = Number(data.averageRating || 0).toFixed(1);
         document.getElementById('eventReviewCount').innerText = data.reviewCount || 0;
-        document.getElementById('eventReviewStatus').innerText = data.canReview
-          ? 'You attended this event, so you can leave a review now.'
-          : 'Sign in as a Customer and review only after attending the event.';
+        updateEventReviewEligibility(!!data.canReview, !!customerId, data.reviewEligibilityMessage || '');
         renderEventReviews(data.reviews || []);
       } catch (error) {
+        updateEventReviewEligibility(false, !!customerId, error.message || '');
         document.getElementById('eventReviewsList').innerHTML = `<p class="text-sm text-white/50">No event reviews yet.</p>`;
       }
     }

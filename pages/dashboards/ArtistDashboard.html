@@ -10,10 +10,17 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
+  <style>
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  </style>
 </head>
 <body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col h-screen overflow-hidden" style="font-family: 'Montserrat', sans-serif;">
-  
-  <nav class="relative z-50 w-full flex-shrink-0 border-b border-white/10 bg-neutral-900/50 backdrop-blur-md">
+  <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
+
+  <nav class="relative z-50 w-full flex-shrink-0">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
     <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
       <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
         <div class="h-8 w-28 sm:w-32 flex items-center">
@@ -28,7 +35,7 @@
         <a href="/pages/browse/Sessionists.html" class="hover:text-white/90 transition-colors">Sessionists</a>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 relative">
         <div class="relative">
           <button id="artistNotificationBellBtn" type="button" class="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
             <i data-lucide="bell" class="w-4 h-4"></i>
@@ -44,15 +51,26 @@
             </div>
           </div>
         </div>
-        <button onclick="handleLogout()" class="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-white/10 hover:text-red-400 transition-colors">
-          <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Logout
-        </button>
+        <div id="authLoggedIn" class="relative">
+          <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+            <span id="profileInitialNav">A</span>
+            <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+          </button>
+          <div id="profileDropdown" class="absolute right-0 mt-3 w-56 bg-[#1a1515] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 backdrop-blur-md">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+              <p id="dropdownName" class="text-sm font-bold text-white truncate">Artist</p>
+              <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">ARTIST</p>
+            </div>
+            <div class="p-2 flex flex-col gap-1"></div>
+            <div class="p-2 border-t border-white/10"></div>
+          </div>
+        </div>
       </div>
     </div>
   </nav>
 
-  <div class="mobile-dashboard-shell flex-1 flex overflow-hidden relative z-10">
-    <aside class="mobile-dashboard-sidebar w-64 flex-shrink-0 border-r border-white/10 bg-white/[0.02] flex flex-col relative z-10 backdrop-blur-md">
+  <div class="mobile-dashboard-shell flex-1 flex flex-col md:flex-row overflow-hidden relative z-10">
+    <aside class="mobile-dashboard-sidebar w-full md:w-64 flex-shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-white/[0.02] flex flex-col relative z-10 backdrop-blur-md">
       <div class="p-6 flex items-center gap-3 border-b border-white/10">
         <div class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center border border-red-500/30"><i data-lucide="mic-2" class="w-4 h-4 text-red-500"></i></div>
         <div>
@@ -60,12 +78,15 @@
           <p class="text-[10px] text-red-400 uppercase tracking-widest">Dashboard</p>
         </div>
       </div>
-      <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+      <nav class="flex md:flex-col flex-nowrap md:flex-1 gap-2 md:gap-1 px-4 py-4 md:py-6 overflow-x-auto md:overflow-y-auto">
         <button onclick="switchTab('dashboard')" id="tabBtn-dashboard" class="w-full flex items-center justify-between px-3 py-2.5 bg-white/10 text-white rounded-lg text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</span>
         </button>
-        <button onclick="switchTab('profile')" id="tabBtn-profile" class="w-full flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
-          <span class="flex items-center gap-3"><i data-lucide="user" class="w-4 h-4"></i> Edit Profile</span>
+        <button onclick="switchTab('profile-page')" id="tabBtn-profile-page" class="w-full flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="user-round" class="w-4 h-4"></i> Profile Page</span>
+        </button>
+        <button onclick="switchTab('edit-profile')" id="tabBtn-edit-profile" class="w-full flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="settings" class="w-4 h-4"></i> Edit Profile</span>
         </button>
         <button onclick="switchTab('community')" id="tabBtn-community" class="w-full flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="messages-square" class="w-4 h-4"></i> Community Posts</span>
@@ -222,10 +243,85 @@
           </section>
         </div>
 
-        <div id="view-profile" class="hidden">
+        <div id="view-profile-page" class="hidden">
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_320px] gap-6 items-start">
+            <section class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl space-y-8">
+              <header class="border-b border-white/10 pb-6">
+                <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-2">Artist Profile Page</p>
+                <h1 class="text-3xl font-extrabold text-white">Your public artist page</h1>
+                <p class="text-sm text-white/50 mt-2">This is the information organizers and fans see before sending a booking request.</p>
+              </header>
+
+              <div class="flex flex-col lg:flex-row gap-6 lg:items-center">
+                <div class="relative w-28 h-28 rounded-full border-4 border-black shadow-xl overflow-hidden bg-neutral-900 flex-shrink-0">
+                  <img id="artistPublicAvatar" src="" alt="Artist profile" class="absolute inset-0 w-full h-full object-cover">
+                </div>
+                <div class="space-y-3 min-w-0">
+                  <div class="flex flex-wrap items-center gap-3">
+                    <h2 id="artistPublicDisplayName" class="text-2xl font-extrabold text-white">Artist</h2>
+                    <span id="artistPublicAvailabilityBadge" class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">Available</span>
+                  </div>
+                  <p id="artistPublicGenres" class="text-sm text-white/60">Genres will appear here after you update your profile.</p>
+                  <div class="flex flex-wrap gap-3 text-xs text-white/55">
+                    <span id="artistPublicPrice">Starting rate: PHP 0</span>
+                    <span id="artistPublicEvents">0 related events</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="rounded-2xl border border-white/10 bg-black/30 p-5">
+                  <p class="text-[10px] uppercase tracking-widest text-white/40">Biography</p>
+                  <p id="artistPublicBio" class="text-sm text-white/75 mt-3 leading-relaxed">Add a bio so organizers know your sound, performance style, and what you bring to a lineup.</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
+                  <div>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Profile Completion</p>
+                    <div class="flex items-center justify-between gap-3 mt-3">
+                      <p id="artistPreviewStatusLabel" class="text-sm font-semibold text-white">Profile loading...</p>
+                      <span id="artistPreviewStatusPercent" class="text-2xl font-bold text-blue-300">0%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Spotify</p>
+                    <a id="artistPublicSpotifyLink" href="#" target="_blank" rel="noreferrer" class="mt-3 inline-flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200 transition-colors">
+                      <i data-lucide="external-link" class="w-4 h-4"></i> Open profile
+                    </a>
+                    <p id="artistPublicSpotifyEmpty" class="mt-3 text-sm text-white/45">No Spotify link added yet.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="space-y-6">
+              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-6 backdrop-blur-md shadow-2xl">
+                <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-3">Quick Actions</p>
+                <div class="space-y-3">
+                  <button type="button" onclick="switchTab('edit-profile')" class="w-full text-left p-4 bg-black/40 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+                    <p class="text-sm font-semibold text-white">Edit public details</p>
+                    <p class="text-[10px] uppercase tracking-widest text-white/45 mt-2">Update bio, pricing, links, and profile image.</p>
+                  </button>
+                  <button type="button" onclick="switchTab('community')" class="w-full text-left p-4 bg-black/40 border border-white/10 rounded-2xl hover:bg-white/10 transition-colors">
+                    <p class="text-sm font-semibold text-white">Manage community posts</p>
+                    <p class="text-[10px] uppercase tracking-widest text-white/45 mt-2">Keep your public page fresh with updates.</p>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-6 backdrop-blur-md shadow-2xl">
+                <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-3">Visibility Tips</p>
+                <div class="space-y-3 text-sm text-white/60">
+                  <p>Complete genres, bio, rate, and profile image to help organizers decide faster.</p>
+                  <p>Availability updates show up here instantly, so you can pause bookings without hiding your page.</p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <div id="view-edit-profile" class="hidden">
           <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
             <aside class="bg-[#1a1515] border border-white/5 rounded-[24px] p-5 backdrop-blur-md shadow-2xl">
-              <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-4">Profile Modules</p>
+              <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-4">Edit Modules</p>
               <div class="space-y-2">
                 <a href="#artist-profile-availability" class="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5 border border-white/5 text-sm text-white/75 hover:text-white hover:bg-white/10 transition-colors">
                   <i data-lucide="radio" class="w-4 h-4"></i> Availability
@@ -241,8 +337,8 @@
 
             <div class="max-w-4xl">
               <header class="mb-8 border-b border-white/10 pb-6">
-                <h1 class="text-3xl font-extrabold text-white">Public Profile Settings</h1>
-                <p class="text-sm text-white/50 mt-2">Customize how you appear to organizers and fans on the explore page.</p>
+                <h1 class="text-3xl font-extrabold text-white">Edit Profile</h1>
+                <p class="text-sm text-white/50 mt-2">Update the public profile details that appear on your artist page.</p>
               </header>
 
               <form id="profileForm" class="space-y-8">
@@ -372,6 +468,7 @@
     let artistNotificationInterval = null;
     let artistProfileImageDirty = false;
     let artistCalendarBlocks = [];
+    let artistPostsLoaded = false;
 
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -389,6 +486,63 @@
         img.onerror = () => reject(new Error('Failed to load image preview.'));
         img.src = src;
       });
+    }
+
+    function formatPeso(value) {
+      return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        maximumFractionDigits: 0
+      }).format(value || 0);
+    }
+
+    function renderArtistProfilePreview() {
+      const displayName = document.getElementById('sidebarName')?.innerText?.trim() || localStorage.getItem('userFirstName') || 'Artist';
+      const avatarSrc = document.getElementById('avatarPreview')?.src || localStorage.getItem('userProfilePicture') || '';
+      const genres = document.getElementById('genresInput')?.value?.trim() || 'Genres will appear here after you update your profile.';
+      const bio = document.getElementById('bioInput')?.value?.trim() || 'Add a bio so organizers know your sound, performance style, and what you bring to a lineup.';
+      const spotifyLink = document.getElementById('spotifyInput')?.value?.trim() || '';
+      const basePrice = parseFloat(document.getElementById('basePriceInput')?.value || '0') || 0;
+      const profileStatus = document.getElementById('artistProfileStatusLabel')?.innerText || 'Profile loading...';
+      const profilePercent = document.getElementById('artistProfileStatusPercent')?.innerText || '0%';
+      const availabilityBadge = document.getElementById('artistPublicAvailabilityBadge');
+      const spotifyAnchor = document.getElementById('artistPublicSpotifyLink');
+      const spotifyEmpty = document.getElementById('artistPublicSpotifyEmpty');
+
+      const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.innerText = value;
+      };
+
+      setText('artistPublicDisplayName', displayName);
+      setText('artistPublicGenres', genres);
+      setText('artistPublicBio', bio);
+      setText('artistPublicPrice', `Starting rate: ${formatPeso(basePrice)}`);
+      setText('artistPublicEvents', `${artistRelatedEvents.length} related event${artistRelatedEvents.length === 1 ? '' : 's'}`);
+      setText('artistPreviewStatusLabel', profileStatus);
+      setText('artistPreviewStatusPercent', profilePercent);
+
+      const publicAvatar = document.getElementById('artistPublicAvatar');
+      if (publicAvatar) {
+        publicAvatar.src = avatarSrc || '/assets/images/logo.png';
+      }
+
+      if (availabilityBadge) {
+        availabilityBadge.innerText = artistIsAvailable ? 'Available' : 'Unavailable';
+        availabilityBadge.className = `px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${artistIsAvailable ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-white/55'}`;
+      }
+
+      if (spotifyAnchor && spotifyEmpty) {
+        if (spotifyLink) {
+          spotifyAnchor.href = spotifyLink;
+          spotifyAnchor.classList.remove('hidden');
+          spotifyEmpty.classList.add('hidden');
+        } else {
+          spotifyAnchor.href = '#';
+          spotifyAnchor.classList.add('hidden');
+          spotifyEmpty.classList.remove('hidden');
+        }
+      }
     }
 
     async function compressImageFile(file, maxDimension = 1400, maxLength = 4_000_000) {
@@ -421,24 +575,35 @@
       return result;
     }
 
-    function switchTab(tabName) {
+    async function ensureArtistTabData(tabName) {
+      if (tabName === 'community' && !artistPostsLoaded) {
+        artistPostsLoaded = true;
+        await loadArtistPostsManager();
+      }
+    }
+
+    async function switchTab(tabName) {
       const dashboardView = document.getElementById('view-dashboard');
       const schedulesView = document.getElementById('view-schedules');
-      const profileView = document.getElementById('view-profile');
+      const profilePageView = document.getElementById('view-profile-page');
+      const editProfileView = document.getElementById('view-edit-profile');
       const communityView = document.getElementById('view-community');
       const dashboardBtn = document.getElementById('tabBtn-dashboard');
-      const profileBtn = document.getElementById('tabBtn-profile');
+      const profilePageBtn = document.getElementById('tabBtn-profile-page');
+      const editProfileBtn = document.getElementById('tabBtn-edit-profile');
       const communityBtn = document.getElementById('tabBtn-community');
       const schedulesBtn = document.getElementById('tabBtn-schedules');
 
       dashboardView.classList.toggle('hidden', tabName !== 'dashboard');
       schedulesView.classList.toggle('hidden', tabName !== 'schedules');
-      profileView.classList.toggle('hidden', tabName !== 'profile');
+      profilePageView.classList.toggle('hidden', tabName !== 'profile-page');
+      editProfileView.classList.toggle('hidden', tabName !== 'edit-profile');
       communityView.classList.toggle('hidden', tabName !== 'community');
 
       [
         [dashboardBtn, tabName === 'dashboard'],
-        [profileBtn, tabName === 'profile'],
+        [profilePageBtn, tabName === 'profile-page'],
+        [editProfileBtn, tabName === 'edit-profile'],
         [communityBtn, tabName === 'community'],
         [schedulesBtn, tabName === 'schedules']
       ].forEach(([button, isActive]) => {
@@ -448,10 +613,44 @@
         button.classList.toggle('text-white/60', !isActive);
         button.classList.toggle('hover:bg-white/5', !isActive);
       });
+
+      await ensureArtistTabData(tabName);
+      sessionStorage.setItem('artistActiveTab', tabName);
     }
 
     function openArtistSchedulesView() {
       switchTab('schedules');
+    }
+
+    async function loadArtistProfile(userId) {
+      const res = await fetch(`/api/artist/${userId}`);
+      if (!res.ok) return;
+
+      const artist = await res.json();
+      document.getElementById('sidebarName').innerText = artist.displayName;
+      document.getElementById('userNameDisplay').innerText = artist.displayName;
+      document.getElementById('dropdownName').innerText = artist.displayName;
+      document.getElementById('avatarPreview').src = artist.profilePicture || '/assets/images/logo.png';
+      base64Image = artist.profilePicture || '';
+      artistProfileImageDirty = false;
+      localStorage.setItem('userProfilePicture', artist.profilePicture || '');
+      const navProfilePic = document.getElementById('navProfilePic');
+      if (navProfilePic && artist.profilePicture) {
+        navProfilePic.src = artist.profilePicture;
+        navProfilePic.classList.remove('hidden');
+        document.getElementById('profileInitialNav')?.classList.add('hidden');
+      }
+      document.getElementById('genresInput').value = artist.genres !== 'Music' ? artist.genres : '';
+      document.getElementById('spotifyInput').value = artist.spotifyLink || '';
+      document.getElementById('bioInput').value = artist.bio.includes("hasn't written") ? '' : artist.bio;
+      document.getElementById('basePriceInput').value = artist.basePrice || 0;
+      document.getElementById('artistProfileStatusLabel').innerText = artist.isVerified ? 'Verified Profile' : (artist.profileCompletionLabel || 'Profile Incomplete');
+      document.getElementById('artistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
+      artistIsAvailable = artist.isAvailable !== false;
+      artistRelatedEvents = Array.isArray(artist.relatedEvents) ? artist.relatedEvents : [];
+      syncAvailabilityUi();
+      renderArtistSchedules();
+      renderArtistProfilePreview();
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -463,35 +662,23 @@
       const firstName = localStorage.getItem('userFirstName') || 'Artist';
       document.getElementById('sidebarName').innerText = firstName;
       document.getElementById('userNameDisplay').innerText = firstName;
+      document.getElementById('dropdownName').innerText = firstName;
+      renderArtistProfilePreview();
 
-      // Pre-fill existing data
-      try {
-        const res = await fetch(`/api/artist/${userId}`);
-        if (res.ok) {
-          const artist = await res.json();
-          document.getElementById('sidebarName').innerText = artist.displayName;
-          document.getElementById('userNameDisplay').innerText = artist.displayName;
-          document.getElementById('avatarPreview').src = artist.profilePicture;
-          base64Image = artist.profilePicture; // Keep old image if not updated
-          artistProfileImageDirty = false;
-          localStorage.setItem('userProfilePicture', artist.profilePicture || '');
-          document.getElementById('genresInput').value = artist.genres !== 'Music' ? artist.genres : '';
-          document.getElementById('spotifyInput').value = artist.spotifyLink || '';
-          document.getElementById('bioInput').value = artist.bio.includes("hasn't written") ? '' : artist.bio;
-          document.getElementById('basePriceInput').value = artist.basePrice || 0;
-          document.getElementById('artistProfileStatusLabel').innerText = artist.isVerified ? 'Verified Profile' : (artist.profileCompletionLabel || 'Profile Incomplete');
-          document.getElementById('artistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
-          artistIsAvailable = artist.isAvailable !== false;
-          artistRelatedEvents = Array.isArray(artist.relatedEvents) ? artist.relatedEvents : [];
-          syncAvailabilityUi();
-          renderArtistSchedules();
-          await loadArtistCalendarBlocks();
-          await loadArtistPostsManager();
-        }
-      } catch(e) {}
+      const params = new URLSearchParams(window.location.search);
+      const requestedTab = params.get('tab');
+      const savedTab = sessionStorage.getItem('artistActiveTab');
+      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community', 'schedules'];
+      const initialTab = allowedTabs.includes(requestedTab || '')
+        ? requestedTab
+        : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
+      await switchTab(initialTab);
 
-      await loadArtistBookings(userId);
-      await loadArtistNotifications(userId);
+      await Promise.allSettled([
+        loadArtistProfile(userId),
+        loadArtistBookings(userId),
+        loadArtistNotifications(userId)
+      ]);
       artistNotificationInterval = window.setInterval(() => loadArtistNotifications(userId), 30000);
     });
 
@@ -507,6 +694,18 @@
       const btn = document.getElementById('artistNotificationBellBtn');
       const dropdown = document.getElementById('artistNotificationBellDropdown');
       if (btn && dropdown && !btn.contains(event.target) && !dropdown.contains(event.target)) closeArtistNotificationBell();
+    });
+
+    document.getElementById('profileBtn')?.addEventListener('click', () => {
+      document.getElementById('profileDropdown')?.classList.toggle('show');
+    });
+
+    document.addEventListener('click', (event) => {
+      const btn = document.getElementById('profileBtn');
+      const dropdown = document.getElementById('profileDropdown');
+      if (btn && dropdown && !btn.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.remove('show');
+      }
     });
 
     function handleLogout() {
@@ -836,6 +1035,14 @@
           base64Image = optimizedImage;
           artistProfileImageDirty = true;
           document.getElementById('avatarPreview').src = optimizedImage;
+          localStorage.setItem('userProfilePicture', optimizedImage);
+          const navProfilePic = document.getElementById('navProfilePic');
+          if (navProfilePic) {
+            navProfilePic.src = optimizedImage;
+            navProfilePic.classList.remove('hidden');
+          }
+          document.getElementById('profileInitialNav')?.classList.add('hidden');
+          renderArtistProfilePreview();
         })
         .catch((error) => {
           alert(error.message || 'Failed to process image upload.');
@@ -872,6 +1079,7 @@
         const res = await fetch(`/api/community/posts/Artist/${userId}`);
         if (!res.ok) throw new Error();
         const posts = await res.json();
+        artistPostsLoaded = true;
         if (!Array.isArray(posts) || !posts.length) {
           container.innerHTML = `<p class="text-sm text-white/50">No posts published yet.</p>`;
           return;
@@ -954,6 +1162,7 @@
       });
 
       updateArtistDashboardStats();
+      renderArtistProfilePreview();
     }
 
     ['artistAvailabilityToggle', 'artistProfileAvailabilityToggle'].forEach(toggleId => {
@@ -1050,6 +1259,7 @@
           if (data.profilePicture) {
             document.getElementById('avatarPreview').src = data.profilePicture;
           }
+          renderArtistProfilePreview();
           alert(data.message || "Profile updated successfully! Check the Artists page to see your listing.");
         } else {
           alert(data.message || "Failed to update profile.");
@@ -1083,6 +1293,10 @@
       } catch (error) {
         alert(error.message || 'Failed to block date.');
       }
+    });
+
+    ['genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
+      document.getElementById(inputId)?.addEventListener('input', renderArtistProfilePreview);
     });
   </script>
 </body>

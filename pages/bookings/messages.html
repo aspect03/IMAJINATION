@@ -11,7 +11,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
 </head>
-<body class="bg-neutral-950 text-white antialiased h-screen flex flex-col" style="font-family: 'Montserrat', sans-serif;">
+<body class="bg-neutral-950 text-white antialiased h-screen overflow-hidden flex flex-col" style="font-family: 'Montserrat', sans-serif;">
   <div class="bg-dashboard-backdrop"></div>
 
   <nav class="relative z-10 w-full h-16 flex items-center px-6 border-b border-white/10 bg-black/30 backdrop-blur-md shrink-0">
@@ -28,8 +28,8 @@
     </div>
   </nav>
 
-  <main class="flex-1 flex overflow-hidden relative z-10">
-    <aside class="w-full md:w-80 lg:w-96 border-r border-white/10 bg-white/[0.02] flex flex-col backdrop-blur-sm">
+  <main class="flex-1 min-h-0 flex overflow-hidden relative z-10">
+    <aside class="w-full md:w-80 lg:w-96 min-h-0 border-r border-white/10 bg-white/[0.02] flex flex-col backdrop-blur-sm">
       <div class="p-6 border-b border-white/10">
         <h2 class="text-xl font-bold tracking-tight text-white mb-4">Inbox</h2>
         <div class="relative">
@@ -42,7 +42,7 @@
       </div>
     </aside>
 
-    <section class="flex-1 flex flex-col relative bg-black/20">
+    <section class="flex-1 min-h-0 flex flex-col relative bg-black/20">
       <header class="h-16 px-6 border-b border-white/10 bg-black/40 flex items-center justify-between backdrop-blur-md z-10 shrink-0">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
@@ -120,7 +120,7 @@
           </div>
         </div>
 
-        <div id="messageList" class="flex-1 overflow-y-auto p-6 space-y-6">
+        <div id="messageList" class="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
           <p class="text-sm text-white/50">Loading messages...</p>
         </div>
 
@@ -220,6 +220,8 @@
     let activeBookingId = null;
     let activeBooking = null;
     let activeContract = null;
+    let activeConversationRequest = 0;
+    let isSendingMessage = false;
 
     async function showSystemAlert(message, title = 'Notice') {
       if (window.systemDialog?.alert) {
@@ -422,6 +424,7 @@
     }
 
     async function openConversation(bookingId) {
+      const requestId = ++activeConversationRequest;
       activeBookingId = bookingId;
       closeContractPanel();
       renderConversationList();
@@ -445,13 +448,21 @@
           throw new Error(data.message || 'Failed to load messages.');
         }
 
-        activeBooking = await bookingRes.json();
+        const booking = await bookingRes.json();
         const messages = await messageRes.json();
 
+        if (requestId !== activeConversationRequest || String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+
+        activeBooking = booking;
         applyBookingHeader(activeBooking);
         await loadBookingContract(bookingId);
         renderMessages(messages);
       } catch (error) {
+        if (requestId !== activeConversationRequest) {
+          return;
+        }
         document.getElementById('messageList').innerHTML = `<div class="w-full max-w-2xl mx-auto mt-8 p-5 rounded-2xl bg-black/60 border border-red-500/20 text-center"><p class="text-sm text-red-300 font-semibold">${escapeHtml(error.message || 'Failed to load this conversation.')}</p></div>`;
       }
     }
@@ -730,8 +741,23 @@
 
     function renderMessages(messages) {
       const list = document.getElementById('messageList');
+      const uniqueMessages = [];
+      const seenMessages = new Set();
 
-      if (!messages.length) {
+      for (const message of Array.isArray(messages) ? messages : []) {
+        const dedupeKey = message?.id
+          ? `id:${message.id}`
+          : `${message?.senderId || ''}|${message?.createdAt || ''}|${message?.message || ''}`;
+
+        if (seenMessages.has(dedupeKey)) {
+          continue;
+        }
+
+        seenMessages.add(dedupeKey);
+        uniqueMessages.push(message);
+      }
+
+      if (!uniqueMessages.length) {
         list.innerHTML = `
           <div class="flex flex-col items-center my-8">
             <p class="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-4">Booking Note</p>
@@ -744,7 +770,7 @@
         return;
       }
 
-      list.innerHTML = messages.map(message => {
+      list.innerHTML = uniqueMessages.map(message => {
         const ownMessage = String(message.senderId) === String(userId);
         return `
           <div class="flex flex-col gap-1 ${ownMessage ? 'items-end' : 'items-start'}">
@@ -761,6 +787,10 @@
 
     async function sendMessage(event) {
       event.preventDefault();
+      if (isSendingMessage) {
+        return;
+      }
+
       const input = document.getElementById('messageInput');
       const button = document.getElementById('sendMessageBtn');
       const text = input.value.trim();
@@ -769,6 +799,7 @@
         return;
       }
 
+      isSendingMessage = true;
       button.disabled = true;
       button.classList.add('opacity-60', 'cursor-not-allowed');
 
@@ -793,6 +824,7 @@
       } catch (error) {
         await showSystemAlert(error.message || 'Failed to send message.', 'Message Error');
       } finally {
+        isSendingMessage = false;
         button.disabled = false;
         button.classList.remove('opacity-60', 'cursor-not-allowed');
       }

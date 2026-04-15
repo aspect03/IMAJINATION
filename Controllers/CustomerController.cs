@@ -34,11 +34,20 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await EnsureFavoriteTablesExist(connection);
 
                 const string sql = @"
                     SELECT
                         f.target_user_id,
-                        COALESCE(f.target_role, ''),
+                        CASE
+                            WHEN LOWER(TRIM(COALESCE(f.target_role, ''))) = 'sessionist'
+                                OR LOWER(TRIM(COALESCE(u.role, ''))) = 'sessionist'
+                                THEN 'Sessionist'
+                            WHEN LOWER(TRIM(COALESCE(f.target_role, ''))) = 'artist'
+                                OR LOWER(TRIM(COALESCE(u.role, ''))) = 'artist'
+                                THEN 'Artist'
+                            ELSE COALESCE(NULLIF(u.role, ''), COALESCE(f.target_role, ''))
+                        END AS normalized_role,
                         COALESCE(u.stagename, ''),
                         COALESCE(u.firstname, ''),
                         COALESCE(u.lastname, ''),
@@ -49,6 +58,7 @@ namespace ImajinationAPI.Controllers
                     FROM customer_favorites f
                     INNER JOIN users u ON u.id = f.target_user_id
                     WHERE f.customer_id = @customerId
+                      AND LOWER(TRIM(COALESCE(u.role, COALESCE(f.target_role, '')))) IN ('artist', 'sessionist')
                     ORDER BY f.created_at DESC;";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
@@ -81,6 +91,22 @@ namespace ImajinationAPI.Controllers
             {
                 return StatusCode(500, new { message = "Failed to load favorites: " + ex.Message });
             }
+        }
+
+        private static async Task EnsureFavoriteTablesExist(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS customer_favorites (
+                    id uuid PRIMARY KEY,
+                    customer_id uuid NOT NULL,
+                    target_user_id uuid NOT NULL,
+                    target_role varchar(50) NOT NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_customer_favorite UNIQUE (customer_id, target_user_id, target_role)
+                );";
+
+            using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
         }
 
         // GET SINGLE CUSTOMER DETAILS

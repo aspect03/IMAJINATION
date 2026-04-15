@@ -820,6 +820,213 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [HttpGet("organizer/{orgId}/analytics/{eventId}")]
+        public async Task<IActionResult> GetOrganizerEventAnalytics(Guid orgId, Guid eventId)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureEventLineupColumnsOnce(connection);
+                await AutoFinishExpiredEvents(connection, orgId);
+
+                object? summary = null;
+                var salesTimeline = new List<object>();
+                var tierBreakdown = new List<object>();
+                var recentTransactions = new List<object>();
+
+                const string summarySql = @"
+                    SELECT
+                        e.id,
+                        COALESCE(e.title, 'Untitled Event'),
+                        COALESCE(e.status, 'Upcoming'),
+                        e.event_time,
+                        COALESCE(e.city, ''),
+                        COALESCE(e.location, ''),
+                        COALESCE(e.event_type, ''),
+                        COALESCE(e.base_price, 0),
+                        COALESCE(e.total_slots, 0),
+                        COALESCE(e.tickets_sold, 0),
+                        COALESCE(e.artist_lineup, '[]'),
+                        COALESCE(e.sessionist_lineup, '[]'),
+                        COALESCE(SUM(t.total_price), 0) AS gross_revenue,
+                        COALESCE(SUM(t.quantity), 0) AS purchased_tickets,
+                        COALESCE(SUM(CASE WHEN COALESCE(t.is_used, FALSE) THEN t.quantity ELSE 0 END), 0) AS used_tickets,
+                        COUNT(t.id) AS transactions
+                    FROM events e
+                    LEFT JOIN tickets t ON t.event_id = e.id
+                    WHERE e.id = @eventId
+                      AND e.organizer_id = @orgId
+                    GROUP BY
+                        e.id,
+                        e.title,
+                        e.status,
+                        e.event_time,
+                        e.city,
+                        e.location,
+                        e.event_type,
+                        e.base_price,
+                        e.total_slots,
+                        e.tickets_sold,
+                        e.artist_lineup,
+                        e.sessionist_lineup;";
+
+                using (var summaryCmd = new NpgsqlCommand(summarySql, connection))
+                {
+                    summaryCmd.Parameters.AddWithValue("@eventId", eventId);
+                    summaryCmd.Parameters.AddWithValue("@orgId", orgId);
+
+                    using var reader = await summaryCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Event not found or does not belong to this organizer." });
+                    }
+
+                    var artistLineup = DeserializeLineup(reader.IsDBNull(10) ? "[]" : reader.GetString(10));
+                    var sessionistLineup = DeserializeLineup(reader.IsDBNull(11) ? "[]" : reader.GetString(11));
+                    var totalSlots = reader.IsDBNull(8) ? 0 : reader.GetInt32(8);
+                    var soldTickets = reader.IsDBNull(13) ? 0 : Convert.ToInt32(reader.GetInt64(13));
+                    var usedTickets = reader.IsDBNull(14) ? 0 : Convert.ToInt32(reader.GetInt64(14));
+                    var grossRevenue = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12);
+                    var transactions = reader.IsDBNull(15) ? 0 : Convert.ToInt32(reader.GetInt64(15));
+                    var remainingTickets = Math.Max(0, totalSlots - soldTickets);
+                    var attendanceRate = soldTickets <= 0 ? 0 : Math.Round((decimal)usedTickets / soldTickets * 100m, 1);
+                    var sellThroughRate = totalSlots <= 0 ? 0 : Math.Round((decimal)soldTickets / totalSlots * 100m, 1);
+                    var averageOrderValue = transactions <= 0 ? 0 : Math.Round(grossRevenue / transactions, 2);
+
+                    summary = new
+                    {
+                        eventId = reader.GetGuid(0),
+                        title = reader.IsDBNull(1) ? "Untitled Event" : reader.GetString(1),
+                        status = reader.IsDBNull(2) ? "Upcoming" : reader.GetString(2),
+                        eventTime = reader.IsDBNull(3) ? DateTime.Now : reader.GetDateTime(3),
+                        city = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                        location = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                        eventType = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                        ticketPrice = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7),
+                        totalSlots,
+                        ticketsSold = soldTickets,
+                        remainingTickets,
+                        usedTickets,
+                        grossRevenue,
+                        transactions,
+                        attendanceRate,
+                        sellThroughRate,
+                        averageOrderValue,
+                        artistCount = artistLineup.Count,
+                        sessionistCount = sessionistLineup.Count
+                    };
+                }
+
+                const string timelineSql = @"
+                    SELECT
+                        DATE_TRUNC('day', purchase_date) AS sale_day,
+                        COALESCE(SUM(quantity), 0) AS tickets_sold,
+                        COALESCE(SUM(total_price), 0) AS revenue
+                    FROM tickets
+                    WHERE event_id = @eventId
+                    GROUP BY sale_day
+                    ORDER BY sale_day ASC;";
+
+                using (var timelineCmd = new NpgsqlCommand(timelineSql, connection))
+                {
+                    timelineCmd.Parameters.AddWithValue("@eventId", eventId);
+
+                    using var reader = await timelineCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        salesTimeline.Add(new
+                        {
+                            day = reader.IsDBNull(0) ? DateTime.Now.Date : reader.GetDateTime(0),
+                            ticketsSold = reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetInt64(1)),
+                            revenue = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2)
+                        });
+                    }
+                }
+
+                const string tiersSql = @"
+                    SELECT
+                        COALESCE(tier_name, 'General Admission') AS tier_name,
+                        COALESCE(SUM(quantity), 0) AS tickets_sold,
+                        COALESCE(SUM(total_price), 0) AS revenue,
+                        COALESCE(SUM(CASE WHEN COALESCE(is_used, FALSE) THEN quantity ELSE 0 END), 0) AS used_tickets
+                    FROM tickets
+                    WHERE event_id = @eventId
+                    GROUP BY COALESCE(tier_name, 'General Admission')
+                    ORDER BY revenue DESC, tickets_sold DESC, tier_name ASC;";
+
+                using (var tiersCmd = new NpgsqlCommand(tiersSql, connection))
+                {
+                    tiersCmd.Parameters.AddWithValue("@eventId", eventId);
+
+                    using var reader = await tiersCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        tierBreakdown.Add(new
+                        {
+                            tierName = reader.IsDBNull(0) ? "General Admission" : reader.GetString(0),
+                            ticketsSold = reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetInt64(1)),
+                            revenue = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2),
+                            usedTickets = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetInt64(3))
+                        });
+                    }
+                }
+
+                const string recentTransactionsSql = @"
+                    SELECT
+                        COALESCE(u.firstname, ''),
+                        COALESCE(u.lastname, ''),
+                        COALESCE(u.email, ''),
+                        COALESCE(t.tier_name, 'General Admission'),
+                        COALESCE(t.quantity, 0),
+                        COALESCE(t.total_price, 0),
+                        t.purchase_date,
+                        COALESCE(t.payment_method, 'Unknown'),
+                        COALESCE(t.is_used, FALSE)
+                    FROM tickets t
+                    LEFT JOIN users u ON u.id = t.customer_id
+                    WHERE t.event_id = @eventId
+                    ORDER BY t.purchase_date DESC
+                    LIMIT 8;";
+
+                using (var transactionsCmd = new NpgsqlCommand(recentTransactionsSql, connection))
+                {
+                    transactionsCmd.Parameters.AddWithValue("@eventId", eventId);
+
+                    using var reader = await transactionsCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        var firstName = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                        var lastName = reader.IsDBNull(1) ? "" : reader.GetString(1);
+
+                        recentTransactions.Add(new
+                        {
+                            attendeeName = $"{firstName} {lastName}".Trim(),
+                            email = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                            tierName = reader.IsDBNull(3) ? "General Admission" : reader.GetString(3),
+                            quantity = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                            totalPrice = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
+                            purchaseDate = reader.IsDBNull(6) ? DateTime.Now : reader.GetDateTime(6),
+                            paymentMethod = reader.IsDBNull(7) ? "Unknown" : reader.GetString(7),
+                            isUsed = !reader.IsDBNull(8) && reader.GetBoolean(8)
+                        });
+                    }
+                }
+
+                return Ok(new
+                {
+                    summary,
+                    salesTimeline,
+                    tierBreakdown,
+                    recentTransactions
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error fetching organizer event analytics: " + ex.Message });
+            }
+        }
+
         // 3. DELETE EVENT
         [HttpDelete("{eventId}")]
         public async Task<IActionResult> DeleteEvent(Guid eventId)

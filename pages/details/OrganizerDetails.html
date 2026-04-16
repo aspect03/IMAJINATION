@@ -117,35 +117,67 @@
             <h2 class="text-3xl font-extrabold tracking-tight text-white">Organizer Profile</h2>
           </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-[290px_minmax(0,1fr)] gap-6">
             <aside class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6">
               <div class="flex flex-col items-center text-center">
                 <div class="w-28 h-28 rounded-full overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center">
                   <img id="organizerProfileImage" src="" class="w-full h-full object-cover hidden">
                   <span id="organizerProfileFallback" class="text-4xl font-bold text-red-400">O</span>
                 </div>
-                <div id="organizerVerifiedBadge" class="mt-4 inline-flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 text-white/40">
-                  <i data-lucide="shield" class="w-4 h-4"></i>
+                <div class="mt-4 flex items-center justify-center gap-2 flex-wrap">
+                  <h1 id="organizerDisplayName" class="text-3xl font-extrabold text-white">Organizer</h1>
+                  <div id="organizerVerifiedBadge" class="inline-flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 text-white/40">
+                    <i data-lucide="shield" class="w-4 h-4"></i>
+                  </div>
                 </div>
-                <h1 id="organizerDisplayName" class="mt-4 text-3xl font-extrabold text-white">Organizer</h1>
                 <p id="organizerContactMeta" class="text-sm text-white/55 mt-2">Organizer details are loading...</p>
                 <p id="organizerBio" class="text-sm text-white/70 mt-4 leading-relaxed">Loading organizer bio...</p>
               </div>
 
-              <div class="mt-6 grid grid-cols-2 gap-3">
-                <div class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
-                  <p class="text-[10px] uppercase tracking-widest text-white/40">Average Rating</p>
-                  <p id="organizerAverageRating" class="text-2xl font-bold text-white mt-2">0.0</p>
+              <div class="mt-6 space-y-3">
+                <div id="organizerInfoRows" class="space-y-2">
+                  <div class="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/55">
+                      <i data-lucide="phone" class="w-4 h-4"></i>
+                    </span>
+                    <div class="min-w-0">
+                      <p class="text-[10px] uppercase tracking-widest text-white/35">Contact</p>
+                      <p id="organizerPhoneValue" class="text-sm text-white/80 truncate">Private</p>
+                    </div>
+                  </div>
+                  <div class="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 flex items-center gap-3">
+                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/55">
+                      <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    </span>
+                    <div class="min-w-0">
+                      <p class="text-[10px] uppercase tracking-widest text-white/35">Base</p>
+                      <p id="organizerAddressValue" class="text-sm text-white/80 truncate">Metro Manila</p>
+                    </div>
+                  </div>
                 </div>
-                <div class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
-                  <p class="text-[10px] uppercase tracking-widest text-white/40">Reviews</p>
-                  <p id="organizerReviewCount" class="text-2xl font-bold text-white mt-2">0</p>
-                </div>
-              </div>
 
-              <button id="reportOrganizerBtn" type="button" class="mt-4 inline-flex items-center justify-center w-10 h-10 rounded-full border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Organizer" aria-label="Report Organizer">
-                <i data-lucide="shield-alert" class="w-4 h-4"></i>
-              </button>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-[10px] uppercase tracking-widest text-white/40">Average Rating</p>
+                      <i data-lucide="star" class="w-4 h-4 text-amber-300"></i>
+                    </div>
+                    <p id="organizerAverageRating" class="text-2xl font-bold text-white mt-2">0.0</p>
+                  </div>
+                  <div class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left">
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-[10px] uppercase tracking-widest text-white/40">Reviews</p>
+                      <i data-lucide="message-square-text" class="w-4 h-4 text-white/55"></i>
+                    </div>
+                    <p id="organizerReviewCount" class="text-2xl font-bold text-white mt-2">0</p>
+                  </div>
+                </div>
+
+                <button id="reportOrganizerBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white/75 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Organizer" aria-label="Report Organizer">
+                  <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                  Report Organizer
+                </button>
+              </div>
             </aside>
 
             <div class="space-y-6">
@@ -153,7 +185,7 @@
                 <div class="flex items-center justify-between mb-5">
                   <div>
                     <h3 class="text-sm font-bold uppercase tracking-widest text-white">Recent Gigs</h3>
-                    <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Latest events created by this organizer</p>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Current and recent events created by this organizer</p>
                   </div>
                   <span id="organizerRecentGigCountBadge" class="inline-flex items-center px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">0 gigs</span>
                 </div>
@@ -212,6 +244,52 @@
         hour: 'numeric',
         minute: '2-digit'
       }).format(date);
+    }
+
+    function isUpcomingOrCurrentGig(gig) {
+      const rawStatus = String(gig?.status || '').trim().toLowerCase();
+      if (rawStatus === 'finished' || rawStatus === 'completed' || rawStatus.includes('cancel')) {
+        return false;
+      }
+
+      const eventDate = new Date(gig?.time);
+      if (Number.isNaN(eventDate.getTime())) {
+        return rawStatus !== 'finished';
+      }
+
+      return eventDate.getTime() >= Date.now() - (12 * 60 * 60 * 1000);
+    }
+
+    function renderOrganizerGigCards(items) {
+      if (!items.length) {
+        return '<p class="text-sm text-white/50">No gigs in this section yet.</p>';
+      }
+
+      return `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ${items.map((gig) => `
+            <a href="/pages/details/EventDetailPage.html?id=${gig.id}" class="group overflow-hidden rounded-3xl border border-white/10 bg-black/30 hover:border-white/20 transition-colors">
+              <div class="relative h-44 overflow-hidden bg-black/40">
+                <img src="${escapeHtml(gig.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=1600')}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="${escapeHtml(gig.title || 'Organizer event poster')}">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent"></div>
+                <div class="absolute top-4 right-4">
+                  <span class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest ${getEventStatusBadgeClass(gig.status)}">${escapeHtml(gig.status || 'Upcoming')}</span>
+                </div>
+              </div>
+              <div class="p-4 space-y-3">
+                <div>
+                  <p class="text-base font-bold text-white line-clamp-2">${escapeHtml(gig.title || 'Untitled Event')}</p>
+                  <p class="text-xs text-white/50 mt-1">${escapeHtml(formatDateTime(gig.time))}</p>
+                </div>
+                <div class="flex items-center justify-between gap-3 text-xs text-white/55">
+                  <span class="inline-flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-white/40"></i>${escapeHtml(gig.city || gig.location || 'Metro Manila')}</span>
+                  <span class="inline-flex items-center gap-1.5"><i data-lucide="ticket" class="w-3.5 h-3.5 text-white/40"></i>${Number(gig.ticketsSold || 0)} sold</span>
+                </div>
+              </div>
+            </a>
+          `).join('')}
+        </div>
+      `;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -282,7 +360,7 @@
         const organizer = await organizerRes.json();
         const posts = postsRes.ok ? await postsRes.json() : [];
 
-        renderOrganizerProfile(organizer);
+        renderOrganizerProfileV2(organizer);
         renderOrganizerPosts(Array.isArray(posts) ? posts : []);
         document.getElementById('loadingState').classList.add('hidden');
         document.getElementById('organizerContent').classList.remove('hidden');
@@ -297,12 +375,14 @@
       const displayName = organizer.displayName || organizer.productionName || 'Organizer';
       document.getElementById('organizerDisplayName').innerText = displayName;
       document.getElementById('organizerContactMeta').innerText = [organizer.contactNumber, organizer.address].filter(Boolean).join(' • ') || 'Organizer contact details are private or still being completed.';
+      document.getElementById('organizerPhoneValue').innerText = organizer.contactNumber || 'Private';
+      document.getElementById('organizerAddressValue').innerText = organizer.address || 'Metro Manila';
       document.getElementById('organizerBio').innerText = organizer.bio || 'This organizer has not written a public bio yet.';
       document.getElementById('organizerAverageRating').innerText = Number(organizer.averageRating || 0).toFixed(1);
       document.getElementById('organizerReviewCount').innerText = organizer.reviewCount || 0;
 
       const verifiedBadge = document.getElementById('organizerVerifiedBadge');
-      verifiedBadge.className = `mt-4 inline-flex items-center justify-center w-8 h-8 rounded-full border ${organizer.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
+      verifiedBadge.className = `inline-flex items-center justify-center w-8 h-8 rounded-full border ${organizer.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
       verifiedBadge.innerHTML = organizer.isVerified
         ? '<i data-lucide="badge-check" class="w-4 h-4"></i>'
         : '<i data-lucide="shield" class="w-4 h-4"></i>';
@@ -337,6 +417,69 @@
           </div>
         </a>
       `).join('');
+    }
+
+    function renderOrganizerProfileV2(organizer) {
+      const displayName = organizer.displayName || organizer.productionName || 'Organizer';
+      document.getElementById('organizerDisplayName').innerText = displayName;
+      document.getElementById('organizerContactMeta').innerText = [organizer.contactNumber, organizer.address].filter(Boolean).join(' • ') || 'Organizer contact details are private or still being completed.';
+      document.getElementById('organizerPhoneValue').innerText = organizer.contactNumber || 'Private';
+      document.getElementById('organizerAddressValue').innerText = organizer.address || 'Metro Manila';
+      document.getElementById('organizerBio').innerText = organizer.bio || 'This organizer has not written a public bio yet.';
+      document.getElementById('organizerAverageRating').innerText = Number(organizer.averageRating || 0).toFixed(1);
+      document.getElementById('organizerReviewCount').innerText = organizer.reviewCount || 0;
+
+      const verifiedBadge = document.getElementById('organizerVerifiedBadge');
+      verifiedBadge.className = `inline-flex items-center justify-center w-8 h-8 rounded-full border ${organizer.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
+      verifiedBadge.innerHTML = organizer.isVerified
+        ? '<i data-lucide="badge-check" class="w-4 h-4"></i>'
+        : '<i data-lucide="shield" class="w-4 h-4"></i>';
+      verifiedBadge.title = organizer.isVerified ? 'Verified organizer' : (organizer.profileCompletionLabel || 'Profile incomplete');
+
+      if (organizer.profilePicture) {
+        const image = document.getElementById('organizerProfileImage');
+        image.src = organizer.profilePicture;
+        image.classList.remove('hidden');
+        document.getElementById('organizerProfileFallback').classList.add('hidden');
+      } else {
+        document.getElementById('organizerProfileFallback').innerText = displayName.charAt(0).toUpperCase();
+      }
+
+      const gigs = Array.isArray(organizer.recentGigs) ? organizer.recentGigs : [];
+      const currentUpcomingGigs = gigs.filter(isUpcomingOrCurrentGig);
+      const recentPastGigs = gigs.filter(gig => !isUpcomingOrCurrentGig(gig));
+      document.getElementById('organizerRecentGigCountBadge').innerText = `${gigs.length} gig${gigs.length === 1 ? '' : 's'}`;
+
+      const gigsList = document.getElementById('organizerRecentGigsList');
+      if (!gigs.length) {
+        gigsList.innerHTML = '<p class="text-sm text-white/50">No recent gigs yet.</p>';
+        return;
+      }
+
+      gigsList.innerHTML = `
+        <div class="space-y-6">
+          <div>
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white">Current / Upcoming Gigs</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/35 mt-1">Active events and the next shows coming up</p>
+              </div>
+              <span class="inline-flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/55">${currentUpcomingGigs.length}</span>
+            </div>
+            ${renderOrganizerGigCards(currentUpcomingGigs)}
+          </div>
+          <div>
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white">Recent Gigs</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/35 mt-1">Older events previously created by this organizer</p>
+              </div>
+              <span class="inline-flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/55">${recentPastGigs.length}</span>
+            </div>
+            ${renderOrganizerGigCards(recentPastGigs)}
+          </div>
+        </div>
+      `;
     }
 
     function renderOrganizerPosts(posts) {

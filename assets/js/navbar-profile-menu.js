@@ -2,6 +2,15 @@
   const ROLE_CONFIG = {
     Customer: {
       dashboardHref: '/pages/dashboards/CustomerDashboard.html',
+      extraLinks: [
+        {
+          id: 'myTicketsLink',
+          icon: 'ticket',
+          label: 'My Tickets',
+          href: '/pages/dashboards/CustomerDashboard.html?view=tickets',
+          sessionValue: 'tickets'
+        }
+      ],
       profileHref: '/pages/dashboards/CustomerDashboard.html?view=profile',
       editProfileHref: '/pages/dashboards/CustomerDashboard.html?view=settings',
       sessionKey: 'customerActiveView',
@@ -147,6 +156,15 @@
     wireMenuLink(profileLink, config.profileHref, config.sessionKey, config.sessionValue);
 
     actionGroup.appendChild(dashboardLink);
+
+    if (Array.isArray(config.extraLinks)) {
+      config.extraLinks.forEach((item) => {
+        const extraLink = createMenuLink(item.id, item.icon, item.label, item.href);
+        wireMenuLink(extraLink, item.href, config.sessionKey, item.sessionValue);
+        actionGroup.appendChild(extraLink);
+      });
+    }
+
     actionGroup.appendChild(profileLink);
 
     if (config.editProfileHref) {

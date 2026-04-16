@@ -10,6 +10,22 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
+  <style>
+    .password-field-shell {
+      min-height: 7.5rem;
+    }
+    .password-meter-track {
+      background: rgba(255, 255, 255, 0.07);
+    }
+    .password-meter-bar {
+      width: 0;
+      background: rgba(255, 255, 255, 0.16);
+      transition: width 0.2s ease, background-color 0.2s ease;
+    }
+    .password-note-ok { color: rgb(134 239 172 / 0.95); }
+    .password-note-bad { color: rgb(252 165 165 / 0.95); }
+    .password-note-mid { color: rgb(252 211 77 / 0.95); }
+  </style>
 </head>
 <body class="bg-neutral-950 text-white antialiased" style="font-family: 'Montserrat', sans-serif;">
   <div class="bg-global-backdrop"></div>
@@ -119,16 +135,19 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-red-950/20 border border-red-500/20 rounded-2xl">
-            <div class="space-y-2">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-black/20 border border-white/5 rounded-2xl">
+            <div class="password-field-shell space-y-2">
               <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Secure Password *</label>
-              <input type="password" id="password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}" title="Must contain at least 8 characters, including ONE uppercase, ONE lowercase, ONE number, and ONE special character." placeholder="Create a strong password" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
-              <p class="text-[10px] text-red-300 mt-1">Requires: 8+ chars, 1 Uppercase, 1 Number, 1 Special Char (!@#$%).</p>
+              <input type="password" id="password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}" title="Must contain at least 8 characters, including ONE uppercase, ONE lowercase, ONE number, and ONE special character." placeholder="Create a strong password" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none transition-colors focus:ring-2 focus:ring-white/10 focus:border-white/20">
+              <div class="password-meter-track h-1.5 rounded-full overflow-hidden">
+                <div id="passwordStrengthBar" class="password-meter-bar h-full rounded-full"></div>
+              </div>
+              <p id="passwordStrengthText" class="min-h-[1rem] text-[11px] leading-relaxed text-white/60 mt-1">Use 8+ characters with uppercase, lowercase, number, and symbol.</p>
             </div>
-            <div class="space-y-2">
+            <div class="password-field-shell space-y-2">
               <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Confirm Password *</label>
-              <input type="password" id="confirmPassword" required placeholder="Repeat your password" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none">
-              <p id="passwordMatchText" class="text-[10px] text-white/50 mt-1 hidden">Passwords do not match.</p>
+              <input type="password" id="confirmPassword" required placeholder="Repeat your password" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none transition-colors focus:ring-2 focus:ring-white/10 focus:border-white/20">
+              <p id="passwordMatchText" class="min-h-[1rem] text-[11px] leading-relaxed text-white/50 mt-1 invisible">Passwords do not match.</p>
             </div>
           </div>
 
@@ -200,6 +219,82 @@
     const pass = document.getElementById('password');
     const confirmPass = document.getElementById('confirmPassword');
     const matchText = document.getElementById('passwordMatchText');
+    const passwordStrengthText = document.getElementById('passwordStrengthText');
+    const passwordStrengthBar = document.getElementById('passwordStrengthBar');
+
+    function evaluatePassword(password) {
+      return {
+        length: password.length >= 8,
+        upper: /[A-Z]/.test(password),
+        lower: /[a-z]/.test(password),
+        number: /\d/.test(password),
+        symbol: /[\W_]/.test(password)
+      };
+    }
+
+    function setPasswordInputState(input, state) {
+      input.classList.remove('border-white/10', 'border-red-500/60', 'border-amber-400/60', 'border-emerald-500/50', 'focus:ring-white/10', 'focus:ring-red-500/40', 'focus:ring-amber-400/35', 'focus:ring-emerald-500/30');
+      if (state === 'invalid') {
+        input.classList.add('border-red-500/60', 'focus:ring-red-500/40');
+      } else if (state === 'medium') {
+        input.classList.add('border-amber-400/60', 'focus:ring-amber-400/35');
+      } else if (state === 'valid') {
+        input.classList.add('border-emerald-500/50', 'focus:ring-emerald-500/30');
+      } else {
+        input.classList.add('border-white/10', 'focus:ring-white/10');
+      }
+    }
+
+    function syncPasswordState() {
+      const checks = evaluatePassword(pass.value);
+      const hasValue = !!pass.value;
+      const score = Object.values(checks).filter(Boolean).length;
+      const isStrong = score === 5;
+      const isMedium = hasValue && !isStrong && score >= 3;
+
+      setPasswordInputState(pass, !hasValue ? 'neutral' : isStrong ? 'valid' : isMedium ? 'medium' : 'invalid');
+      passwordStrengthText.classList.remove('password-note-ok', 'password-note-bad', 'password-note-mid');
+
+      if (!hasValue) {
+        passwordStrengthText.textContent = 'Use 8+ characters with uppercase, lowercase, number, and symbol.';
+        passwordStrengthBar.style.width = '0%';
+        passwordStrengthBar.style.backgroundColor = 'rgba(255, 255, 255, 0.16)';
+      } else if (isStrong) {
+        passwordStrengthText.textContent = 'Strong password.';
+        passwordStrengthText.classList.add('password-note-ok');
+        passwordStrengthBar.style.width = '100%';
+        passwordStrengthBar.style.backgroundColor = 'rgba(74, 222, 128, 0.95)';
+      } else if (isMedium) {
+        passwordStrengthText.textContent = 'Medium password. Add the missing requirement(s) to make it strong.';
+        passwordStrengthText.classList.add('password-note-mid');
+        passwordStrengthBar.style.width = '66%';
+        passwordStrengthBar.style.backgroundColor = 'rgba(251, 191, 36, 0.95)';
+      } else {
+        passwordStrengthText.textContent = 'Weak password. It does not meet the required strong password format yet.';
+        passwordStrengthText.classList.add('password-note-bad');
+        passwordStrengthBar.style.width = '33%';
+        passwordStrengthBar.style.backgroundColor = 'rgba(248, 113, 113, 0.95)';
+      }
+    }
+
+    function syncConfirmPasswordState() {
+      if (!confirmPass.value) {
+        setPasswordInputState(confirmPass, 'neutral');
+        matchText.classList.add('invisible');
+        matchText.classList.remove('text-red-500', 'text-emerald-400');
+        matchText.classList.add('text-white/50');
+        matchText.textContent = 'Passwords do not match.';
+        return;
+      }
+
+      const matches = confirmPass.value === pass.value;
+      setPasswordInputState(confirmPass, matches ? 'valid' : 'invalid');
+      matchText.classList.remove('invisible');
+      matchText.classList.toggle('text-red-500', !matches);
+      matchText.classList.toggle('text-emerald-400', matches);
+      matchText.classList.toggle('text-white/50', false);
+      matchText.textContent = matches ? 'Passwords match.' : 'Passwords do not match.';
+    }
 
     function toggleMemberSection() {
       const needsMembers = categorySelect.value !== 'Solo Artist';
@@ -251,14 +346,13 @@
       document.getElementById('age').value = age >= 0 ? age : 0;
     });
 
-    confirmPass.addEventListener('input', () => {
-      if (confirmPass.value !== pass.value) {
-        matchText.classList.remove('hidden');
-        matchText.classList.replace('text-white/50', 'text-red-500');
-      } else {
-        matchText.classList.add('hidden');
-      }
+    pass.addEventListener('input', () => {
+      syncPasswordState();
+      syncConfirmPasswordState();
     });
+
+    confirmPass.addEventListener('input', syncConfirmPasswordState);
+    syncPasswordState();
 
     document.getElementById('initiateBtn').addEventListener('click', async () => {
       const form = document.getElementById('registerForm');

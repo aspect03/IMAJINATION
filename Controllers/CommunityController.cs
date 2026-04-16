@@ -13,6 +13,11 @@ namespace ImajinationAPI.Controllers
         public string? imageUrl { get; set; }
     }
 
+    public class ToggleCommunityLikeDto
+    {
+        public Guid userId { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     public class CommunityController : ControllerBase
@@ -25,13 +30,14 @@ namespace ImajinationAPI.Controllers
         }
 
         [HttpGet("feed")]
-        public async Task<IActionResult> GetFeed([FromQuery] string? role = null, [FromQuery] int limit = 24)
+        public async Task<IActionResult> GetFeed([FromQuery] string? role = null, [FromQuery] int limit = 24, [FromQuery] Guid? userId = null)
         {
             try
             {
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await EnsureCommunityPostLikesTableAsync(connection);
 
                 var normalizedRole = (role ?? string.Empty).Trim();
                 var hasRoleFilter =
@@ -54,7 +60,18 @@ namespace ImajinationAPI.Controllers
                            COALESCE(u.stagename, ''),
                            COALESCE(u.productionname, ''),
                            COALESCE(u.profile_picture, ''),
-                           COALESCE(u.is_verified, FALSE)
+                           COALESCE(u.is_verified, FALSE),
+                           COALESCE((
+                               SELECT COUNT(*)
+                               FROM community_post_likes cpl
+                               WHERE cpl.post_id = cp.id
+                           ), 0),
+                           EXISTS (
+                               SELECT 1
+                               FROM community_post_likes cpl
+                               WHERE cpl.post_id = cp.id
+                                 AND cpl.user_id = @userId
+                           )
                     FROM community_posts cp
                     JOIN users u ON u.id = cp.user_id
                     WHERE (@hasRoleFilter = FALSE OR LOWER(cp.role) = LOWER(@role))
@@ -65,6 +82,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.Add("@hasRoleFilter", NpgsqlDbType.Boolean).Value = hasRoleFilter;
                 cmd.Parameters.Add("@role", NpgsqlDbType.Text).Value = normalizedRole;
                 cmd.Parameters.Add("@limit", NpgsqlDbType.Integer).Value = safeLimit;
+                cmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = (object?)userId ?? DBNull.Value;
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -85,7 +103,9 @@ namespace ImajinationAPI.Controllers
                             reader.IsDBNull(9) ? "" : reader.GetString(9),
                             postRole),
                         authorProfilePicture = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                        authorVerified = !reader.IsDBNull(11) && reader.GetBoolean(11)
+                        authorVerified = !reader.IsDBNull(11) && reader.GetBoolean(11),
+                        likesCount = reader.IsDBNull(12) ? 0 : Convert.ToInt32(reader.GetInt64(12)),
+                        isLiked = !reader.IsDBNull(13) && reader.GetBoolean(13)
                     });
                 }
 
@@ -245,6 +265,83 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [HttpPost("posts/{postId}/like")]
+        public async Task<IActionResult> TogglePostLike(Guid postId, [FromBody] ToggleCommunityLikeDto req)
+        {
+            try
+            {
+                if (postId == Guid.Empty || req.userId == Guid.Empty)
+                {
+                    return BadRequest(new { message = "Missing like details." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await EnsureCommunityPostLikesTableAsync(connection);
+
+                const string checkSql = @"
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM community_post_likes
+                        WHERE post_id = @postId
+                          AND user_id = @userId
+                    );";
+
+                bool isLiked;
+                await using (var checkCmd = new NpgsqlCommand(checkSql, connection))
+                {
+                    checkCmd.Parameters.Add("@postId", NpgsqlDbType.Uuid).Value = postId;
+                    checkCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = req.userId;
+                    var result = await checkCmd.ExecuteScalarAsync();
+                    isLiked = result is bool liked && liked;
+                }
+
+                if (isLiked)
+                {
+                    const string deleteSql = @"
+                        DELETE FROM community_post_likes
+                        WHERE post_id = @postId
+                          AND user_id = @userId;";
+                    await using var deleteCmd = new NpgsqlCommand(deleteSql, connection);
+                    deleteCmd.Parameters.Add("@postId", NpgsqlDbType.Uuid).Value = postId;
+                    deleteCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = req.userId;
+                    await deleteCmd.ExecuteNonQueryAsync();
+                }
+                else
+                {
+                    const string insertSql = @"
+                        INSERT INTO community_post_likes (id, post_id, user_id, created_at)
+                        VALUES (@id, @postId, @userId, NOW())
+                        ON CONFLICT (post_id, user_id) DO NOTHING;";
+                    await using var insertCmd = new NpgsqlCommand(insertSql, connection);
+                    insertCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = Guid.NewGuid();
+                    insertCmd.Parameters.Add("@postId", NpgsqlDbType.Uuid).Value = postId;
+                    insertCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = req.userId;
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
+
+                const string countSql = @"
+                    SELECT COUNT(*)
+                    FROM community_post_likes
+                    WHERE post_id = @postId;";
+                await using var countCmd = new NpgsqlCommand(countSql, connection);
+                countCmd.Parameters.Add("@postId", NpgsqlDbType.Uuid).Value = postId;
+                var countResult = await countCmd.ExecuteScalarAsync();
+                var likesCount = countResult is null || countResult == DBNull.Value ? 0 : Convert.ToInt32(countResult);
+
+                return Ok(new
+                {
+                    isLiked = !isLiked,
+                    likesCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
         private static async Task<string> GetAuthorDisplayNameAsync(NpgsqlConnection connection, Guid userId, string role)
         {
             const string sql = @"
@@ -306,6 +403,21 @@ namespace ImajinationAPI.Controllers
             }
 
             return ids;
+        }
+
+        private static async Task EnsureCommunityPostLikesTableAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS community_post_likes (
+                    id uuid PRIMARY KEY,
+                    post_id uuid NOT NULL,
+                    user_id uuid NOT NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    CONSTRAINT uq_community_post_like UNIQUE (post_id, user_id)
+                );";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
         }
     }
 }

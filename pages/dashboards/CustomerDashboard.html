@@ -79,25 +79,8 @@
               <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
               <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">CUSTOMER</p>
             </div>
-            <div class="p-2 flex flex-col gap-1">
-              <button onclick="switchTab('dashboard')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
-                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
-              </button>
-              <button onclick="switchTab('tickets')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
-                <i data-lucide="history" class="w-4 h-4"></i> Gig History
-              </button>
-              <button onclick="switchTab('profile')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
-                <i data-lucide="user-round" class="w-4 h-4"></i> Profile Page
-              </button>
-              <button onclick="switchTab('settings')" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left">
-                <i data-lucide="settings" class="w-4 h-4"></i> Edit Profile
-              </button>
-            </div>
-            <div class="p-2 border-t border-white/10">
-              <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left">
-                <i data-lucide="log-out" class="w-4 h-4"></i> Sign out
-              </button>
-            </div>
+            <div class="p-2 flex flex-col gap-1" data-navbar-action-group="true"></div>
+            <div class="p-2 border-t border-white/10" data-navbar-footer-group="true"></div>
           </div>
         </div>
       </div>
@@ -154,14 +137,6 @@
             </h1>
             <p id="pageSubtitle" class="text-sm text-white/60 mt-1">Manage your tickets and track your upcoming gigs.</p>
           </div>
-          <div class="mobile-stack-actions flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-            <a href="/pages/browse/Events.html" class="px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-red-500 transition-colors shadow-lg">
-              <i data-lucide="search" class="w-4 h-4"></i> Find events
-            </a>
-            <button type="button" onclick="setActiveView('settings')" class="px-5 py-2.5 bg-white/5 border border-white/10 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
-              <i data-lucide="user-cog" class="w-4 h-4"></i> Edit profile
-            </button>
-          </div>
         </header>
 
         <section id="view-dashboard" data-view-panel="dashboard" class="customer-view space-y-6">
@@ -215,23 +190,6 @@
 
             <div class="space-y-6">
               <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
-                <h2 class="text-sm font-bold uppercase tracking-widest text-white mb-6">Quick actions</h2>
-                <div class="space-y-3">
-                  <button onclick="setActiveView('settings')" class="w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
-                    <p class="font-semibold text-sm text-white">Edit Profile & Settings</p>
-                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Update your picture and bio.</p>
-                  </button>
-                  <a href="/pages/browse/Events.html" class="block w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
-                    <p class="font-semibold text-sm text-white">Find events</p>
-                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Search gigs by date, genre, and location.</p>
-                  </a>
-                  <a href="/pages/browse/Artists.html" class="block w-full text-left p-4 bg-black/40 border border-white/5 rounded-xl hover:border-white/20 transition-colors">
-                    <p class="font-semibold text-sm text-white">Explore artists</p>
-                    <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Follow artists you like and get updates.</p>
-                  </a>
-                </div>
-              </div>
-              <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
                 <div class="flex items-center justify-between gap-4 mb-6">
                   <div>
                     <h2 class="text-sm font-bold uppercase tracking-widest text-white">Saved Favorites</h2>
@@ -262,9 +220,9 @@
 
         <section id="view-tickets" data-view-panel="tickets" class="customer-view hidden">
           <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
-            <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+              <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
               <div>
-                <h2 class="text-sm font-bold uppercase tracking-widest text-white">Your Ticket History</h2>
+                <h2 class="text-sm font-bold uppercase tracking-widest text-white">My Tickets</h2>
                 <p class="text-[10px] text-white/50 mt-1 uppercase tracking-widest">Review active, used, and expired event tickets.</p>
               </div>
               <div class="flex flex-wrap items-center gap-2 p-1 bg-black/40 rounded-xl border border-white/5">
@@ -364,12 +322,50 @@
               </div>
             </div>
 
-            <form id="profileForm" class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-6 backdrop-blur-md shadow-2xl">
-              <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">2. Public Bio</h3>
-              
-              <div class="space-y-3">
-                <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">About Me</label>
-                <textarea id="bioInput" rows="4" placeholder="Tell the community a bit about yourself..." class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white resize-none shadow-inner"></textarea>
+            <form id="profileForm" class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-8 backdrop-blur-md shadow-2xl">
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">2. Account Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <label for="firstNameInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">First Name</label>
+                    <input id="firstNameInput" type="text" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner" placeholder="First name">
+                  </div>
+                  <div class="space-y-3">
+                    <label for="lastNameInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Last Name</label>
+                    <input id="lastNameInput" type="text" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner" placeholder="Last name">
+                  </div>
+                  <div class="space-y-3">
+                    <label for="usernameInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Username</label>
+                    <input id="usernameInput" type="text" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner" placeholder="Username">
+                  </div>
+                  <div class="space-y-3">
+                    <label for="emailInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Email Address</label>
+                    <input id="emailInput" type="email" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner" placeholder="name@example.com">
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">3. Security</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <label for="currentPasswordInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Current Password</label>
+                    <input id="currentPasswordInput" type="password" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner" placeholder="Required to change password">
+                  </div>
+                  <div class="space-y-3">
+                    <label for="newPasswordInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">New Password</label>
+                    <input id="newPasswordInput" type="password" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner" placeholder="Leave blank to keep current password">
+                  </div>
+                </div>
+                <p class="text-[10px] uppercase tracking-widest text-white/35 mt-4">Password changes require your current password. New passwords must meet strong-password rules.</p>
+              </div>
+
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Public Bio</h3>
+                <div class="space-y-3">
+                  <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">About Me</label>
+                  <textarea id="bioInput" rows="4" placeholder="Tell the community a bit about yourself..." class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white resize-none shadow-inner"></textarea>
+                </div>
               </div>
 
               <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors mt-4">
@@ -379,7 +375,7 @@
 
             <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
               <div class="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">3. Saved Favorites</h3>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">5. Saved Favorites</h3>
                 <span class="text-[10px] uppercase tracking-[0.18em] text-white/35">Profile Library</span>
               </div>
               <div id="customerFavoritesProfileList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -475,6 +471,7 @@
   </div>
 
   <script>lucide.createIcons();</script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
 
   <script>
     let globalTickets = []; 
@@ -517,8 +514,8 @@
           subtitle: 'Manage your tickets and track your upcoming gigs.'
         },
         tickets: {
-          title: 'Your gig history,',
-          subtitle: 'Open each event from your ticket history and review past or upcoming passes in one place.'
+          title: 'My tickets,',
+          subtitle: 'Open each event from your saved tickets and review past or upcoming passes in one place.'
         },
         bookings: {
           title: 'Your bookings,',
@@ -529,8 +526,8 @@
           subtitle: 'View the public profile details tied to your customer account.'
         },
         settings: {
-          title: 'Profile settings,',
-          subtitle: 'Update your picture and public bio for the platform.'
+          title: 'Edit your profile,',
+          subtitle: 'Update account details, email, password, picture, and public bio.'
         }
       };
 
@@ -558,6 +555,65 @@
 
     function switchTab(tabName) {
       setActiveView(tabName);
+    }
+
+    function applyCustomerProfile(customer = {}) {
+      const firstName = customer.firstName || localStorage.getItem('userFirstName') || 'Guest';
+      const lastName = customer.lastName || '';
+      const displayName = customer.displayName || `${firstName} ${lastName}`.trim() || firstName;
+      const profilePicture = customer.profilePicture || '';
+      const bio = customer.bio && !customer.bio.includes("hasn't written")
+        ? customer.bio
+        : '';
+
+      localStorage.setItem('userFirstName', firstName);
+      document.getElementById('userNameDisplay').innerText = firstName;
+      document.getElementById('dropdownName').innerText = displayName;
+      document.getElementById('sidebarName').innerText = displayName;
+      document.getElementById('profileInitial').innerText = firstName.charAt(0).toUpperCase();
+
+      document.getElementById('firstNameInput').value = customer.firstName || firstName;
+      document.getElementById('lastNameInput').value = customer.lastName || '';
+      document.getElementById('usernameInput').value = customer.username || localStorage.getItem('username') || '';
+      document.getElementById('emailInput').value = customer.email || '';
+      document.getElementById('bioInput').value = bio;
+
+      const profilePageBioEl = document.getElementById('profilePageBio');
+      if (profilePageBioEl) {
+        profilePageBioEl.innerText = bio || 'No bio added yet.';
+      }
+
+      const profilePageName = document.getElementById('profilePageName');
+      if (profilePageName) profilePageName.innerText = displayName;
+
+      const profilePercent = customer.profileCompletionPercent || 0;
+      const profileLabel = customer.isVerified ? 'Verified profile' : (customer.profileCompletionLabel || 'Profile incomplete');
+      const profilePercentEl = document.getElementById('customerProfileCompletionPercent');
+      const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
+      const profilePagePercentEl = document.getElementById('profilePageCompletionPercent');
+      const profilePageLabelEl = document.getElementById('profilePageCompletionLabel');
+      if (profilePercentEl) profilePercentEl.innerText = `${profilePercent}%`;
+      if (profileLabelEl) profileLabelEl.innerText = profileLabel;
+      if (profilePagePercentEl) profilePagePercentEl.innerText = `${profilePercent}%`;
+      if (profilePageLabelEl) profilePageLabelEl.innerText = profileLabel;
+
+      if (profilePicture) {
+        document.getElementById('navProfilePic').src = profilePicture;
+        document.getElementById('navProfilePic').classList.remove('hidden');
+        document.getElementById('profileInitial').classList.add('hidden');
+        document.getElementById('avatarPreview').src = profilePicture;
+        const profilePageAvatarEl = document.getElementById('profilePageAvatar');
+        if (profilePageAvatarEl) profilePageAvatarEl.src = profilePicture;
+        base64Image = profilePicture;
+        localStorage.setItem('userProfilePicture', profilePicture);
+      } else {
+        document.getElementById('navProfilePic').classList.add('hidden');
+        document.getElementById('profileInitial').classList.remove('hidden');
+      }
+
+      if (customer.username) {
+        localStorage.setItem('username', customer.username);
+      }
     }
 
     // Filter Tickets Logic
@@ -662,38 +718,7 @@
               const res = await fetch(`/api/customer/${userId}`);
               if (res.ok) {
                   const customer = await res.json();
-                  
-                  if(customer.profilePicture) {
-                      document.getElementById('navProfilePic').src = customer.profilePicture;
-                      document.getElementById('navProfilePic').classList.remove('hidden');
-                      document.getElementById('profileInitial').classList.add('hidden');
-                      
-                      document.getElementById('avatarPreview').src = customer.profilePicture;
-                      const profilePageAvatarEl = document.getElementById('profilePageAvatar');
-                      if (profilePageAvatarEl) profilePageAvatarEl.src = customer.profilePicture;
-                      base64Image = customer.profilePicture;
-                      localStorage.setItem('userProfilePicture', customer.profilePicture);
-                  }
-                  
-                  if(customer.bio && !customer.bio.includes("hasn't written")) {
-                      document.getElementById('bioInput').value = customer.bio;
-                  }
-                  const profilePageBioEl = document.getElementById('profilePageBio');
-                  if (profilePageBioEl) {
-                    profilePageBioEl.innerText = customer.bio && !customer.bio.includes("hasn't written")
-                      ? customer.bio
-                      : 'No bio added yet.';
-                  }
-                  const profilePageName = document.getElementById('profilePageName');
-                  if (profilePageName) profilePageName.innerText = customer.displayName || firstName || 'Guest';
-                  const profilePercentEl = document.getElementById('customerProfileCompletionPercent');
-                  const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
-                  if (profilePercentEl) profilePercentEl.innerText = `${customer.profileCompletionPercent || 0}%`;
-                  if (profileLabelEl) profileLabelEl.innerText = customer.isVerified ? 'Verified profile' : (customer.profileCompletionLabel || 'Profile incomplete');
-                  const profilePagePercentEl = document.getElementById('profilePageCompletionPercent');
-                  const profilePageLabelEl = document.getElementById('profilePageCompletionLabel');
-                  if (profilePagePercentEl) profilePagePercentEl.innerText = `${customer.profileCompletionPercent || 0}%`;
-                  if (profilePageLabelEl) profilePageLabelEl.innerText = customer.isVerified ? 'Verified profile' : (customer.profileCompletionLabel || 'Profile incomplete');
+                  applyCustomerProfile(customer);
               }
           } catch(e) {}
       }
@@ -944,6 +969,12 @@
       btn.innerText = "SAVING..."; btn.disabled = true;
 
       const payload = {
+        firstName: document.getElementById('firstNameInput').value,
+        lastName: document.getElementById('lastNameInput').value,
+        username: document.getElementById('usernameInput').value,
+        email: document.getElementById('emailInput').value,
+        currentPassword: document.getElementById('currentPasswordInput').value,
+        newPassword: document.getElementById('newPasswordInput').value,
         bio: document.getElementById('bioInput').value,
         profilePicture: base64Image
       };
@@ -957,17 +988,9 @@
         const data = await res.json().catch(() => ({}));
 
         if (res.ok) {
-          localStorage.setItem('userProfilePicture', base64Image || '');
-          if (data.profilePicture) {
-            document.getElementById('avatarPreview').src = data.profilePicture;
-            document.getElementById('navProfilePic').src = data.profilePicture;
-            document.getElementById('navProfilePic').classList.remove('hidden');
-            document.getElementById('profileInitial').classList.add('hidden');
-          }
-          const profilePercentEl = document.getElementById('customerProfileCompletionPercent');
-          const profileLabelEl = document.getElementById('customerProfileCompletionLabel');
-          if (profilePercentEl && typeof data.profileCompletionPercent !== 'undefined') profilePercentEl.innerText = `${data.profileCompletionPercent || 0}%`;
-          if (profileLabelEl && typeof data.isVerified !== 'undefined') profileLabelEl.innerText = data.isVerified ? 'Verified profile' : (data.profileCompletionLabel || 'Profile incomplete');
+          applyCustomerProfile(data);
+          document.getElementById('currentPasswordInput').value = '';
+          document.getElementById('newPasswordInput').value = '';
           await showSystemAlert(data.message || "Profile updated successfully!", 'Profile Updated');
           setActiveView('settings');
         } else {
@@ -1184,14 +1207,17 @@
         const bookingMarkup = customerBookings.map(booking => {
           const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
           const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
+          const isCancelled = (booking.status || '').startsWith('Cancelled');
+          const isCompleted = (booking.status || '') === 'Completed';
           const canPayServiceFee = serviceFeeStatus !== 'Paid'
             && serviceFeeStatus !== 'NotRequired'
-            && !(booking.status || '').startsWith('Cancelled');
+            && !isCancelled;
           const canPayTalentFee = serviceFeeStatus === 'Paid'
             && booking.status === 'Confirmed'
             && Number(booking.budget || 0) > 0
             && talentFeeStatus !== 'Paid'
-            && !(booking.status || '').startsWith('Cancelled');
+            && !isCancelled;
+          const canStopBooking = !isCancelled && !isCompleted;
 
           return `
           <div class="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-3">
@@ -1221,6 +1247,9 @@
               ${serviceFeeStatus === 'Paid'
                 ? `<button onclick="showBookingReceipt('${booking.id}')" class="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/15 transition-colors whitespace-nowrap">View Fee Receipt</button>`
                 : ''}
+              ${canStopBooking
+                ? `<button onclick="cancelCustomerBooking('${booking.id}')" class="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500/15 transition-colors whitespace-nowrap">Stop Booking</button>`
+                : ''}
             </div>
             <p class="text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(serviceFeeStatus)}">
               Service fee: ${serviceFeeStatus}${booking.serviceFeePaymentMethod || booking.paymentMethod ? ` • ${formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod)}` : ''}
@@ -1233,6 +1262,30 @@
         const errorState = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load booking requests.</p>`;
         container.innerHTML = errorState;
         if (previewContainer) previewContainer.innerHTML = errorState;
+      }
+    }
+
+    async function cancelCustomerBooking(bookingId) {
+      const confirmed = window.confirm('Stop this booking request? This will cancel the transaction for this talent booking.');
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'CancelledByCustomer' })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to stop booking.');
+        }
+
+        await showSystemAlert(data.message || 'Booking stopped successfully.', 'Booking Stopped');
+        await loadCustomerBookings();
+        await loadCustomerNotifications();
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to stop booking.', 'Booking Error');
       }
     }
 

@@ -113,47 +113,43 @@
           <h2 class="text-4xl font-extrabold tracking-tight text-white">Artists</h2>
         </div>
 
-        <div class="flex flex-wrap lg:flex-nowrap items-center gap-3 mb-10 w-full">
-          <div class="relative flex-grow min-w-[250px]">
-            <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50"></i>
-            <input type="text" id="searchInput" placeholder="Search artists..." class="w-full pl-11 pr-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500/50 text-white placeholder-white/40">
+        <div class="bg-[#1a1515]/80 border border-white/5 rounded-2xl p-4 mb-10 flex flex-col gap-4 shadow-xl backdrop-blur-md">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="relative flex-grow min-w-[200px]">
+              <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50"></i>
+              <input type="text" id="searchInput" placeholder="Search artists..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#141010] border border-white/10 text-sm text-white focus:outline-none focus:border-red-500/50 transition-colors">
+            </div>
+            <select id="genreFilter" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[120px] cursor-pointer">
+              <option value="">Genre</option>
+            </select>
+            <select id="artistTypeFilter" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[140px] cursor-pointer">
+              <option value="">Artist Type</option>
+              <option value="solo">Solo</option>
+              <option value="duo">Duo</option>
+              <option value="trio">Trio</option>
+              <option value="group">Group</option>
+            </select>
+            <select id="popularityFilter" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[140px] cursor-pointer">
+              <option value="">Popularity</option>
+              <option value="highest-rated">Highest Rated</option>
+              <option value="most-reviewed">Most Reviewed</option>
+            </select>
+            <select id="availabilityFilter" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[140px] cursor-pointer">
+              <option value="">Availability</option>
+              <option value="available">Available</option>
+              <option value="unavailable">Unavailable</option>
+            </select>
+            <select id="priceRangeFilter" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[140px] cursor-pointer">
+              <option value="">Price Range</option>
+              <option value="0-5000">PHP 0 - 5,000</option>
+              <option value="5001-15000">PHP 5,001 - 15,000</option>
+              <option value="15001-30000">PHP 15,001 - 30,000</option>
+              <option value="30001+">PHP 30,001+</option>
+            </select>
           </div>
-
-          <select id="genreFilter" class="min-w-[130px] px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 appearance-none">
-            <option value="">Genre</option>
-          </select>
-
-          <select id="artistTypeFilter" class="min-w-[130px] px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 appearance-none">
-            <option value="">Artist Type</option>
-            <option value="solo">Solo</option>
-            <option value="duo">Duo</option>
-            <option value="trio">Trio</option>
-            <option value="group">Group</option>
-          </select>
-
-          <select id="popularityFilter" class="min-w-[130px] px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 appearance-none">
-            <option value="">Popularity</option>
-            <option value="highest-rated">Highest Rated</option>
-            <option value="most-reviewed">Most Reviewed</option>
-          </select>
-
-          <select id="availabilityFilter" class="min-w-[130px] px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 appearance-none">
-            <option value="">Availability</option>
-            <option value="available">Available</option>
-            <option value="unavailable">Unavailable</option>
-          </select>
-
-          <select id="priceRangeFilter" class="min-w-[130px] px-4 py-3 bg-[#181414] border border-white/5 rounded-xl text-sm text-white focus:outline-none focus:border-red-500/50 appearance-none">
-            <option value="">Price Range</option>
-            <option value="0-5000">PHP 0 - 5,000</option>
-            <option value="5001-15000">PHP 5,001 - 15,000</option>
-            <option value="15001-30000">PHP 15,001 - 30,000</option>
-            <option value="30001+">PHP 30,001+</option>
-          </select>
-
-          <div class="flex items-center gap-3 shrink-0 ml-auto w-full lg:w-auto mt-3 lg:mt-0">
-            <button id="clearBtn" class="flex-1 lg:flex-none px-6 py-3 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/5 transition-colors">Clear</button>
-            <button id="searchBtn" class="flex-1 lg:flex-none px-6 py-3 rounded-xl bg-[#cc292b] text-white text-xs font-bold uppercase tracking-wider hover:bg-red-600 transition-colors shadow-lg">Apply Filters</button>
+          <div class="flex justify-end gap-3 pt-2">
+            <button id="clearBtn" class="px-6 py-2.5 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-white/5 transition-colors">Clear</button>
+            <button id="searchBtn" class="px-6 py-2.5 rounded-xl bg-[#cc292b] text-white text-xs font-bold uppercase tracking-[0.14em] hover:bg-red-600 transition-colors shadow-lg">Apply Filters</button>
           </div>
         </div>
 
@@ -253,8 +249,6 @@
     let allArtists = [];
     const artistsCacheKey = 'artistsPageCacheV1';
     const artistsCacheTtlMs = 2 * 60 * 1000;
-    let applyArtistFiltersFrame = 0;
-
     async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -409,14 +403,6 @@
       renderArtists(filtered);
     }
 
-    function scheduleArtistFilters() {
-      if (applyArtistFiltersFrame) cancelAnimationFrame(applyArtistFiltersFrame);
-      applyArtistFiltersFrame = requestAnimationFrame(() => {
-        applyArtistFiltersFrame = 0;
-        applyArtistFilters();
-      });
-    }
-
     async function fetchArtists() {
       const grid = document.getElementById('artistsGrid');
       const cachedArtists = readCachedArtists();
@@ -517,12 +503,7 @@
         document.getElementById('popularityFilter').value = "";
         document.getElementById('availabilityFilter').value = "";
         document.getElementById('priceRangeFilter').value = "";
-        renderArtists(allArtists);
-    });
-
-    document.getElementById('searchInput').addEventListener('input', scheduleArtistFilters);
-    ['genreFilter', 'artistTypeFilter', 'popularityFilter', 'availabilityFilter', 'priceRangeFilter'].forEach((id) => {
-      document.getElementById(id).addEventListener('change', scheduleArtistFilters);
+        applyArtistFilters();
     });
 
   </script>

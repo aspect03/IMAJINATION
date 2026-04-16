@@ -587,6 +587,21 @@ namespace ImajinationAPI.Controllers
                 {
                     normalizedStatus = $"Cancelled by {targetRole}";
                 }
+                else if (normalizedStatus.Equals("CancelledByCustomer", StringComparison.OrdinalIgnoreCase) ||
+                         normalizedStatus.Equals("Cancelled by Customer", StringComparison.OrdinalIgnoreCase))
+                {
+                    normalizedStatus = "Cancelled by Customer";
+                }
+
+                if (currentStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Completed bookings can no longer be cancelled." });
+                }
+
+                if (currentStatus.StartsWith("Cancelled", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "This booking has already been cancelled." });
+                }
 
                 if (normalizedStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) &&
                     serviceFeeStatus != "Paid" &&
@@ -673,6 +688,8 @@ namespace ImajinationAPI.Controllers
                         ? $"{targetRole} confirmed your booking for {eventTitle}."
                         : normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase)
                             ? $"Your booking for {eventTitle} has been marked as completed."
+                        : normalizedStatus.Equals("Cancelled by Customer", StringComparison.OrdinalIgnoreCase)
+                            ? $"You cancelled your booking for {eventTitle}."
                         : normalizedStatus.StartsWith("Cancelled by ", StringComparison.OrdinalIgnoreCase)
                             ? $"{targetRole} cancelled your booking for {eventTitle}."
                             : $"Your booking for {eventTitle} is now {normalizedStatus}.";
@@ -683,6 +700,10 @@ namespace ImajinationAPI.Controllers
                 if (targetUserId != Guid.Empty && targetUserId != customerId && normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                 {
                     await InsertNotification(connection, targetUserId, "booking_status", "Booking completed", $"The booking for {eventTitle} has been marked as completed.", bookingId, "booking");
+                }
+                else if (targetUserId != Guid.Empty && targetUserId != customerId && normalizedStatus.Equals("Cancelled by Customer", StringComparison.OrdinalIgnoreCase))
+                {
+                    await InsertNotification(connection, targetUserId, "booking_status", "Booking cancelled", $"The customer cancelled the booking for {eventTitle}.", bookingId, "booking");
                 }
 
                 return Ok(new { message = "Booking request updated.", status = normalizedStatus, paymentStatus = nextPaymentStatus });

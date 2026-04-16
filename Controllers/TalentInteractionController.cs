@@ -31,6 +31,16 @@ namespace ImajinationAPI.Controllers
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
         }
 
+        private sealed class TalentReviewEligibilityState
+        {
+            public bool HasAnyBooking { get; init; }
+            public bool HasConfirmedPastBooking { get; init; }
+            public bool HasCompletedBooking { get; init; }
+            public bool HasCompletedPaidBooking { get; init; }
+            public bool CanReview => HasCompletedPaidBooking;
+            public string Message { get; init; } = "Sign in as a Customer and complete your booking before reviews become available.";
+        }
+
         [HttpGet("summary/{targetRole}/{targetUserId}")]
         public async Task<IActionResult> GetSummary(string targetRole, Guid targetUserId, [FromQuery] Guid? customerId)
         {
@@ -46,6 +56,7 @@ namespace ImajinationAPI.Controllers
                 int reviewCount = 0;
                 int favoriteCount = 0;
                 bool isFavorited = false;
+                var eligibility = new TalentReviewEligibilityState();
                 var reviews = new List<object>();
 
                 const string statsSql = @"
@@ -120,12 +131,23 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
+                if (customerId.HasValue && customerId.Value != Guid.Empty)
+                {
+                    eligibility = await GetReviewEligibilityAsync(connection, customerId.Value, targetUserId, normalizedRole);
+                }
+
                 return Ok(new
                 {
                     averageRating = Math.Round(averageRating, 1),
                     reviewCount,
                     favoriteCount,
                     isFavorited,
+                    canReview = eligibility.CanReview,
+                    hasAnyBooking = eligibility.HasAnyBooking,
+                    hasConfirmedPastBooking = eligibility.HasConfirmedPastBooking,
+                    hasCompletedBooking = eligibility.HasCompletedBooking,
+                    hasCompletedPaidBooking = eligibility.HasCompletedPaidBooking,
+                    reviewEligibilityMessage = eligibility.Message,
                     reviews
                 });
             }
@@ -247,29 +269,10 @@ namespace ImajinationAPI.Controllers
                 await EnsureTablesExist(connection);
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
-
-                const string eligibilitySql = @"
-                    SELECT EXISTS (
-                        SELECT 1
-                        FROM bookings
-                        WHERE customer_id = @customerId
-                          AND target_user_id = @targetUserId
-                          AND LOWER(COALESCE(target_role, '')) = LOWER(@targetRole)
-                          AND LOWER(COALESCE(status, '')) = 'confirmed'
-                          AND event_date IS NOT NULL
-                          AND event_date <= NOW()
-                    );";
-
-                using (var eligibilityCmd = new NpgsqlCommand(eligibilitySql, connection))
+                var eligibility = await GetReviewEligibilityAsync(connection, req.customerId, req.targetUserId, normalizedRole);
+                if (!eligibility.CanReview)
                 {
-                    eligibilityCmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = req.customerId;
-                    eligibilityCmd.Parameters.Add("@targetUserId", NpgsqlDbType.Uuid).Value = req.targetUserId;
-                    eligibilityCmd.Parameters.Add("@targetRole", NpgsqlDbType.Text).Value = normalizedRole;
-                    var eligible = await eligibilityCmd.ExecuteScalarAsync();
-                    if (eligible is not bool canReview || !canReview)
-                    {
-                        return BadRequest(new { message = "Ratings are only available after a confirmed booking date has passed." });
-                    }
+                    return BadRequest(new { message = eligibility.Message });
                 }
 
                 const string upsertSql = @"
@@ -311,6 +314,91 @@ namespace ImajinationAPI.Controllers
         private static string NormalizeRole(string? value)
         {
             return string.Equals(value, "Sessionist", StringComparison.OrdinalIgnoreCase) ? "Sessionist" : "Artist";
+        }
+
+        private static async Task<TalentReviewEligibilityState> GetReviewEligibilityAsync(NpgsqlConnection connection, Guid customerId, Guid targetUserId, string normalizedRole)
+        {
+            const string sql = @"
+                SELECT EXISTS (
+                           SELECT 1
+                           FROM bookings
+                           WHERE customer_id = @customerId
+                             AND target_user_id = @targetUserId
+                             AND LOWER(COALESCE(target_role, '')) = LOWER(@targetRole)
+                       ),
+                       EXISTS (
+                           SELECT 1
+                           FROM bookings
+                           WHERE customer_id = @customerId
+                             AND target_user_id = @targetUserId
+                             AND LOWER(COALESCE(target_role, '')) = LOWER(@targetRole)
+                             AND LOWER(COALESCE(status, '')) = 'confirmed'
+                             AND event_date IS NOT NULL
+                             AND event_date <= NOW()
+                       ),
+                       EXISTS (
+                           SELECT 1
+                           FROM bookings
+                           WHERE customer_id = @customerId
+                             AND target_user_id = @targetUserId
+                             AND LOWER(COALESCE(target_role, '')) = LOWER(@targetRole)
+                             AND LOWER(COALESCE(status, '')) = 'completed'
+                             AND event_date IS NOT NULL
+                             AND event_date <= NOW()
+                       ),
+                       EXISTS (
+                           SELECT 1
+                           FROM bookings
+                           WHERE customer_id = @customerId
+                             AND target_user_id = @targetUserId
+                             AND LOWER(COALESCE(target_role, '')) = LOWER(@targetRole)
+                             AND LOWER(COALESCE(status, '')) = 'completed'
+                             AND event_date IS NOT NULL
+                             AND event_date <= NOW()
+                             AND LOWER(COALESCE(service_fee_status, COALESCE(payment_status, 'unpaid'))) IN ('paid', 'notrequired')
+                             AND (
+                                 COALESCE(budget, 0) <= 0
+                                 OR LOWER(COALESCE(talent_fee_status, 'unpaid')) = 'paid'
+                             )
+                       );";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.Add("@customerId", NpgsqlDbType.Uuid).Value = customerId;
+            cmd.Parameters.Add("@targetUserId", NpgsqlDbType.Uuid).Value = targetUserId;
+            cmd.Parameters.Add("@targetRole", NpgsqlDbType.Text).Value = normalizedRole;
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                return new TalentReviewEligibilityState
+                {
+                    Message = "We could not verify your booking status for reviews right now."
+                };
+            }
+
+            var hasAnyBooking = !reader.IsDBNull(0) && reader.GetBoolean(0);
+            var hasConfirmedPastBooking = !reader.IsDBNull(1) && reader.GetBoolean(1);
+            var hasCompletedBooking = !reader.IsDBNull(2) && reader.GetBoolean(2);
+            var hasCompletedPaidBooking = !reader.IsDBNull(3) && reader.GetBoolean(3);
+
+            var message = hasCompletedPaidBooking
+                ? "Your booking with this talent is completed and settled, so you can leave a review now."
+                : hasCompletedBooking
+                    ? "Your booking is marked completed, but the transaction still needs to be fully settled before reviews unlock."
+                    : hasConfirmedPastBooking
+                        ? "Your booking date has passed, but reviews unlock only after the booking is marked completed and settled."
+                        : hasAnyBooking
+                            ? "Reviews unlock only after your booking with this talent is fully completed and settled."
+                            : "No eligible completed booking with this talent was found on this customer account yet.";
+
+            return new TalentReviewEligibilityState
+            {
+                HasAnyBooking = hasAnyBooking,
+                HasConfirmedPastBooking = hasConfirmedPastBooking,
+                HasCompletedBooking = hasCompletedBooking,
+                HasCompletedPaidBooking = hasCompletedPaidBooking,
+                Message = message
+            };
         }
 
         private static async Task<string> GetCustomerDisplayNameAsync(NpgsqlConnection connection, Guid customerId)

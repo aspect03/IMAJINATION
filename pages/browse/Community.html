@@ -104,15 +104,52 @@
           <p class="text-base text-white/60 mt-3 max-w-3xl">Browse fresh updates, announcements, rehearsal moments, promo drops, and organizer event highlights from the platform.</p>
         </div>
 
-        <div class="bg-[#1a1515]/80 border border-white/5 rounded-2xl p-4 mb-8 flex flex-wrap items-center gap-3 shadow-xl backdrop-blur-md">
-          <button type="button" data-role="" class="community-filter-btn px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-semibold uppercase tracking-[0.14em]">All Posts</button>
-          <button type="button" data-role="Artist" class="community-filter-btn px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white/75 text-xs font-semibold uppercase tracking-[0.14em]">Artists</button>
-          <button type="button" data-role="Sessionist" class="community-filter-btn px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white/75 text-xs font-semibold uppercase tracking-[0.14em]">Sessionists</button>
-          <button type="button" data-role="Organizer" class="community-filter-btn px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white/75 text-xs font-semibold uppercase tracking-[0.14em]">Organizers</button>
-          <input id="communitySearchInput" type="text" placeholder="Search talent, role, or post text" class="min-w-[220px] flex-1 px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm text-white outline-none focus:border-red-500">
-          <button type="button" id="communityRefreshBtn" class="px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white/80 text-xs font-semibold uppercase tracking-[0.14em] hover:bg-white/5 transition-colors">Refresh</button>
-          <div class="ml-auto text-xs uppercase tracking-[0.14em] text-white/40">
-            <span id="communityFeedCount">0 posts</span>
+        <div class="bg-[#1a1515]/80 border border-white/10 rounded-3xl p-5 mb-8 shadow-xl backdrop-blur-md">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Search Filters</p>
+              <p class="text-sm text-white/55 mt-1">Filter by role, date posted, and engagement, then clear or apply in one place.</p>
+            </div>
+            <div class="text-xs uppercase tracking-[0.14em] text-white/40">
+              <span id="communityFeedCount">0 posts</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <label class="block">
+              <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Search</span>
+              <input id="communitySearchInput" type="text" placeholder="Search talent, role, or post text" class="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm text-white outline-none focus:border-red-500">
+            </label>
+            <label class="block">
+              <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Posted By</span>
+              <select id="communityRoleFilter" class="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm text-white outline-none focus:border-red-500 appearance-none">
+                <option value="">All Roles</option>
+                <option value="Artist">Artists</option>
+                <option value="Sessionist">Sessionists</option>
+                <option value="Organizer">Organizers</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Date Posted</span>
+              <select id="communityDateFilter" class="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm text-white outline-none focus:border-red-500 appearance-none">
+                <option value="">All Dates</option>
+                <option value="this-year">This Year</option>
+                <option value="last-year">Last Year</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Likes</span>
+              <select id="communityLikesFilter" class="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm text-white outline-none focus:border-red-500 appearance-none">
+                <option value="">Default Order</option>
+                <option value="most-liked">Most Liked</option>
+                <option value="least-liked">Least Liked</option>
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </label>
+            <div class="flex items-end gap-3">
+              <button type="button" id="communityClearBtn" class="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-[0.14em] hover:bg-white/10 transition-colors">Clear</button>
+              <button type="button" id="communityApplyBtn" class="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white text-xs font-semibold uppercase tracking-[0.14em] hover:bg-red-500 transition-colors">Apply Filters</button>
+            </div>
           </div>
         </div>
 
@@ -130,9 +167,14 @@
 
   <script>
     lucide.createIcons();
-    let currentCommunityRole = '';
     let currentCommunityLimit = 24;
     let communityPostsCache = [];
+    let activeCommunityFilters = {
+      query: '',
+      role: '',
+      date: '',
+      likes: ''
+    };
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -170,14 +212,61 @@
       return `/pages/details/ArtistDetails.html?id=${post.userId}`;
     }
 
-    function getFilteredCommunityPosts() {
-      const query = (document.getElementById('communitySearchInput')?.value || '').trim().toLowerCase();
-      if (!query) return communityPostsCache;
+    function populateCommunityYearOptions(posts) {
+      const dateFilter = document.getElementById('communityDateFilter');
+      if (!dateFilter) return;
 
-      return communityPostsCache.filter((post) => {
+      const selectedValue = dateFilter.value;
+      const years = [...new Set((posts || [])
+        .map(post => new Date(post.createdAt).getFullYear())
+        .filter(year => Number.isFinite(year)))]
+        .sort((a, b) => b - a);
+
+      dateFilter.innerHTML = `
+        <option value="">All Dates</option>
+        <option value="this-year">This Year</option>
+        <option value="last-year">Last Year</option>
+        ${years.map(year => `<option value="year-${year}">${year}</option>`).join('')}
+      `;
+      dateFilter.value = selectedValue;
+    }
+
+    function getFilteredCommunityPosts() {
+      const { query, role, date, likes } = activeCommunityFilters;
+      const normalizedQuery = query.trim().toLowerCase();
+      const now = new Date();
+      const currentYear = now.getFullYear();
+
+      let filtered = communityPostsCache.filter((post) => {
         const haystack = `${post.authorName || ''} ${post.role || ''} ${post.content || ''}`.toLowerCase();
-        return haystack.includes(query);
+        const postDate = new Date(post.createdAt);
+        const postYear = Number.isNaN(postDate.getTime()) ? 0 : postDate.getFullYear();
+        const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
+        const matchesRole = !role || String(post.role || '') === role;
+
+        let matchesDate = true;
+        if (date === 'this-year') {
+          matchesDate = postYear === currentYear;
+        } else if (date === 'last-year') {
+          matchesDate = postYear === currentYear - 1;
+        } else if (date.startsWith('year-')) {
+          matchesDate = postYear === Number(date.replace('year-', ''));
+        }
+
+        return matchesQuery && matchesRole && matchesDate;
       });
+
+      if (likes === 'most-liked') {
+        filtered = [...filtered].sort((a, b) => Number(b.likesCount || 0) - Number(a.likesCount || 0) || new Date(b.createdAt) - new Date(a.createdAt));
+      } else if (likes === 'least-liked') {
+        filtered = [...filtered].sort((a, b) => Number(a.likesCount || 0) - Number(b.likesCount || 0) || new Date(b.createdAt) - new Date(a.createdAt));
+      } else if (likes === 'oldest') {
+        filtered = [...filtered].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      } else {
+        filtered = [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
+      return filtered;
     }
 
     function renderCommunityFeed(posts) {
@@ -217,6 +306,10 @@
                 <div class="flex items-center gap-2 flex-wrap mt-1">
                   <span class="inline-flex items-center px-2 py-1 rounded-full border text-[10px] uppercase tracking-widest ${getRoleTone(post.role)}">${escapeHtml(post.role || 'Talent')}</span>
                   <span class="text-[11px] text-white/35 uppercase tracking-widest">${escapeHtml(formatPostTime(post.createdAt))}</span>
+                  <button type="button" data-post-id="${escapeHtml(post.id)}" class="community-like-btn inline-flex items-center gap-1 text-[11px] uppercase tracking-widest transition-colors ${post.isLiked ? 'text-red-300' : 'text-white/40 hover:text-red-300'}">
+                    <i data-lucide="heart" class="w-3.5 h-3.5 ${post.isLiked ? 'fill-current' : ''}"></i>
+                    <span>${Number(post.likesCount || 0)}</span>
+                  </button>
                 </div>
               </div>
             </a>
@@ -229,6 +322,49 @@
         </article>
       `).join('');
       lucide.createIcons();
+      bindCommunityLikeButtons();
+    }
+
+    function bindCommunityLikeButtons() {
+      document.querySelectorAll('.community-like-btn').forEach((button) => {
+        button.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+
+          const userId = localStorage.getItem('userId');
+          if (!userId) {
+            window.location.href = '/pages/auth/login.html';
+            return;
+          }
+
+          const postId = button.dataset.postId;
+          if (!postId) return;
+
+          button.disabled = true;
+          try {
+            const response = await fetch(`/api/community/posts/${postId}/like`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(data.message || 'Failed to update post like.');
+            }
+
+            communityPostsCache = communityPostsCache.map((post) =>
+              String(post.id) === String(postId)
+                ? { ...post, isLiked: !!data.isLiked, likesCount: Number(data.likesCount || 0) }
+                : post
+            );
+            renderCommunityFeed(getFilteredCommunityPosts());
+          } catch (error) {
+            console.error(error);
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
     }
 
     async function loadCommunityFeed() {
@@ -239,8 +375,9 @@
 
       try {
         const params = new URLSearchParams();
-        if (currentCommunityRole) params.set('role', currentCommunityRole);
         params.set('limit', String(currentCommunityLimit));
+        const currentUserId = localStorage.getItem('userId');
+        if (currentUserId) params.set('userId', currentUserId);
         const query = params.toString() ? `?${params.toString()}` : '';
         const response = await fetch(`/api/community/feed${query}`);
         if (!response.ok) {
@@ -248,6 +385,7 @@
         }
         const posts = await response.json();
         communityPostsCache = Array.isArray(posts) ? posts : [];
+        populateCommunityYearOptions(communityPostsCache);
         renderCommunityFeed(getFilteredCommunityPosts());
       } catch (error) {
         if (container) {
@@ -256,19 +394,21 @@
       }
     }
 
-    function setActiveCommunityFilter(role) {
-      currentCommunityRole = role;
-      currentCommunityLimit = 24;
-      document.querySelectorAll('.community-filter-btn').forEach(btn => {
-        const active = (btn.dataset.role || '') === role;
-        btn.classList.toggle('bg-red-600', active);
-        btn.classList.toggle('text-white', active);
-        btn.classList.toggle('bg-black/40', !active);
-        btn.classList.toggle('border', !active);
-        btn.classList.toggle('border-white/10', !active);
-        btn.classList.toggle('text-white/75', !active);
-      });
-      loadCommunityFeed();
+    function applyCommunityFilters() {
+      activeCommunityFilters.query = document.getElementById('communitySearchInput')?.value || '';
+      activeCommunityFilters.role = document.getElementById('communityRoleFilter')?.value || '';
+      activeCommunityFilters.date = document.getElementById('communityDateFilter')?.value || '';
+      activeCommunityFilters.likes = document.getElementById('communityLikesFilter')?.value || '';
+      renderCommunityFeed(getFilteredCommunityPosts());
+    }
+
+    function clearCommunityFilters() {
+      document.getElementById('communitySearchInput').value = '';
+      document.getElementById('communityRoleFilter').value = '';
+      document.getElementById('communityDateFilter').value = '';
+      document.getElementById('communityLikesFilter').value = '';
+      activeCommunityFilters = { query: '', role: '', date: '', likes: '' };
+      renderCommunityFeed(getFilteredCommunityPosts());
     }
 
     function handleLogout() {
@@ -332,20 +472,13 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       setupAuthUi();
-      document.querySelectorAll('.community-filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => setActiveCommunityFilter(btn.dataset.role || ''));
-      });
-      document.getElementById('communitySearchInput')?.addEventListener('input', () => {
-        renderCommunityFeed(getFilteredCommunityPosts());
-      });
-      document.getElementById('communityRefreshBtn')?.addEventListener('click', () => {
-        loadCommunityFeed();
-      });
+      document.getElementById('communityApplyBtn')?.addEventListener('click', applyCommunityFilters);
+      document.getElementById('communityClearBtn')?.addEventListener('click', clearCommunityFilters);
       document.getElementById('communityLoadMoreBtn')?.addEventListener('click', () => {
         currentCommunityLimit += 12;
         loadCommunityFeed();
       });
-      setActiveCommunityFilter('');
+      loadCommunityFeed();
     });
   </script>
 </body>

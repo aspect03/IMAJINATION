@@ -196,7 +196,7 @@
           </div>
 
           <div class="mt-8 grid grid-cols-1 xl:grid-cols-5 gap-6">
-            <div class="xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+            <div id="artistReviewPanel" class="hidden xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
               <div class="flex items-center justify-between mb-5">
                 <div>
                   <h3 class="text-sm font-bold uppercase tracking-widest text-white">Rate This Artist</h3>
@@ -228,7 +228,7 @@
               </form>
             </div>
 
-            <div class="xl:col-span-3 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+            <div id="artistReviewsPanel" class="xl:col-span-5 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
               <div class="flex items-center justify-between mb-5">
                 <div>
                   <h3 class="text-sm font-bold uppercase tracking-widest text-white">Customer Feedback</h3>
@@ -244,12 +244,11 @@
 
         <div class="lg:col-span-5 xl:col-span-4">
           <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 shadow-2xl backdrop-blur-md">
-            
-            <button id="contactArtistBtn" type="button" class="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 transition-colors mb-8">
-              Contact Me
+            <button id="bookArtistBtn" type="button" class="w-full py-4 rounded-2xl bg-[#cc292b] text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors shadow-[0_0_30px_-10px_rgba(204,41,43,0.5)]">
+              Book Artist
             </button>
 
-            <div class="mb-8">
+            <div class="mt-8 mb-8">
               <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Genres:</h4>
               <div class="flex flex-wrap gap-2" id="detailGenres"></div>
             </div>
@@ -260,10 +259,6 @@
                 <i data-lucide="music" class="w-4 h-4"></i> Listen on Spotify
               </a>
             </div>
-
-            <button id="bookArtistBtn" type="button" class="w-full py-4 rounded-xl bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors mt-2 shadow-[0_0_30px_-10px_rgba(204,41,43,0.5)]">
-              Book Artist
-            </button>
 
           </div>
         </div>
@@ -492,7 +487,6 @@
 
     const bookingModal = document.getElementById('bookingModal');
     document.getElementById('bookArtistBtn').addEventListener('click', openBookingModal);
-    document.getElementById('contactArtistBtn').addEventListener('click', openBookingModal);
     document.getElementById('closeBookingModalBtn').addEventListener('click', closeBookingModal);
     bookingModal.addEventListener('click', (event) => {
       if (event.target.id === 'bookingModal') closeBookingModal();
@@ -718,9 +712,11 @@
         document.getElementById('favoriteCount').innerText = artistInteractionSummary.favoriteCount || 0;
         document.getElementById('reviewCount').innerText = artistInteractionSummary.reviewCount || 0;
         updateFavoriteButton(artistInteractionSummary.isFavorited);
+        updateArtistReviewEligibility(!!artistInteractionSummary.canReview, !!customerId, artistInteractionSummary.reviewEligibilityMessage || '');
         renderReviews(artistInteractionSummary.reviews || []);
         await syncArtistFavoriteStateFromCustomerFavorites();
       } catch (error) {
+        updateArtistReviewEligibility(false, !!customerId, error.message || '');
         document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
         await syncArtistFavoriteStateFromCustomerFavorites();
       }
@@ -776,6 +772,34 @@
       `).join('');
     }
 
+    function updateArtistReviewEligibility(canReview, hasCustomerContext, lockedMessage = '') {
+      const reviewPanel = document.getElementById('artistReviewPanel');
+      const reviewsPanel = document.getElementById('artistReviewsPanel');
+      const ratingInput = document.getElementById('reviewRating');
+      const feedbackInput = document.getElementById('reviewFeedback');
+      const submitBtn = document.getElementById('submitReviewBtn');
+      const reviewStatus = document.getElementById('reviewStatus');
+
+      if (!reviewPanel || !reviewsPanel || !ratingInput || !feedbackInput || !submitBtn || !reviewStatus) return;
+
+      const message = hasCustomerContext
+        ? (lockedMessage || 'Reviews unlock only after your booking with this artist is fully completed and settled.')
+        : 'Sign in as a Customer and complete your booking before reviews become available.';
+
+      reviewPanel.classList.toggle('hidden', !canReview);
+      reviewsPanel.classList.toggle('xl:col-span-5', !canReview);
+      reviewsPanel.classList.toggle('xl:col-span-3', canReview);
+
+      ratingInput.disabled = !canReview;
+      feedbackInput.disabled = !canReview;
+      submitBtn.disabled = !canReview;
+      submitBtn.classList.toggle('opacity-50', !canReview);
+      submitBtn.classList.toggle('cursor-not-allowed', !canReview);
+      reviewStatus.innerText = canReview
+        ? 'Your completed booking is eligible for feedback. You can leave a review now.'
+        : message;
+    }
+
     document.getElementById('favoriteBtn').addEventListener('click', async () => {
       const role = localStorage.getItem('userRole');
       const customerId = localStorage.getItem('userId');
@@ -824,6 +848,11 @@
           kicker: 'Artist Review'
         });
         window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      if (!artistInteractionSummary?.canReview) {
+        reviewStatus.innerText = artistInteractionSummary?.reviewEligibilityMessage || 'Reviews unlock only after your booking with this artist is fully completed and settled.';
         return;
       }
 

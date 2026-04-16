@@ -397,11 +397,27 @@
     function renderConversationList() {
       const list = document.getElementById('conversationList');
       const term = document.getElementById('conversationSearch').value.trim().toLowerCase();
-      const filtered = conversations.filter(conversation =>
+      const dedupedConversations = Array.from(conversations.reduce((map, conversation) => {
+        const key = [
+          conversation.counterpartId || '',
+          (conversation.counterpartRole || '').toLowerCase(),
+          (conversation.eventTitle || '').trim().toLowerCase()
+        ].join('|');
+        const existing = map.get(key);
+        const existingTime = existing?.lastActivity ? new Date(existing.lastActivity).getTime() : 0;
+        const nextTime = conversation?.lastActivity ? new Date(conversation.lastActivity).getTime() : 0;
+
+        if (!existing || nextTime >= existingTime) {
+          map.set(key, conversation);
+        }
+        return map;
+      }, new Map()).values());
+
+      const filtered = dedupedConversations.filter(conversation =>
         !term ||
-        conversation.counterpartName.toLowerCase().includes(term) ||
-        conversation.eventTitle.toLowerCase().includes(term) ||
-        conversation.lastMessage.toLowerCase().includes(term)
+        (conversation.counterpartName || '').toLowerCase().includes(term) ||
+        (conversation.eventTitle || '').toLowerCase().includes(term) ||
+        (conversation.lastMessage || '').toLowerCase().includes(term)
       );
 
       if (filtered.length === 0) {
@@ -413,7 +429,7 @@
         <button type="button" onclick="openConversation('${conversation.bookingId}')" class="w-full text-left p-4 rounded-xl border transition-colors ${String(conversation.bookingId) === String(activeBookingId) ? 'bg-red-600/10 border-red-500/20' : 'hover:bg-white/5 border-transparent'}">
           <div class="flex justify-between items-start gap-3 mb-1">
             <p class="font-semibold text-sm text-white">${escapeHtml(conversation.counterpartName || 'Conversation')}</p>
-            <span class="text-[10px] ${conversation.hasMessages ? 'text-red-400' : 'text-amber-300'} font-medium whitespace-nowrap">${conversation.hasMessages ? 'Active' : 'New'}</span>
+            <span class="text-[10px] ${String(conversation.bookingId) === String(activeBookingId) ? 'text-red-400' : (conversation.hasMessages ? 'text-white/50' : 'text-amber-300')} font-medium whitespace-nowrap">${String(conversation.bookingId) === String(activeBookingId) ? 'Active' : (conversation.hasMessages ? 'Open' : 'New')}</span>
           </div>
           <p class="text-[10px] uppercase tracking-widest text-white/40 mb-2">${escapeHtml(conversation.eventTitle || 'Booking inquiry')}</p>
           <p class="text-xs text-white/60 truncate">${escapeHtml(conversation.lastMessage || 'No messages yet. Open this thread to start the conversation.')}</p>

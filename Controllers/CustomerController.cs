@@ -2,16 +2,21 @@ using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
+using BCrypt.Net;
 
 namespace ImajinationAPI.Controllers
 {
     // Reusing the same structure as the Artist profile update, but we'll adapt it for customers
     public class UpdateCustomerProfileDto
     {
+        public string? firstName { get; set; }
+        public string? lastName { get; set; }
+        public string? username { get; set; }
+        public string? email { get; set; }
+        public string? currentPassword { get; set; }
+        public string? newPassword { get; set; }
         public string? bio { get; set; }
         public string? profilePicture { get; set; } // Base64 string
-        // We won't strictly enforce genres or spotifyLink for customers right now, 
-        // but they are in the database if we want to use them later (e.g., "Favorite Genres").
     }
 
     [Route("api/[controller]")]
@@ -120,7 +125,17 @@ namespace ImajinationAPI.Controllers
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
 
                 // We don't care about stagename for customers, so we just construct their full name
-                string sql = "SELECT firstname, lastname, profile_picture, bio, COALESCE(is_verified, FALSE) FROM users WHERE id = @id AND role = 'Customer'";
+                string sql = @"
+                    SELECT
+                        COALESCE(firstname, ''),
+                        COALESCE(lastname, ''),
+                        COALESCE(profile_picture, ''),
+                        COALESCE(bio, ''),
+                        COALESCE(is_verified, FALSE),
+                        COALESCE(username, ''),
+                        COALESCE(email, '')
+                    FROM users
+                    WHERE id = @id AND role = 'Customer'";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", id);
 
@@ -132,6 +147,8 @@ namespace ImajinationAPI.Controllers
                     string profilePicture = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     string bio = reader.IsDBNull(3) ? "This user hasn't written a bio yet." : reader.GetString(3);
                     bool isVerified = !reader.IsDBNull(4) && reader.GetBoolean(4);
+                    string username = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                    string email = reader.IsDBNull(6) ? "" : reader.GetString(6);
                     var profileSummary = CommunitySupport.CalculateProfileCompletion("Customer", first, last, bio, profilePicture, "", "", "", "", "", "");
                     await reader.CloseAsync();
                     await CommunitySupport.SyncProfileVerificationAsync(connection, id, "Customer", first, last, bio, profilePicture, "", "", "", "", "", "");
@@ -139,6 +156,10 @@ namespace ImajinationAPI.Controllers
                     return Ok(new
                     {
                         displayName = $"{first} {last}".Trim(),
+                        firstName = first,
+                        lastName = last,
+                        username,
+                        email,
                         profilePicture,
                         bio,
                         isVerified = profileSummary.IsVerified || isVerified,
@@ -163,6 +184,10 @@ namespace ImajinationAPI.Controllers
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
+                var sanitizedFirstName = SecuritySupport.SanitizePlainText(req.firstName, 80, false);
+                var sanitizedLastName = SecuritySupport.SanitizePlainText(req.lastName, 80, false);
+                var sanitizedUsername = SecuritySupport.SanitizePlainText(req.username, 60, false);
+                var normalizedEmail = NormalizeEmail(req.email);
                 var sanitizedBio = SecuritySupport.SanitizePlainText(req.bio, 2500, true);
                 var normalizedPicture = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.profilePicture, 2_500_000, out var imageError);
                 if (imageError is not null)
@@ -170,22 +195,120 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = imageError });
                 }
 
+                if (string.IsNullOrWhiteSpace(sanitizedFirstName) || string.IsNullOrWhiteSpace(sanitizedLastName))
+                {
+                    return BadRequest(new { message = "First name and last name are required." });
+                }
+
+                if (string.IsNullOrWhiteSpace(sanitizedUsername))
+                {
+                    return BadRequest(new { message = "Username is required." });
+                }
+
+                if (string.IsNullOrWhiteSpace(normalizedEmail))
+                {
+                    return BadRequest(new { message = "A valid email address is required." });
+                }
+
+                var wantsPasswordChange = !string.IsNullOrWhiteSpace(req.newPassword) || !string.IsNullOrWhiteSpace(req.currentPassword);
+                if (wantsPasswordChange)
+                {
+                    if (string.IsNullOrWhiteSpace(req.currentPassword) || string.IsNullOrWhiteSpace(req.newPassword))
+                    {
+                        return BadRequest(new { message = "Enter both current and new password to change your password." });
+                    }
+
+                    if (!IsStrongPassword(req.newPassword))
+                    {
+                        return BadRequest(new { message = "New password must be at least 8 characters and include uppercase, lowercase, number, and special character." });
+                    }
+                }
+
+                const string currentSql = @"
+                    SELECT COALESCE(passwordhash, ''),
+                           COALESCE(username, ''),
+                           COALESCE(email, '')
+                    FROM users
+                    WHERE id = @id AND role = 'Customer';";
+
+                string currentPasswordHash = "";
+                string currentUsername = "";
+                string currentEmail = "";
+                using (var currentCmd = new NpgsqlCommand(currentSql, connection))
+                {
+                    currentCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    using var currentReader = await currentCmd.ExecuteReaderAsync();
+                    if (!await currentReader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Customer not found." });
+                    }
+
+                    currentPasswordHash = currentReader.IsDBNull(0) ? "" : currentReader.GetString(0);
+                    currentUsername = currentReader.IsDBNull(1) ? "" : currentReader.GetString(1);
+                    currentEmail = currentReader.IsDBNull(2) ? "" : currentReader.GetString(2);
+                }
+
+                if (wantsPasswordChange && !BCrypt.Net.BCrypt.Verify(req.currentPassword, currentPasswordHash))
+                {
+                    return BadRequest(new { message = "Current password is incorrect." });
+                }
+
+                if (!string.Equals(currentUsername, sanitizedUsername, StringComparison.Ordinal))
+                {
+                    const string usernameSql = "SELECT 1 FROM users WHERE username = @username AND id <> @id LIMIT 1;";
+                    using var usernameCmd = new NpgsqlCommand(usernameSql, connection);
+                    usernameCmd.Parameters.Add("@username", NpgsqlDbType.Text).Value = sanitizedUsername;
+                    usernameCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    var usernameExists = await usernameCmd.ExecuteScalarAsync();
+                    if (usernameExists is not null)
+                    {
+                        return BadRequest(new { message = "Username is already taken." });
+                    }
+                }
+
+                if (!string.Equals(currentEmail, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    const string emailSql = "SELECT 1 FROM users WHERE LOWER(TRIM(email)) = @email AND id <> @id LIMIT 1;";
+                    using var emailCmd = new NpgsqlCommand(emailSql, connection);
+                    emailCmd.Parameters.Add("@email", NpgsqlDbType.Text).Value = normalizedEmail;
+                    emailCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    var emailExists = await emailCmd.ExecuteScalarAsync();
+                    if (emailExists is not null)
+                    {
+                        return BadRequest(new { message = "Email address is already in use." });
+                    }
+                }
+
+                var updatedPasswordHash = wantsPasswordChange ? BCrypt.Net.BCrypt.HashPassword(req.newPassword) : null;
+
                 string sql = @"
-                    UPDATE users SET 
-                        bio = @bio, 
-                        profile_picture = COALESCE(@pic, profile_picture) 
+                    UPDATE users SET
+                        firstname = @firstName,
+                        lastname = @lastName,
+                        username = @username,
+                        email = @email,
+                        bio = @bio,
+                        profile_picture = COALESCE(@pic, profile_picture),
+                        passwordhash = COALESCE(@passwordHash, passwordhash)
                     WHERE id = @id AND role = 'Customer'";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                cmd.Parameters.Add("@firstName", NpgsqlDbType.Text).Value = sanitizedFirstName;
+                cmd.Parameters.Add("@lastName", NpgsqlDbType.Text).Value = sanitizedLastName;
+                cmd.Parameters.Add("@username", NpgsqlDbType.Text).Value = sanitizedUsername;
+                cmd.Parameters.Add("@email", NpgsqlDbType.Text).Value = normalizedEmail;
                 cmd.Parameters.Add("@bio", NpgsqlDbType.Text).Value = string.IsNullOrWhiteSpace(sanitizedBio) ? DBNull.Value : sanitizedBio;
                 cmd.Parameters.Add("@pic", NpgsqlDbType.Text).Value = (object?)normalizedPicture ?? DBNull.Value;
+                cmd.Parameters.Add("@passwordHash", NpgsqlDbType.Text).Value = (object?)updatedPasswordHash ?? DBNull.Value;
 
                 int rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0) return BadRequest(new { message = "Update failed. Make sure you are a Customer." });
                 const string profileSql = @"
                     SELECT COALESCE(firstname, ''),
                            COALESCE(lastname, ''),
+                           COALESCE(username, ''),
+                           COALESCE(email, ''),
                            COALESCE(profile_picture, ''),
                            COALESCE(bio, '')
                     FROM users
@@ -193,6 +316,8 @@ namespace ImajinationAPI.Controllers
 
                 string first = "";
                 string last = "";
+                string username = "";
+                string email = "";
                 string profilePicture = "";
                 string bio = "";
                 using (var profileCmd = new NpgsqlCommand(profileSql, connection))
@@ -203,8 +328,10 @@ namespace ImajinationAPI.Controllers
                     {
                         first = reader.IsDBNull(0) ? "" : reader.GetString(0);
                         last = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                        profilePicture = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                        bio = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                        username = reader.IsDBNull(2) ? "" : reader.GetString(2);
+                        email = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                        profilePicture = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                        bio = reader.IsDBNull(5) ? "" : reader.GetString(5);
                     }
                 }
 
@@ -223,6 +350,12 @@ namespace ImajinationAPI.Controllers
                 return Ok(new
                 {
                     message = "Profile updated successfully!",
+                    firstName = first,
+                    lastName = last,
+                    username,
+                    email,
+                    displayName = $"{first} {last}".Trim(),
+                    bio,
                     profilePicture,
                     isVerified = profileSummary.IsVerified,
                     profileCompletionPercent = profileSummary.Percent,
@@ -230,6 +363,25 @@ namespace ImajinationAPI.Controllers
                 });
             }
             catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+        }
+
+        private static string NormalizeEmail(string? email)
+        {
+            return (email ?? string.Empty).Trim().ToLowerInvariant();
+        }
+
+        private static bool IsStrongPassword(string? password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+            {
+                return false;
+            }
+
+            var hasUpper = password.Any(char.IsUpper);
+            var hasLower = password.Any(char.IsLower);
+            var hasDigit = password.Any(char.IsDigit);
+            var hasSpecial = password.Any(ch => !char.IsLetterOrDigit(ch));
+            return hasUpper && hasLower && hasDigit && hasSpecial;
         }
     }
 }

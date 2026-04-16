@@ -114,34 +114,76 @@
         <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-2">Sessionists</h2>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 mb-8 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-        <div class="relative flex-1 min-w-[200px] sm:max-w-xs">
-          <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50" style="stroke-width:1.5"></i>
-          <input type="text" id="searchInput" placeholder="Search sessionists..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 transition-shadow">
+      <div class="bg-[#1a1515]/80 border border-white/10 rounded-3xl p-5 mb-8 shadow-xl backdrop-blur-md">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Search Filters</p>
+            <p class="text-sm text-white/55 mt-1">Use one filter bar for search, type, rating, availability, and price.</p>
+          </div>
         </div>
-        <select id="genreSelect" class="px-4 pr-10 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30">
-          <option value="">Instrument</option>
-          <option value="lead guitar">Lead Guitar</option>
-          <option value="rhythm guitar">Rhythm Guitar</option>
-          <option value="drums">Drums</option>
-          <option value="bass">Bass</option>
-          <option value="keyboard">Keyboard</option>
-          <option value="vocalist">Vocalist</option>
-        </select>
-        <select id="sessionTypeSelect" class="px-4 pr-10 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:ring-2 focus:ring-red-500/30">
-          <option value="">Session Type</option>
-          <option value="solo">Solo</option>
-          <option value="duo">Duo</option>
-          <option value="trio">Trio</option>
-          <option value="band">Band</option>
-          <option value="group">Group</option>
-        </select>
-        
-        <div class="ml-auto flex items-center gap-3 w-full lg:w-auto mt-3 lg:mt-0">
-          <button type="button" id="clearBtn" class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-white/10 transition-colors">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+          <label class="block xl:col-span-2">
+            <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Search</span>
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50" style="stroke-width:1.5"></i>
+              <input type="text" id="searchInput" placeholder="Search sessionists..." class="w-full pl-11 pr-4 py-3 rounded-xl bg-black/40 border border-white/10 text-sm text-white focus:outline-none focus:border-red-500/50 transition-shadow">
+            </div>
+          </label>
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Instrument</span>
+            <select id="genreSelect" class="w-full px-4 pr-10 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:border-red-500/50">
+              <option value="">All Instruments</option>
+              <option value="lead guitar">Lead Guitar</option>
+              <option value="rhythm guitar">Rhythm Guitar</option>
+              <option value="drums">Drums</option>
+              <option value="bass">Bass</option>
+              <option value="keyboard">Keyboard</option>
+              <option value="vocalist">Vocalist</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Session Type</span>
+            <select id="sessionTypeSelect" class="w-full px-4 pr-10 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:border-red-500/50">
+              <option value="">All Types</option>
+              <option value="solo">Solo</option>
+              <option value="duo">Duo</option>
+              <option value="trio">Trio</option>
+              <option value="band">Band</option>
+              <option value="group">Group</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Popularity</span>
+            <select id="popularitySelect" class="w-full px-4 pr-10 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:border-red-500/50">
+              <option value="">Default Order</option>
+              <option value="highest-rated">Highest Rated</option>
+              <option value="most-reviewed">Most Reviewed</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Availability</span>
+            <select id="availabilitySelect" class="w-full px-4 pr-10 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:border-red-500/50">
+              <option value="">All</option>
+              <option value="available">Available</option>
+              <option value="unavailable">Unavailable</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45 mb-2">Price Range</span>
+            <select id="priceRangeSelect" class="w-full px-4 pr-10 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white/90 focus:outline-none focus:border-red-500/50">
+              <option value="">All Prices</option>
+              <option value="0-5000">PHP 0 - 5,000</option>
+              <option value="5001-15000">PHP 5,001 - 15,000</option>
+              <option value="15001-30000">PHP 15,001 - 30,000</option>
+              <option value="30001+">PHP 30,001+</option>
+            </select>
+          </label>
+        </div>
+        <div class="mt-4 flex items-center justify-end gap-3">
+          <button type="button" id="clearBtn" class="px-6 py-3 bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-white/10 transition-colors">
             Clear
           </button>
-          <button type="button" id="searchBtn" class="flex-1 lg:flex-none px-6 py-2.5 bg-red-600 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+          <button type="button" id="searchBtn" class="px-6 py-3 bg-red-600 text-white text-xs font-semibold uppercase tracking-[0.14em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
             Apply Filters
           </button>
         </div>
@@ -236,8 +278,6 @@
     let allSessionists = [];
     const sessionistsCacheKey = 'sessionistsPageCacheV1';
     const sessionistsCacheTtlMs = 2 * 60 * 1000;
-    let applySessionistFiltersFrame = 0;
-
     async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -413,25 +453,40 @@
         return '';
       }
 
-      function scheduleSessionistFilters() {
-        if (applySessionistFiltersFrame) cancelAnimationFrame(applySessionistFiltersFrame);
-        applySessionistFiltersFrame = requestAnimationFrame(() => {
-          applySessionistFiltersFrame = 0;
-          document.getElementById('searchBtn').click();
-        });
+      function matchesPriceRange(priceValue, selectedRange) {
+        const price = Number(priceValue || 0);
+        if (!selectedRange) return true;
+        if (selectedRange === '0-5000') return price >= 0 && price <= 5000;
+        if (selectedRange === '5001-15000') return price >= 5001 && price <= 15000;
+        if (selectedRange === '15001-30000') return price >= 15001 && price <= 30000;
+        if (selectedRange === '30001+') return price >= 30001;
+        return true;
       }
 
       document.getElementById('searchBtn').addEventListener('click', () => {
           const query = document.getElementById('searchInput').value.toLowerCase();
           const genre = document.getElementById('genreSelect').value.toLowerCase();
           const sessionType = document.getElementById('sessionTypeSelect').value.toLowerCase();
-          const filtered = allSessionists.filter(a => {
+          const popularity = document.getElementById('popularitySelect').value;
+          const availability = document.getElementById('availabilitySelect').value;
+          const priceRange = document.getElementById('priceRangeSelect').value;
+          let filtered = allSessionists.filter(a => {
               const matchName = a.displayName.toLowerCase().includes(query);
               const matchGenre = genre === "" || (a.genres && a.genres.toLowerCase().includes(genre));
               const resolvedType = resolveSessionistType(a);
               const matchType = sessionType === "" || resolvedType.includes(sessionType);
-              return matchName && matchGenre && matchType;
+              const isAvailable = a.isAvailable !== false;
+              const matchAvailability = !availability || (availability === 'available' ? isAvailable : !isAvailable);
+              const matchPrice = matchesPriceRange(a.basePrice, priceRange);
+              return matchName && matchGenre && matchType && matchAvailability && matchPrice;
           });
+
+          if (popularity === 'highest-rated') {
+            filtered = [...filtered].sort((a, b) => Number(b.averageRating || 0) - Number(a.averageRating || 0) || Number(b.reviewCount || 0) - Number(a.reviewCount || 0));
+          } else if (popularity === 'most-reviewed') {
+            filtered = [...filtered].sort((a, b) => Number(b.reviewCount || 0) - Number(a.reviewCount || 0) || Number(b.averageRating || 0) - Number(a.averageRating || 0));
+          }
+
         renderSessionists(filtered);
       });
 
@@ -439,12 +494,11 @@
           document.getElementById('searchInput').value = "";
           document.getElementById('genreSelect').value = "";
           document.getElementById('sessionTypeSelect').value = "";
-        renderSessionists(allSessionists);
+          document.getElementById('popularitySelect').value = "";
+          document.getElementById('availabilitySelect').value = "";
+          document.getElementById('priceRangeSelect').value = "";
+        document.getElementById('searchBtn').click();
       });
-
-      document.getElementById('searchInput').addEventListener('input', scheduleSessionistFilters);
-      document.getElementById('genreSelect').addEventListener('change', scheduleSessionistFilters);
-      document.getElementById('sessionTypeSelect').addEventListener('change', scheduleSessionistFilters);
   </script>
 </body>
 </html>

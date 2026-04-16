@@ -204,16 +204,14 @@
         </div>
 
         <div class="space-y-8">
-          <div class="flex flex-wrap justify-start md:justify-end gap-3">
-            <button id="bookSessionistBtn" type="button" class="px-6 py-3.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+            <button id="bookSessionistBtn" type="button" class="w-full py-4 bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] rounded-2xl hover:bg-red-500 transition-colors shadow-lg">
               Book Sessionist
             </button>
-          </div>
-
-          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
-            <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Instruments / Genres</h4>
-            <div class="flex flex-wrap gap-2" id="detailInstruments">
-              </div>
+            <div class="mt-8">
+              <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Instruments / Genres</h4>
+              <div class="flex flex-wrap gap-2" id="detailInstruments"></div>
+            </div>
           </div>
 
           <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl hidden" id="portfolioContainer">
@@ -225,7 +223,7 @@
             </div>
           </div>
 
-          <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+          <div id="sessionistReviewPanel" class="hidden bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
             <div class="flex items-center justify-between mb-5">
               <div>
                 <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Rate & Feedback</h4>
@@ -691,9 +689,11 @@
         document.getElementById('favoriteCount').innerText = sessionistInteractionSummary.favoriteCount || 0;
         document.getElementById('reviewCount').innerText = sessionistInteractionSummary.reviewCount || 0;
         updateFavoriteButton(sessionistInteractionSummary.isFavorited);
+        updateSessionistReviewEligibility(!!sessionistInteractionSummary.canReview, !!customerId, sessionistInteractionSummary.reviewEligibilityMessage || '');
         renderReviews(sessionistInteractionSummary.reviews || []);
         await syncSessionistFavoriteStateFromCustomerFavorites();
       } catch (error) {
+        updateSessionistReviewEligibility(false, !!customerId, error.message || '');
         document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
         await syncSessionistFavoriteStateFromCustomerFavorites();
       }
@@ -749,6 +749,31 @@
       `).join('');
     }
 
+    function updateSessionistReviewEligibility(canReview, hasCustomerContext, lockedMessage = '') {
+      const reviewPanel = document.getElementById('sessionistReviewPanel');
+      const ratingInput = document.getElementById('reviewRating');
+      const feedbackInput = document.getElementById('reviewFeedback');
+      const submitBtn = document.getElementById('submitReviewBtn');
+      const reviewStatus = document.getElementById('reviewStatus');
+
+      if (!reviewPanel || !ratingInput || !feedbackInput || !submitBtn || !reviewStatus) return;
+
+      const message = hasCustomerContext
+        ? (lockedMessage || 'Reviews unlock only after your booking with this sessionist is fully completed and settled.')
+        : 'Sign in as a Customer and complete your booking before reviews become available.';
+
+      reviewPanel.classList.toggle('hidden', !canReview);
+
+      ratingInput.disabled = !canReview;
+      feedbackInput.disabled = !canReview;
+      submitBtn.disabled = !canReview;
+      submitBtn.classList.toggle('opacity-50', !canReview);
+      submitBtn.classList.toggle('cursor-not-allowed', !canReview);
+      reviewStatus.innerText = canReview
+        ? 'Your completed booking is eligible for feedback. You can leave a review now.'
+        : message;
+    }
+
     document.getElementById('favoriteBtn').addEventListener('click', async () => {
       const role = localStorage.getItem('userRole');
       const customerId = localStorage.getItem('userId');
@@ -794,6 +819,11 @@
       if (role !== 'Customer' || !customerId) {
         alert('Please sign in as a Customer to leave feedback.');
         window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      if (!sessionistInteractionSummary?.canReview) {
+        reviewStatus.innerText = sessionistInteractionSummary?.reviewEligibilityMessage || 'Reviews unlock only after your booking with this sessionist is fully completed and settled.';
         return;
       }
 

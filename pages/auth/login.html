@@ -173,6 +173,7 @@
       localStorage.setItem('username', safeUsername);
       localStorage.setItem('userProfilePicture', data.profilePicture || '');
       localStorage.setItem('sessionToken', data.sessionToken || '');
+      localStorage.setItem('accessToken', data.accessToken || '');
     }
 
     function storePendingGoogleSignup(data) {
@@ -184,6 +185,20 @@
         suggestedUsername: data.suggestedUsername || '',
         profilePicture: data.profilePicture || ''
       }));
+    }
+
+    async function requestMfaCode() {
+      return window.systemDialog.prompt(
+        'Enter the 6-digit code from your authenticator app to finish signing in.',
+        {
+          title: 'Multi-Factor Authentication',
+          kicker: 'Secure Sign-In',
+          placeholder: '6-digit authenticator code',
+          okText: 'Verify',
+          cancelText: 'Cancel',
+          required: true
+        }
+      );
     }
 
     async function initializeGoogleSignIn() {
@@ -250,6 +265,27 @@
           throw new Error(data?.message || 'Google Sign-In failed.');
         }
 
+        if (data?.mfaRequired && data?.mfaTicket) {
+          const code = await requestMfaCode();
+          if (!code) {
+            throw new Error('MFA verification is required to continue.');
+          }
+
+          const mfaResponse = await fetch('/api/auth/mfa/complete-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mfaTicket: data.mfaTicket, code })
+          });
+          const mfaData = await mfaResponse.json();
+          if (!mfaResponse.ok) {
+            throw new Error(mfaData?.message || 'Authenticator verification failed.');
+          }
+
+          persistUserSession(mfaData);
+          window.location.href = '/';
+          return;
+        }
+
         persistUserSession(data);
         window.location.href = '/';
       } catch (error) {
@@ -278,6 +314,39 @@
         const data = await response.json();
 
         if (response.ok) {
+          if (data?.mfaRequired && data?.mfaTicket) {
+            const code = await requestMfaCode();
+            if (!code) {
+              await window.systemDialog.alert('Sign-in paused until you complete MFA.', {
+                title: 'MFA Required',
+                kicker: 'Account Access'
+              });
+              return;
+            }
+
+            const mfaResponse = await fetch('/api/auth/mfa/complete-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mfaTicket: data.mfaTicket, code })
+            });
+            const mfaData = await mfaResponse.json();
+            if (!mfaResponse.ok) {
+              await window.systemDialog.alert(mfaData?.message || 'Authenticator verification failed.', {
+                title: 'MFA Failed',
+                kicker: 'Account Access'
+              });
+              return;
+            }
+
+            clearClientLockout(loginBtn, lockoutMsg);
+            persistUserSession(mfaData);
+            if (mfaData?.signedOutOtherDevices) {
+              sessionStorage.setItem('loginSessionNotice', 'This sign-in ended your older sessions on other devices.');
+            }
+            window.location.href = '/';
+            return;
+          }
+
           clearClientLockout(loginBtn, lockoutMsg);
           persistUserSession(data);
           if (data?.signedOutOtherDevices) {

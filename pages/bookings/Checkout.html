@@ -36,7 +36,7 @@
           <span id="displaySubtotal">PHP 0.00</span>
         </div>
         <div class="flex justify-between items-center text-sm font-medium text-white/70">
-          <span>Convenience Fee (5%)</span>
+          <span id="serviceFeeLabel">Ticket Service Fee (5%)</span>
           <span id="displayFee">PHP 0.00</span>
         </div>
         <div class="flex justify-between items-center text-xl font-extrabold text-white pt-3 border-t border-white/10">
@@ -80,6 +80,8 @@
 
   <script>lucide.createIcons();</script>
   <script>
+    let currentTicketServiceFeeRate = 0.05;
+
     function formatPeso(amount) {
       const numericAmount = Number.isFinite(amount) ? amount : 0;
       return `PHP ${numericAmount.toFixed(2)}`;
@@ -112,11 +114,11 @@
       const qty = parseInt(document.getElementById('ticketQty').value, 10);
 
       const subtotal = basePrice * qty;
-      const convenienceFee = subtotal * 0.05;
-      const total = subtotal + convenienceFee;
+      const serviceFee = subtotal * currentTicketServiceFeeRate;
+      const total = subtotal + serviceFee;
 
       document.getElementById('displaySubtotal').innerText = formatPeso(subtotal);
-      document.getElementById('displayFee').innerText = formatPeso(convenienceFee);
+      document.getElementById('displayFee').innerText = formatPeso(serviceFee);
       document.getElementById('displayTotal').innerText = formatPeso(total);
       document.getElementById('btnTotal').innerText = formatPeso(total);
     }
@@ -151,35 +153,26 @@
           return;
         }
 
-        const now = new Date();
-        const evDate = new Date(ev.time);
-        const msDiff = evDate.getTime() - now.getTime();
-        const hoursUntilEvent = msDiff / (1000 * 60 * 60);
-
-        let multiplier = 1.0;
-        let phaseText = 'Pre-Sale Phase';
-        let badgeClasses = 'bg-blue-500/20 text-blue-400 border-blue-500/50';
-
-        if (hoursUntilEvent <= 0) {
-          multiplier = 1.2;
-          phaseText = 'Walk-In Phase (+20%)';
-          badgeClasses = 'bg-red-500/20 text-red-400 border-red-500/50';
-        } else if (hoursUntilEvent <= 2) {
-          multiplier = 1.1;
-          phaseText = 'Early Bird Phase (+10%)';
-          badgeClasses = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-        }
+        currentTicketServiceFeeRate = Number(ev.ticketServiceFeeRate || 0.05);
+        const badgeTone = String(ev.pricingPhaseTone || 'blue').toLowerCase();
+        const badgeClassMap = {
+          blue: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+          amber: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+          red: 'bg-red-500/20 text-red-400 border-red-500/50'
+        };
+        const phaseLabel = `${ev.pricingPhase || 'Pre-Sale'} Phase${Number(ev.pricingPhasePercentage || 0) > 0 ? ` (+${ev.pricingPhasePercentage}%)` : ''}`;
+        const badgeClasses = badgeClassMap[badgeTone] || badgeClassMap.blue;
 
         const badge = document.getElementById('pricingPhaseBadge');
-        badge.innerText = phaseText;
+        badge.innerText = phaseLabel;
         badge.classList.remove('hidden');
         badge.className = `inline-block px-3 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider mb-6 border ${badgeClasses}`;
+        document.getElementById('serviceFeeLabel').innerText = ev.ticketServiceFeeLabel || `Ticket Service Fee (${(currentTicketServiceFeeRate * 100).toFixed(0)}%)`;
 
         const tierContainer = document.getElementById('tierOptionsContainer');
         tierContainer.innerHTML = '';
 
-        const basePriceVal = ev.basePrice || 0;
-        const finalBasePrice = (basePriceVal * multiplier).toFixed(2);
+        const finalBasePrice = Number(ev.displayBasePrice || ev.basePrice || 0).toFixed(2);
 
         tierContainer.innerHTML += `
           <label class="cursor-pointer block">
@@ -191,8 +184,8 @@
           </label>
         `;
 
-        if (ev.tierName && ev.tierPrice) {
-          const finalTierPrice = (ev.tierPrice * multiplier).toFixed(2);
+        if (ev.tierName && (ev.displayTierPrice || ev.tierPrice)) {
+          const finalTierPrice = Number(ev.displayTierPrice || ev.tierPrice || 0).toFixed(2);
           tierContainer.innerHTML += `
             <label class="cursor-pointer block mt-2">
               <input type="radio" name="tier" value="${ev.tierName}" data-price="${finalTierPrice}" class="peer hidden">
@@ -204,18 +197,10 @@
           `;
         }
 
-        if (ev.bundles) {
-          const parts = ev.bundles.split('|');
-          parts.forEach(part => {
-            if (!part.includes('[Tier]')) return;
-
-            const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
-            if (!match) return;
-
-            const parsedName = match[1].trim();
-            const parsedPrice = parseFloat(match[2]);
-            const finalParsedPrice = (parsedPrice * multiplier).toFixed(2);
-
+        if (Array.isArray(ev.bundleTiers)) {
+          ev.bundleTiers.forEach(bundle => {
+            const parsedName = bundle.tierName;
+            const finalParsedPrice = Number(bundle.displayPrice || 0).toFixed(2);
             tierContainer.innerHTML += `
               <label class="cursor-pointer block mt-2">
                 <input type="radio" name="tier" value="${parsedName}" data-price="${finalParsedPrice}" class="peer hidden">
@@ -246,7 +231,7 @@
         const qty = parseInt(document.getElementById('ticketQty').value, 10);
 
         const rawPrice = parseFloat(selectedTier.getAttribute('data-price')) * qty;
-        const fee = rawPrice * 0.05;
+        const fee = rawPrice * currentTicketServiceFeeRate;
         const finalTotalToCharge = rawPrice + fee;
 
         const currentOrigin = window.location.origin;
@@ -295,7 +280,7 @@
           );
         } finally {
           btn.disabled = false;
-          btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> Proceed to Payment <span id="btnTotal">${formatPeso((parseFloat(document.querySelector('input[name="tier"]:checked')?.getAttribute('data-price') || '0') * parseInt(document.getElementById('ticketQty').value, 10)) * 1.05)}</span>`;
+          btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i> Proceed to Payment <span id="btnTotal">${formatPeso((parseFloat(document.querySelector('input[name="tier"]:checked')?.getAttribute('data-price') || '0') * parseInt(document.getElementById('ticketQty').value, 10)) * (1 + currentTicketServiceFeeRate))}</span>`;
           lucide.createIcons();
         }
       });

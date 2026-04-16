@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
@@ -16,6 +17,7 @@ namespace ImajinationAPI.Controllers
 
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ReportController : ControllerBase
     {
         private readonly string _connectionString;

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using ImajinationAPI.Models;
 using System.Text.Json;
@@ -12,12 +13,14 @@ namespace ImajinationAPI.Controllers
     public class EventController : ControllerBase
     {
         private readonly string _connectionString;
+        private readonly UploadScanningService _uploadScanningService;
         private static readonly SemaphoreSlim EventLineupSchemaLock = new(1, 1);
         private static volatile bool _eventLineupColumnsEnsured;
 
-        public EventController(IConfiguration configuration)
+        public EventController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
+            _uploadScanningService = uploadScanningService;
         }
 
         private static readonly JsonSerializerOptions LineupJsonOptions = new()
@@ -396,6 +399,7 @@ namespace ImajinationAPI.Controllers
         }
 
         // 1. CREATE EVENT
+        [Authorize(Roles = "Organizer,Admin")]
         [HttpPost("create")]
         [RequestSizeLimit(100_000_000)]
         public async Task<IActionResult> CreateEvent([FromBody] CreateEventDto req)
@@ -428,6 +432,11 @@ namespace ImajinationAPI.Controllers
                 if (posterError is not null)
                 {
                     return BadRequest(new { message = posterError });
+                }
+                var posterScan = await _uploadScanningService.ScanDataUrlAsync(normalizedPoster, "event poster");
+                if (!posterScan.IsClean)
+                {
+                    return BadRequest(new { message = posterScan.Message });
                 }
                 var normalizedArtistLineup = NormalizeLineup(req.artistLineup, "Artist");
                 var normalizedSessionistLineup = NormalizeLineup(req.sessionistLineup, "Sessionist");
@@ -820,6 +829,7 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize(Roles = "Organizer,Admin")]
         [HttpGet("organizer/{orgId}/analytics/{eventId}")]
         public async Task<IActionResult> GetOrganizerEventAnalytics(Guid orgId, Guid eventId)
         {
@@ -1052,6 +1062,7 @@ namespace ImajinationAPI.Controllers
         }
 
         // 4. FINISH EVENT
+        [Authorize(Roles = "Organizer,Admin")]
         [HttpPost("{eventId}/finish")]
         public async Task<IActionResult> FinishEvent(Guid eventId)
         {
@@ -1308,6 +1319,7 @@ namespace ImajinationAPI.Controllers
         }
 
         // 7. UPDATE EVENT
+        [Authorize(Roles = "Organizer,Admin")]
         [HttpPut("{id}")]
         [RequestSizeLimit(100_000_000)]
         public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] CreateEventDto req)
@@ -1340,6 +1352,11 @@ namespace ImajinationAPI.Controllers
                 if (posterError is not null)
                 {
                     return BadRequest(new { message = posterError });
+                }
+                var posterScan = await _uploadScanningService.ScanDataUrlAsync(normalizedPoster, "event poster");
+                if (!posterScan.IsClean)
+                {
+                    return BadRequest(new { message = posterScan.Message });
                 }
 
                 var previousArtistLineup = new List<TalentLineupItemDto>();

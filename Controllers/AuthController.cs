@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using BCrypt.Net;
 using ImajinationAPI.Models;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Net.Mail;
 using System.Net;
 using System.Text.Json;
+using System.Security.Claims;
 using ImajinationAPI.Services;
 
 namespace ImajinationAPI.Controllers
@@ -17,12 +19,16 @@ namespace ImajinationAPI.Controllers
         private readonly string _connectionString;
         private readonly IMemoryCache _cache;
         private readonly IConfiguration _config;
+        private readonly JwtTokenService _jwtTokenService;
+        private readonly TotpService _totpService;
 
-        public AuthController(IConfiguration configuration, IMemoryCache cache)
+        public AuthController(IConfiguration configuration, IMemoryCache cache, JwtTokenService jwtTokenService, TotpService totpService)
         {
             _config = configuration;
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _cache = cache;
+            _jwtTokenService = jwtTokenService;
+            _totpService = totpService;
         }
 
         // ==========================================
@@ -251,6 +257,7 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureTalentRegistrationColumnsAsync(connection);
                 await EnsureUserModerationColumnsAsync(connection);
+                await EnsureMfaColumnsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
                 var normalizedRole = SecuritySupport.SanitizePlainText(req.role, 40, false);
@@ -330,6 +337,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureUserModerationColumnsAsync(connection);
+                await EnsureMfaColumnsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
                 var lockoutState = await SecuritySupport.GetLockoutStateAsync(connection, normalizedEmail);
@@ -353,7 +361,7 @@ namespace ImajinationAPI.Controllers
                 }
 
                 // Match email case-insensitively so normal login and Google login land on the same account.
-                using var cmd = new NpgsqlCommand("SELECT id, passwordhash, role, firstname, username, profile_picture, COALESCE(is_banned, FALSE), COALESCE(account_status, 'Active') FROM users WHERE LOWER(TRIM(email)) = @email", connection);
+                using var cmd = new NpgsqlCommand("SELECT id, passwordhash, role, firstname, username, profile_picture, COALESCE(is_banned, FALSE), COALESCE(account_status, 'Active'), COALESCE(mfa_enabled, FALSE) FROM users WHERE LOWER(TRIM(email)) = @email", connection);
                 cmd.Parameters.AddWithValue("@email", normalizedEmail);
 
                 Guid authenticatedUserId = Guid.Empty;
@@ -361,6 +369,7 @@ namespace ImajinationAPI.Controllers
                 string authenticatedFirstName = string.Empty;
                 string authenticatedUsername = string.Empty;
                 string authenticatedProfilePicture = string.Empty;
+                var authenticatedMfaEnabled = false;
                 string? loginBlockMessage = null;
                 int? loginBlockStatusCode = null;
                 var authenticated = false;
@@ -397,6 +406,7 @@ namespace ImajinationAPI.Controllers
                             authenticatedFirstName = reader.GetString(3);
                             authenticatedUsername = reader.GetString(4);
                             authenticatedProfilePicture = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                            authenticatedMfaEnabled = !reader.IsDBNull(8) && reader.GetBoolean(8);
                         }
                     }
                 }
@@ -409,6 +419,31 @@ namespace ImajinationAPI.Controllers
                 if (authenticated)
                 {
                     await SecuritySupport.ClearFailedLoginAsync(connection, normalizedEmail);
+                    if (authenticatedMfaEnabled)
+                    {
+                        var mfaTicket = CreatePendingMfaTicket(authenticatedUserId, authenticatedRole, authenticatedFirstName, authenticatedUsername, authenticatedProfilePicture, normalizedEmail);
+                        await SecuritySupport.LogSecurityEventAsync(
+                            connection,
+                            authenticatedUserId,
+                            authenticatedRole,
+                            "mfa_challenge_issued",
+                            "user",
+                            authenticatedUserId,
+                            HttpContext,
+                            $"Password accepted and MFA challenge issued for {normalizedEmail}.");
+
+                        return Ok(new
+                        {
+                            mfaRequired = true,
+                            mfaTicket,
+                            id = authenticatedUserId,
+                            role = authenticatedRole,
+                            firstName = authenticatedFirstName,
+                            username = authenticatedUsername,
+                            profilePicture = authenticatedProfilePicture
+                        });
+                    }
+
                     var trackedSession = await SecuritySupport.CreateTrackedSessionAsync(
                         connection,
                         authenticatedUserId,
@@ -431,6 +466,7 @@ namespace ImajinationAPI.Controllers
                         firstName = authenticatedFirstName,
                         username = authenticatedUsername,
                         profilePicture = authenticatedProfilePicture,
+                        accessToken = _jwtTokenService.GenerateAccessToken(authenticatedUserId, authenticatedRole, authenticatedFirstName, authenticatedUsername),
                         sessionToken = trackedSession.SessionToken,
                         signedOutOtherDevices = trackedSession.RevokedCount > 0
                     });
@@ -536,6 +572,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureUserModerationColumnsAsync(connection);
+                await EnsureMfaColumnsAsync(connection);
 
                 var existingUser = await FindUserByEmailAsync(connection, normalizedEmail);
                 if (existingUser is null)
@@ -586,11 +623,32 @@ namespace ImajinationAPI.Controllers
                     existingUser = existingUser with { ProfilePicture = picture };
                 }
 
-                var trackedSession = await SecuritySupport.CreateTrackedSessionAsync(
-                    connection,
-                    existingUser.Id,
-                    existingUser.Role,
-                    HttpContext);
+                if (existingUser.MfaEnabled)
+                {
+                    var mfaTicket = CreatePendingMfaTicket(existingUser.Id, existingUser.Role, existingUser.FirstName, existingUser.Username, existingUser.ProfilePicture, normalizedEmail);
+                    await SecuritySupport.LogSecurityEventAsync(
+                        connection,
+                        existingUser.Id,
+                        existingUser.Role,
+                        "mfa_challenge_issued",
+                        "user",
+                        existingUser.Id,
+                        HttpContext,
+                        $"Google sign-in accepted and MFA challenge issued for {normalizedEmail}.");
+
+                    return Ok(new
+                    {
+                        mfaRequired = true,
+                        mfaTicket,
+                        id = existingUser.Id,
+                        role = existingUser.Role,
+                        firstName = existingUser.FirstName,
+                        username = existingUser.Username,
+                        profilePicture = existingUser.ProfilePicture ?? string.Empty
+                    });
+                }
+
+                var trackedSession = await SecuritySupport.CreateTrackedSessionAsync(connection, existingUser.Id, existingUser.Role, HttpContext);
 
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
@@ -609,6 +667,7 @@ namespace ImajinationAPI.Controllers
                     firstName = existingUser.FirstName,
                     username = existingUser.Username,
                     profilePicture = existingUser.ProfilePicture ?? string.Empty,
+                    accessToken = _jwtTokenService.GenerateAccessToken(existingUser.Id, existingUser.Role, existingUser.FirstName, existingUser.Username),
                     sessionToken = trackedSession.SessionToken,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
@@ -616,6 +675,291 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Google Sign-In error: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpGet("mfa/status")]
+        public async Task<IActionResult> GetMfaStatus()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "A valid user session is required." });
+            }
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureMfaColumnsAsync(connection);
+
+                const string sql = @"
+                    SELECT COALESCE(mfa_enabled, FALSE), mfa_enrolled_at
+                    FROM users
+                    WHERE id = @id
+                    LIMIT 1;";
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@id", userId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    return NotFound(new { message = "User not found." });
+                }
+
+                return Ok(new
+                {
+                    enabled = !reader.IsDBNull(0) && reader.GetBoolean(0),
+                    enrolledAt = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load MFA status: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("mfa/enroll")]
+        public async Task<IActionResult> EnrollMfa()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "A valid user session is required." });
+            }
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureMfaColumnsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string lookupSql = "SELECT COALESCE(email, ''), COALESCE(mfa_enabled, FALSE) FROM users WHERE id = @id LIMIT 1;";
+                string email;
+                bool mfaEnabled;
+                await using (var lookupCmd = new NpgsqlCommand(lookupSql, connection))
+                {
+                    lookupCmd.Parameters.AddWithValue("@id", userId);
+                    await using var reader = await lookupCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "User not found." });
+                    }
+
+                    email = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    mfaEnabled = !reader.IsDBNull(1) && reader.GetBoolean(1);
+                }
+
+                if (mfaEnabled)
+                {
+                    return Conflict(new { message = "MFA is already enabled for this account." });
+                }
+
+                var secret = _totpService.GenerateSecret();
+                var accountLabel = string.IsNullOrWhiteSpace(email) ? userId.ToString() : email;
+                var issuer = _config["Auth:MfaIssuer"] ?? "IMAJINATION";
+                var setupToken = Guid.NewGuid().ToString("N");
+                _cache.Set($"mfa-setup:{setupToken}", new PendingMfaSetup(userId, secret), TimeSpan.FromMinutes(10));
+
+                await SecuritySupport.LogSecurityEventAsync(connection, userId, User.FindFirstValue(ClaimTypes.Role), "mfa_enrollment_started", "user", userId, HttpContext, "User started MFA enrollment.");
+                return Ok(new
+                {
+                    setupToken,
+                    secret,
+                    manualEntryKey = _totpService.BuildManualEntryKey(secret),
+                    otpAuthUri = _totpService.BuildOtpAuthUri(issuer, accountLabel, secret)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to start MFA enrollment: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("mfa/verify-setup")]
+        public async Task<IActionResult> VerifyMfaSetup([FromBody] VerifyMfaSetupDto req)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "A valid user session is required." });
+            }
+
+            if (string.IsNullOrWhiteSpace(req.setupToken) || string.IsNullOrWhiteSpace(req.code))
+            {
+                return BadRequest(new { message = "Setup token and authenticator code are required." });
+            }
+
+            if (!_cache.TryGetValue($"mfa-setup:{req.setupToken}", out PendingMfaSetup? pendingSetup) || pendingSetup is null || pendingSetup.UserId != userId)
+            {
+                return BadRequest(new { message = "MFA setup session expired. Start enrollment again." });
+            }
+
+            if (!_totpService.ValidateCode(pendingSetup.Secret, req.code))
+            {
+                return BadRequest(new { message = "Authenticator code is invalid." });
+            }
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureMfaColumnsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string sql = @"
+                    UPDATE users
+                    SET mfa_enabled = TRUE,
+                        mfa_secret = @secret,
+                        mfa_enrolled_at = NOW()
+                    WHERE id = @id;";
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@secret", pendingSetup.Secret);
+                cmd.Parameters.AddWithValue("@id", userId);
+                await cmd.ExecuteNonQueryAsync();
+
+                _cache.Remove($"mfa-setup:{req.setupToken}");
+                await SecuritySupport.LogSecurityEventAsync(connection, userId, User.FindFirstValue(ClaimTypes.Role), "mfa_enabled", "user", userId, HttpContext, "User enabled MFA.");
+                return Ok(new { message = "MFA enabled successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to enable MFA: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("mfa/disable")]
+        public async Task<IActionResult> DisableMfa([FromBody] DisableMfaDto req)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "A valid user session is required." });
+            }
+
+            if (string.IsNullOrWhiteSpace(req.code))
+            {
+                return BadRequest(new { message = "Authenticator code is required to disable MFA." });
+            }
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureMfaColumnsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string lookupSql = "SELECT COALESCE(mfa_secret, ''), COALESCE(mfa_enabled, FALSE) FROM users WHERE id = @id LIMIT 1;";
+                string secret;
+                bool enabled;
+                await using (var lookupCmd = new NpgsqlCommand(lookupSql, connection))
+                {
+                    lookupCmd.Parameters.AddWithValue("@id", userId);
+                    await using var reader = await lookupCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "User not found." });
+                    }
+
+                    secret = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    enabled = !reader.IsDBNull(1) && reader.GetBoolean(1);
+                }
+
+                if (!enabled || string.IsNullOrWhiteSpace(secret))
+                {
+                    return BadRequest(new { message = "MFA is not enabled for this account." });
+                }
+
+                if (!_totpService.ValidateCode(secret, req.code))
+                {
+                    return BadRequest(new { message = "Authenticator code is invalid." });
+                }
+
+                const string sql = "UPDATE users SET mfa_enabled = FALSE, mfa_secret = NULL, mfa_enrolled_at = NULL WHERE id = @id;";
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@id", userId);
+                await cmd.ExecuteNonQueryAsync();
+
+                await SecuritySupport.LogSecurityEventAsync(connection, userId, User.FindFirstValue(ClaimTypes.Role), "mfa_disabled", "user", userId, HttpContext, "User disabled MFA.");
+                return Ok(new { message = "MFA disabled successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to disable MFA: " + ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("mfa/complete-login")]
+        public async Task<IActionResult> CompleteMfaLogin([FromBody] CompleteMfaLoginDto req)
+        {
+            if (string.IsNullOrWhiteSpace(req.mfaTicket) || string.IsNullOrWhiteSpace(req.code))
+            {
+                return BadRequest(new { message = "MFA ticket and authenticator code are required." });
+            }
+
+            if (!_cache.TryGetValue($"mfa-login:{req.mfaTicket}", out PendingMfaLogin? pendingLogin) || pendingLogin is null)
+            {
+                return BadRequest(new { message = "MFA login session expired. Sign in again." });
+            }
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureMfaColumnsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string lookupSql = "SELECT COALESCE(mfa_secret, ''), COALESCE(mfa_enabled, FALSE) FROM users WHERE id = @id LIMIT 1;";
+                string secret;
+                bool enabled;
+                await using (var lookupCmd = new NpgsqlCommand(lookupSql, connection))
+                {
+                    lookupCmd.Parameters.AddWithValue("@id", pendingLogin.UserId);
+                    await using var reader = await lookupCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "User not found." });
+                    }
+
+                    secret = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    enabled = !reader.IsDBNull(1) && reader.GetBoolean(1);
+                }
+
+                if (!enabled || string.IsNullOrWhiteSpace(secret))
+                {
+                    return BadRequest(new { message = "MFA is not enabled for this account." });
+                }
+
+                if (!_totpService.ValidateCode(secret, req.code))
+                {
+                    await SecuritySupport.LogSecurityEventAsync(connection, pendingLogin.UserId, pendingLogin.Role, "mfa_failed", "user", pendingLogin.UserId, HttpContext, "Invalid MFA code submitted during login.");
+                    return Unauthorized(new { message = "Authenticator code is invalid." });
+                }
+
+                var trackedSession = await SecuritySupport.CreateTrackedSessionAsync(connection, pendingLogin.UserId, pendingLogin.Role, HttpContext);
+                await SecuritySupport.LogSecurityEventAsync(connection, pendingLogin.UserId, pendingLogin.Role, "mfa_success", "user", pendingLogin.UserId, HttpContext, "MFA challenge completed successfully.");
+                _cache.Remove($"mfa-login:{req.mfaTicket}");
+
+                return Ok(new
+                {
+                    id = pendingLogin.UserId,
+                    role = pendingLogin.Role,
+                    firstName = pendingLogin.FirstName,
+                    username = pendingLogin.Username,
+                    profilePicture = pendingLogin.ProfilePicture,
+                    accessToken = _jwtTokenService.GenerateAccessToken(pendingLogin.UserId, pendingLogin.Role, pendingLogin.FirstName, pendingLogin.Username),
+                    sessionToken = trackedSession.SessionToken,
+                    signedOutOtherDevices = trackedSession.RevokedCount > 0
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to complete MFA login: " + ex.Message });
             }
         }
 
@@ -706,6 +1050,11 @@ namespace ImajinationAPI.Controllers
                 return BadRequest(new { message = "Invalid OTP code." });
             }
 
+            if (!IsStrongPassword(req.newPassword))
+            {
+                return BadRequest(new { message = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character." });
+            }
+
             try
             {
                 string newPasswordHash = BCrypt.Net.BCrypt.HashPassword(req.newPassword);
@@ -781,7 +1130,7 @@ namespace ImajinationAPI.Controllers
 
         private async Task<UserLoginResult?> FindUserByEmailAsync(NpgsqlConnection connection, string email)
         {
-            const string query = "SELECT id, role, firstname, username, profile_picture, COALESCE(is_banned, FALSE), COALESCE(account_status, 'Active') FROM users WHERE LOWER(TRIM(email)) = @email LIMIT 1";
+            const string query = "SELECT id, role, firstname, username, profile_picture, COALESCE(is_banned, FALSE), COALESCE(account_status, 'Active'), COALESCE(mfa_enabled, FALSE) FROM users WHERE LOWER(TRIM(email)) = @email LIMIT 1";
             await using var cmd = new NpgsqlCommand(query, connection);
             cmd.Parameters.AddWithValue("@email", email);
 
@@ -798,7 +1147,8 @@ namespace ImajinationAPI.Controllers
                 reader.IsDBNull(3) ? email.Split('@')[0] : reader.GetString(3),
                 reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                 !reader.IsDBNull(5) && reader.GetBoolean(5),
-                reader.IsDBNull(6) ? "Active" : reader.GetString(6)
+                reader.IsDBNull(6) ? "Active" : reader.GetString(6),
+                !reader.IsDBNull(7) && reader.GetBoolean(7)
             );
         }
 
@@ -810,6 +1160,22 @@ namespace ImajinationAPI.Controllers
 
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS account_status VARCHAR(40) NOT NULL DEFAULT 'Active';";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task EnsureMfaColumnsAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS mfa_secret TEXT NULL;
+
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS mfa_enrolled_at timestamptz NULL;";
 
             await using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
@@ -931,12 +1297,38 @@ namespace ImajinationAPI.Controllers
                 && password.Any(ch => !char.IsLetterOrDigit(ch));
         }
 
-        private sealed record UserLoginResult(Guid Id, string Role, string FirstName, string Username, string ProfilePicture, bool IsBanned, string AccountStatus);
+        private string CreatePendingMfaTicket(Guid userId, string role, string firstName, string username, string profilePicture, string email)
+        {
+            var ticket = Guid.NewGuid().ToString("N");
+            _cache.Set($"mfa-login:{ticket}", new PendingMfaLogin(userId, role, firstName, username, profilePicture, email), TimeSpan.FromMinutes(5));
+            return ticket;
+        }
+
+        private sealed record UserLoginResult(Guid Id, string Role, string FirstName, string Username, string ProfilePicture, bool IsBanned, string AccountStatus, bool MfaEnabled);
+        private sealed record PendingMfaLogin(Guid UserId, string Role, string FirstName, string Username, string ProfilePicture, string Email);
+        private sealed record PendingMfaSetup(Guid UserId, string Secret);
         private sealed record GoogleClientConfiguration(string? ClientId, string Message);
         public sealed class SessionLogoutDto
         {
             public Guid userId { get; set; }
             public string sessionToken { get; set; } = string.Empty;
+        }
+
+        public sealed class VerifyMfaSetupDto
+        {
+            public string setupToken { get; set; } = string.Empty;
+            public string code { get; set; } = string.Empty;
+        }
+
+        public sealed class CompleteMfaLoginDto
+        {
+            public string mfaTicket { get; set; } = string.Empty;
+            public string code { get; set; } = string.Empty;
+        }
+
+        public sealed class DisableMfaDto
+        {
+            public string code { get; set; } = string.Empty;
         }
     }
 }

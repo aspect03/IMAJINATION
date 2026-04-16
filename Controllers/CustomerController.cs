@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
@@ -21,13 +22,16 @@ namespace ImajinationAPI.Controllers
 
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Customer")]
     public class CustomerController : ControllerBase
     {
         private readonly string _connectionString;
+        private readonly UploadScanningService _uploadScanningService;
 
-        public CustomerController(IConfiguration configuration)
+        public CustomerController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
+            _uploadScanningService = uploadScanningService;
         }
 
         [HttpGet("{id}/favorites")]
@@ -193,6 +197,11 @@ namespace ImajinationAPI.Controllers
                 if (imageError is not null)
                 {
                     return BadRequest(new { message = imageError });
+                }
+                var pictureScan = await _uploadScanningService.ScanDataUrlAsync(normalizedPicture, "customer profile image");
+                if (!pictureScan.IsClean)
+                {
+                    return BadRequest(new { message = pictureScan.Message });
                 }
 
                 if (string.IsNullOrWhiteSpace(sanitizedFirstName) || string.IsNullOrWhiteSpace(sanitizedLastName))

@@ -3,6 +3,7 @@ using Npgsql;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using ImajinationAPI.Services;
 
 namespace ImajinationAPI.Controllers
 {
@@ -24,6 +25,13 @@ namespace ImajinationAPI.Controllers
         public string? ticketValue { get; set; }
     }
 
+    internal sealed record TicketPricingPhase(
+        string Name,
+        decimal Multiplier,
+        int PercentageMarkup,
+        string BadgeTone,
+        string Description);
+
     [Route("api/[controller]")]
     [ApiController]
     public class TicketController : ControllerBase
@@ -31,6 +39,7 @@ namespace ImajinationAPI.Controllers
         private readonly string _connectionString;
         private readonly string _paymongoSecretKey;
         private const decimal PayMongoMinimumAmount = 20m;
+        private const decimal TicketServiceFeeRate = 0.05m;
 
         public TicketController(IConfiguration configuration)
         {
@@ -124,16 +133,24 @@ namespace ImajinationAPI.Controllers
                     var organizerId = reader.IsDBNull(2) ? Guid.Empty : reader.GetGuid(2);
                     var basePrice = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
                     var tierPrice = reader.IsDBNull(5) ? null : (decimal?)reader.GetDecimal(5);
+                    var eventTime = reader.IsDBNull(9) ? DateTime.UtcNow : reader.GetDateTime(9);
                     var saleName = reader.IsDBNull(10) ? null : reader.GetString(10);
                     var saleType = reader.IsDBNull(11) ? null : reader.GetString(11);
                     var saleValue = reader.IsDBNull(12) ? null : (decimal?)reader.GetDecimal(12);
                     var saleStartsAt = reader.IsDBNull(13) ? null : (DateTime?)reader.GetDateTime(13);
                     var saleEndsAt = reader.IsDBNull(14) ? null : (DateTime?)reader.GetDateTime(14);
                     var saleActive = IsSaleActive(saleStartsAt, saleEndsAt);
-                    var adjustedBasePrice = ApplySale(basePrice, saleType, saleValue, saleActive);
+                    var pricingPhase = GetTicketPricingPhase(eventTime);
+                    var adjustedBasePrice = ApplyPhaseMarkup(ApplySale(basePrice, saleType, saleValue, saleActive), pricingPhase);
                     decimal? adjustedTierPrice = tierPrice.HasValue
-                        ? ApplySale(tierPrice.Value, saleType, saleValue, saleActive)
+                        ? ApplyPhaseMarkup(ApplySale(tierPrice.Value, saleType, saleValue, saleActive), pricingPhase)
                         : null;
+                    var bundleTiers = BuildBundleTierPayload(
+                        reader.IsDBNull(8) ? null : reader.GetString(8),
+                        saleType,
+                        saleValue,
+                        saleActive,
+                        pricingPhase);
 
                     return Ok(new
                     {
@@ -148,13 +165,21 @@ namespace ImajinationAPI.Controllers
                         slots = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
                         ticketsSold = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
                         bundles = reader.IsDBNull(8) ? null : reader.GetString(8),
-                        time = reader.IsDBNull(9) ? DateTime.Now : reader.GetDateTime(9),
+                        time = eventTime,
                         saleName,
                         saleType,
                         saleValue,
                         saleStartsAt,
                         saleEndsAt,
-                        saleActive
+                        saleActive,
+                        pricingPhase = pricingPhase.Name,
+                        pricingPhasePercentage = pricingPhase.PercentageMarkup,
+                        pricingPhaseTone = pricingPhase.BadgeTone,
+                        pricingPhaseDescription = pricingPhase.Description,
+                        pricingMultiplier = pricingPhase.Multiplier,
+                        ticketServiceFeeRate = TicketServiceFeeRate,
+                        ticketServiceFeeLabel = $"Ticket Service Fee ({TicketServiceFeeRate * 100:0}%)",
+                        bundleTiers
                     });
                 }
                 return NotFound(new { message = "Event not found." });
@@ -175,6 +200,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureTicketPaymentColumnsExist(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
 
                 // Safely parse the string IDs back to UUIDs for the database
@@ -183,7 +209,19 @@ namespace ImajinationAPI.Controllers
 
                 string eventTitle = "Imajination Ticket";
                 Guid organizerId = Guid.Empty;
-                string getTitleSql = "SELECT title, organizer_id FROM events WHERE id = @id";
+                decimal basePrice = 0m;
+                string? primaryTierName = null;
+                decimal? primaryTierPrice = null;
+                string? bundles = null;
+                DateTime eventTime = DateTime.UtcNow;
+                string? saleType = null;
+                decimal? saleValue = null;
+                DateTime? saleStartsAt = null;
+                DateTime? saleEndsAt = null;
+                string getTitleSql = @"
+                    SELECT title, organizer_id, base_price, tier_name, tier_price, bundles, event_time, sale_type, sale_value, sale_starts_at, sale_ends_at
+                    FROM events
+                    WHERE id = @id";
                 using (var titleCmd = new NpgsqlCommand(getTitleSql, connection))
                 {
                     titleCmd.Parameters.AddWithValue("@id", parsedEventId);
@@ -192,6 +230,19 @@ namespace ImajinationAPI.Controllers
                     {
                         if (!reader.IsDBNull(0)) eventTitle = reader.GetString(0);
                         if (!reader.IsDBNull(1)) organizerId = reader.GetGuid(1);
+                        basePrice = reader.IsDBNull(2) ? 0m : reader.GetDecimal(2);
+                        primaryTierName = reader.IsDBNull(3) ? null : reader.GetString(3);
+                        primaryTierPrice = reader.IsDBNull(4) ? null : reader.GetDecimal(4);
+                        bundles = reader.IsDBNull(5) ? null : reader.GetString(5);
+                        eventTime = reader.IsDBNull(6) ? DateTime.UtcNow : reader.GetDateTime(6);
+                        saleType = reader.IsDBNull(7) ? null : reader.GetString(7);
+                        saleValue = reader.IsDBNull(8) ? null : reader.GetDecimal(8);
+                        saleStartsAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9);
+                        saleEndsAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10);
+                    }
+                    else
+                    {
+                        return NotFound(new { message = "Event not found." });
                     }
                 }
 
@@ -200,16 +251,38 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "Event organizers cannot buy tickets for their own event." });
                 }
 
+                var normalizedTierName = string.IsNullOrWhiteSpace(req.tierName) ? "General Admission" : req.tierName.Trim();
+                var saleActive = IsSaleActive(saleStartsAt, saleEndsAt);
+                var pricingPhase = GetTicketPricingPhase(eventTime);
+                var unitPrice = ResolveTierPrice(normalizedTierName, basePrice, primaryTierName, primaryTierPrice, bundles, saleType, saleValue, saleActive, pricingPhase);
+                var subtotal = decimal.Round(unitPrice * req.quantity, 2);
+                var serviceFee = decimal.Round(subtotal * TicketServiceFeeRate, 2);
+                var finalTotal = subtotal + serviceFee;
+
                 string insertSql = @"
-                    INSERT INTO tickets (event_id, customer_id, tier_name, quantity, total_price, payment_method) 
-                    VALUES (@eId, @cId, @tier, @qty, @total, 'AwaitingPayment') RETURNING id";
+                    INSERT INTO tickets (
+                        event_id, customer_id, tier_name, quantity, total_price, payment_method,
+                        ticket_unit_price, ticket_subtotal, ticket_service_fee, ticket_service_fee_rate,
+                        pricing_phase_name, pricing_phase_percentage
+                    ) 
+                    VALUES (
+                        @eId, @cId, @tier, @qty, @total, 'AwaitingPayment',
+                        @unitPrice, @subtotal, @serviceFee, @serviceFeeRate,
+                        @phaseName, @phasePercentage
+                    ) RETURNING id";
                 
                 using var insertCmd = new NpgsqlCommand(insertSql, connection);
                 insertCmd.Parameters.AddWithValue("@eId", parsedEventId);
                 insertCmd.Parameters.AddWithValue("@cId", parsedCustomerId);
-                insertCmd.Parameters.AddWithValue("@tier", req.tierName);
+                insertCmd.Parameters.AddWithValue("@tier", normalizedTierName);
                 insertCmd.Parameters.AddWithValue("@qty", req.quantity);
-                insertCmd.Parameters.AddWithValue("@total", req.totalPrice);
+                insertCmd.Parameters.AddWithValue("@total", finalTotal);
+                insertCmd.Parameters.AddWithValue("@unitPrice", unitPrice);
+                insertCmd.Parameters.AddWithValue("@subtotal", subtotal);
+                insertCmd.Parameters.AddWithValue("@serviceFee", serviceFee);
+                insertCmd.Parameters.AddWithValue("@serviceFeeRate", TicketServiceFeeRate);
+                insertCmd.Parameters.AddWithValue("@phaseName", pricingPhase.Name);
+                insertCmd.Parameters.AddWithValue("@phasePercentage", pricingPhase.PercentageMarkup);
                 var newTicketId = await insertCmd.ExecuteScalarAsync();
 
                 string updateSql = "UPDATE events SET tickets_sold = COALESCE(tickets_sold, 0) + @qty WHERE id = @eId";
@@ -218,7 +291,6 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.AddWithValue("@eId", parsedEventId);
                 await updateCmd.ExecuteNonQueryAsync();
 
-                int amountInCentavos = (int)(req.totalPrice * 100); 
                 var successUrl = AppendQuery(req.successUrl, $"ticketPaid=1&ticketId={newTicketId}");
                 var cancelUrl = AppendQuery(req.cancelUrl, $"ticketPending=1&ticketId={newTicketId}");
 
@@ -227,7 +299,7 @@ namespace ImajinationAPI.Controllers
                     return StatusCode(500, new { message = "PayMongo is not configured yet. Add PayMongo:SecretKey before starting checkout." });
                 }
 
-                if (req.totalPrice < PayMongoMinimumAmount)
+                if (finalTotal < PayMongoMinimumAmount)
                 {
                     return BadRequest(new { message = $"PayMongo requires a minimum amount of ₱{PayMongoMinimumAmount:0.00}." });
                 }
@@ -244,7 +316,8 @@ namespace ImajinationAPI.Controllers
                             payment_method_types = new[] { "gcash", "card", "paymaya" },
                             line_items = new[]
                             {
-                                new { currency = "PHP", amount = amountInCentavos, name = $"{req.tierName} Ticket - {eventTitle}", quantity = req.quantity }
+                                new { currency = "PHP", amount = (int)(unitPrice * 100), name = $"{normalizedTierName} Ticket - {eventTitle}", quantity = req.quantity },
+                                new { currency = "PHP", amount = (int)(serviceFee * 100), name = $"Ticket Service Fee ({TicketServiceFeeRate * 100:0}%)", quantity = 1 }
                             },
                             success_url = successUrl,
                             cancel_url = cancelUrl
@@ -292,6 +365,29 @@ namespace ImajinationAPI.Controllers
                 ticketUpdateCmd.Parameters.AddWithValue("@ticketId", (Guid)newTicketId);
                 await ticketUpdateCmd.ExecuteNonQueryAsync();
 
+                await PaymentLedgerService.UpsertPendingAsync(
+                    connection,
+                    paymentScope: "ticket_purchase",
+                    userId: parsedCustomerId,
+                    organizerId: organizerId == Guid.Empty ? null : organizerId,
+                    eventId: parsedEventId,
+                    ticketId: (Guid)newTicketId,
+                    bookingId: null,
+                    amount: finalTotal,
+                    description: $"Ticket purchase for {eventTitle}",
+                    checkoutId: checkoutId ?? string.Empty,
+                    checkoutReference: checkoutReference ?? string.Empty,
+                    featureUnlockState: "TicketPending",
+                    metadata: new
+                    {
+                        tierName = normalizedTierName,
+                        quantity = req.quantity,
+                        subtotal,
+                        serviceFee,
+                        pricingPhase = pricingPhase.Name,
+                        pricingPhasePercentage = pricingPhase.PercentageMarkup
+                    });
+
                 return Ok(new { message = "Checkout session created!", checkoutUrl = checkoutUrl });
             }
             catch (Exception ex) { return StatusCode(500, new { message = "Checkout Logic Error: " + ex.Message }); }
@@ -304,6 +400,42 @@ namespace ImajinationAPI.Controllers
             var hasNotEnded = !endsAt.HasValue || endsAt.Value >= now;
             return hasStarted && hasNotEnded;
         }
+
+        private static TicketPricingPhase GetTicketPricingPhase(DateTime eventTime)
+        {
+            var normalizedEventTime = eventTime.Kind == DateTimeKind.Utc ? eventTime : eventTime.ToUniversalTime();
+            var hoursUntilEvent = (normalizedEventTime - DateTime.UtcNow).TotalHours;
+
+            if (hoursUntilEvent <= 0)
+            {
+                return new TicketPricingPhase(
+                    "Walk-In",
+                    1.20m,
+                    20,
+                    "red",
+                    "Walk-in pricing adds 20% once the event has started.");
+            }
+
+            if (hoursUntilEvent <= 2)
+            {
+                return new TicketPricingPhase(
+                    "Early Bird",
+                    1.10m,
+                    10,
+                    "amber",
+                    "Early-bird pricing adds 10% close to show time.");
+            }
+
+            return new TicketPricingPhase(
+                "Pre-Sale",
+                1.00m,
+                0,
+                "blue",
+                "Pre-sale pricing uses the standard ticket rate.");
+        }
+
+        private static decimal ApplyPhaseMarkup(decimal basePrice, TicketPricingPhase pricingPhase)
+            => decimal.Round(basePrice * pricingPhase.Multiplier, 2);
 
         private static decimal ApplySale(decimal originalPrice, string? saleType, decimal? saleValue, bool saleActive)
         {
@@ -320,6 +452,89 @@ namespace ImajinationAPI.Controllers
             return discounted < 0 ? 0 : decimal.Round(discounted, 2);
         }
 
+        private static decimal ResolveTierPrice(
+            string requestedTier,
+            decimal basePrice,
+            string? specialTierName,
+            decimal? specialTierPrice,
+            string? bundles,
+            string? saleType,
+            decimal? saleValue,
+            bool saleActive,
+            TicketPricingPhase pricingPhase)
+        {
+            decimal resolvedPrice = basePrice;
+
+            if (!string.IsNullOrWhiteSpace(requestedTier))
+            {
+                if (!string.IsNullOrWhiteSpace(specialTierName) &&
+                    requestedTier.Equals(specialTierName.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                    specialTierPrice.HasValue)
+                {
+                    resolvedPrice = specialTierPrice.Value;
+                }
+                else if (!string.IsNullOrWhiteSpace(bundles))
+                {
+                    foreach (var bundle in ParseBundleTierRecords(bundles))
+                    {
+                        if (requestedTier.Equals(bundle.Name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            resolvedPrice = bundle.Price;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            var saleAdjustedPrice = ApplySale(resolvedPrice, saleType, saleValue, saleActive);
+            return ApplyPhaseMarkup(saleAdjustedPrice, pricingPhase);
+        }
+
+        private static List<object> BuildBundleTierPayload(
+            string? bundles,
+            string? saleType,
+            decimal? saleValue,
+            bool saleActive,
+            TicketPricingPhase pricingPhase)
+        {
+            if (string.IsNullOrWhiteSpace(bundles))
+            {
+                return new List<object>();
+            }
+
+            return ParseBundleTierRecords(bundles)
+                .Select(bundle => new
+                {
+                    tierName = bundle.Name,
+                    basePrice = bundle.Price,
+                    displayPrice = ApplyPhaseMarkup(ApplySale(bundle.Price, saleType, saleValue, saleActive), pricingPhase),
+                    slots = bundle.Slots
+                })
+                .Cast<object>()
+                .ToList();
+        }
+
+        private static IEnumerable<(string Name, decimal Price, int Slots)> ParseBundleTierRecords(string bundles)
+        {
+            var parts = bundles.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var part in parts)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    part,
+                    @"\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (!match.Success) continue;
+                if (!decimal.TryParse(match.Groups[2].Value, out var price)) continue;
+
+                yield return (
+                    match.Groups[1].Value.Trim(),
+                    price,
+                    int.TryParse(match.Groups[3].Value, out var slots) ? slots : 0
+                );
+            }
+        }
+
         [HttpGet("customer/{customerId}")]
         public async Task<IActionResult> GetCustomerTickets(Guid customerId)
         {
@@ -329,11 +544,14 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureTicketPaymentColumnsExist(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
 
                 // FIX: Added 'e.status' so the frontend knows if the event is Finished!
                 string sql = @"
                     SELECT t.id, t.event_id, t.tier_name, t.quantity, t.total_price, t.payment_method, t.purchase_date, t.is_used,
-                           e.title, e.event_time, e.location, e.status, COALESCE(t.paymongo_payment_reference, ''), COALESCE(t.paymongo_checkout_reference, '')
+                           e.title, e.event_time, e.location, e.status, COALESCE(t.paymongo_payment_reference, ''), COALESCE(t.paymongo_checkout_reference, ''),
+                           COALESCE(t.ticket_unit_price, 0), COALESCE(t.ticket_subtotal, t.total_price), COALESCE(t.ticket_service_fee, 0),
+                           COALESCE(t.ticket_service_fee_rate, 0), COALESCE(t.pricing_phase_name, 'Pre-Sale'), COALESCE(t.pricing_phase_percentage, 0)
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id
                     WHERE t.customer_id = @cId
@@ -360,7 +578,13 @@ namespace ImajinationAPI.Controllers
                         location = reader.GetString(10),
                         eventStatus = reader.IsDBNull(11) ? "Upcoming" : reader.GetString(11),
                         paymentReference = reader.IsDBNull(12) ? "" : reader.GetString(12),
-                        checkoutReference = reader.IsDBNull(13) ? "" : reader.GetString(13)
+                        checkoutReference = reader.IsDBNull(13) ? "" : reader.GetString(13),
+                        unitPrice = reader.IsDBNull(14) ? 0 : reader.GetDecimal(14),
+                        subtotal = reader.IsDBNull(15) ? reader.GetDecimal(4) : reader.GetDecimal(15),
+                        serviceFee = reader.IsDBNull(16) ? 0 : reader.GetDecimal(16),
+                        serviceFeeRate = reader.IsDBNull(17) ? 0 : reader.GetDecimal(17),
+                        pricingPhase = reader.IsDBNull(18) ? "Pre-Sale" : reader.GetString(18),
+                        pricingPhasePercentage = reader.IsDBNull(19) ? 0 : reader.GetInt32(19)
                     });
                 }
                 return Ok(tickets);
@@ -473,6 +697,16 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.AddWithValue("@checkoutReference", (object?)checkoutReference ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@ticketId", ticketId);
                 await updateCmd.ExecuteNonQueryAsync();
+
+                await PaymentLedgerService.MarkPaidAsync(
+                    connection,
+                    paymentScope: "ticket_purchase",
+                    ticketId: ticketId,
+                    bookingId: null,
+                    paymentMethod: confirmedMethod,
+                    paymentReference: paymentReference,
+                    checkoutReference: checkoutReference,
+                    featureUnlockState: "TicketIssued");
 
                 var details = await GetTicketNotificationContextAsync(connection, ticketId);
                 if (details.customerId != Guid.Empty)
@@ -619,7 +853,13 @@ namespace ImajinationAPI.Controllers
             const string alterSql = @"
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_checkout_id text NULL;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_checkout_reference text NULL;
-                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_payment_reference text NULL;";
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_payment_reference text NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_unit_price numeric(12,2) NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_subtotal numeric(12,2) NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_service_fee numeric(12,2) NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_service_fee_rate numeric(8,4) NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS pricing_phase_name varchar(50) NOT NULL DEFAULT 'Pre-Sale';
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS pricing_phase_percentage integer NOT NULL DEFAULT 0;";
 
             using var cmd = new NpgsqlCommand(alterSql, connection);
             await cmd.ExecuteNonQueryAsync();

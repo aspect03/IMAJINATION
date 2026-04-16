@@ -110,34 +110,39 @@
     window.fetch = async function securedFetch(resource, options = {}) {
       const originalUrl = typeof resource === 'string' ? resource : resource?.url || '';
       const method = (options?.method || (resource instanceof Request ? resource.method : 'GET') || 'GET').toUpperCase();
-      const requiresCsrf = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) && isSameOriginApiRequest(originalUrl);
-
-      if (!requiresCsrf) {
-        return nativeFetch(resource, options);
-      }
-
-      const token = await ensureCsrfToken();
+      const isApiRequest = isSameOriginApiRequest(originalUrl);
+      const requiresCsrf = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) && isApiRequest;
       const headers = new Headers(resource instanceof Request ? resource.headers : undefined);
 
       if (options.headers) {
         new Headers(options.headers).forEach((value, key) => headers.set(key, value));
       }
 
-      if (!headers.has('X-CSRF-TOKEN') && token) {
-        headers.set('X-CSRF-TOKEN', token);
-      }
+      if (isApiRequest) {
+        if (requiresCsrf) {
+          const token = await ensureCsrfToken();
+          if (!headers.has('X-CSRF-TOKEN') && token) {
+            headers.set('X-CSRF-TOKEN', token);
+          }
+        }
 
-      const actorUserId = localStorage.getItem('userId');
-      const actorRole = localStorage.getItem('userRole');
-      const sessionToken = localStorage.getItem('sessionToken');
-      if (actorUserId && !headers.has('X-Actor-UserId')) {
-        headers.set('X-Actor-UserId', actorUserId);
-      }
-      if (actorRole && !headers.has('X-Actor-Role')) {
-        headers.set('X-Actor-Role', actorRole);
-      }
-      if (sessionToken && isSameOriginApiRequest(originalUrl) && !headers.has('X-Session-Token')) {
-        headers.set('X-Session-Token', sessionToken);
+        const actorUserId = localStorage.getItem('userId');
+        const actorRole = localStorage.getItem('userRole');
+        const sessionToken = localStorage.getItem('sessionToken');
+        const accessToken = localStorage.getItem('accessToken');
+
+        if (actorUserId && !headers.has('X-Actor-UserId')) {
+          headers.set('X-Actor-UserId', actorUserId);
+        }
+        if (actorRole && !headers.has('X-Actor-Role')) {
+          headers.set('X-Actor-Role', actorRole);
+        }
+        if (sessionToken && !headers.has('X-Session-Token')) {
+          headers.set('X-Session-Token', sessionToken);
+        }
+        if (accessToken && !headers.has('Authorization')) {
+          headers.set('Authorization', `Bearer ${accessToken}`);
+        }
       }
 
       const finalOptions = {
@@ -273,6 +278,7 @@
     localStorage.removeItem('username');
     localStorage.removeItem('userProfilePicture');
     localStorage.removeItem('sessionToken');
+    localStorage.removeItem('accessToken');
     if (reasonKey) {
       localStorage.setItem('sessionEndedReason', reasonKey);
     }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
@@ -21,10 +22,12 @@ namespace ImajinationAPI.Controllers
     public class OrganizerController : ControllerBase
     {
         private readonly string _connectionString;
+        private readonly UploadScanningService _uploadScanningService;
 
-        public OrganizerController(IConfiguration configuration)
+        public OrganizerController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
+            _uploadScanningService = uploadScanningService;
         }
 
         [HttpGet("{id}")]
@@ -145,6 +148,7 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize(Roles = "Organizer")]
         [HttpPut("{id}/profile")]
         [RequestSizeLimit(10_000_000)]
         public async Task<IActionResult> UpdateOrganizerProfile(Guid id, [FromBody] UpdateOrganizerProfileDto req)
@@ -166,6 +170,11 @@ namespace ImajinationAPI.Controllers
                 if (imageError is not null)
                 {
                     return BadRequest(new { message = imageError });
+                }
+                var pictureScan = await _uploadScanningService.ScanDataUrlAsync(normalizedPicture, "organizer profile image");
+                if (!pictureScan.IsClean)
+                {
+                    return BadRequest(new { message = pictureScan.Message });
                 }
 
                 const string sql = @"

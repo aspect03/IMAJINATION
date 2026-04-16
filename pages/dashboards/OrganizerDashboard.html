@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/mfa-settings.js"></script>
   <style>
     @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -583,6 +584,10 @@
                   <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Bio</label>
                   <textarea id="settingsBio" rows="5" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-red-500 resize-none"></textarea>
                 </div>
+                <div class="space-y-3">
+                  <h3 class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] border-b border-white/10 pb-3">Multi-Factor Authentication</h3>
+                  <div id="organizerMfaSettings"></div>
+                </div>
                 <div class="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button id="saveSettingsBtn" type="submit" class="px-5 py-3 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-500 transition-colors">Save changes</button>
                   <p id="settingsStatus" class="text-sm text-white/50">Your organizer profile stays synced with the navbar.</p>
@@ -1060,6 +1065,7 @@
           loadOrganizerNotifications(userId),
           loadOrganizerCommunityPosts(userId)
         ]);
+        window.initDashboardMfaSettings?.({ containerId: 'organizerMfaSettings', title: 'Organizer MFA' });
         if (initialView === 'event-analytics' && requestedEventId) {
           await openEventAnalytics(requestedEventId, { skipViewChange: true });
         }

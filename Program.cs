@@ -1,6 +1,8 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -31,11 +33,48 @@ var allowedOrigins = builder.Configuration
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray()
     ?? Array.Empty<string>();
+var jwtBootstrapService = new JwtTokenService(builder.Configuration);
 
 // Add Controllers
 builder.Services.AddControllers();
 builder.Services.AddDataProtection();
+builder.Services.AddSingleton(jwtBootstrapService);
+builder.Services.AddSingleton<TotpService>();
+builder.Services.AddSingleton<UploadScanningService>();
 builder.Services.AddSingleton<MessageProtectionService>();
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = "HybridAuth";
+        options.DefaultAuthenticateScheme = "HybridAuth";
+        options.DefaultChallengeScheme = "HybridAuth";
+    })
+    .AddPolicyScheme("HybridAuth", "JWT or session token", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            var authorization = context.Request.Headers.Authorization.ToString();
+            if (!string.IsNullOrWhiteSpace(authorization) &&
+                authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                return JwtBearerDefaults.AuthenticationScheme;
+            }
+
+            if (!string.IsNullOrWhiteSpace(context.Request.Headers["X-Session-Token"]))
+            {
+                return SessionTokenAuthenticationHandler.SchemeName;
+            }
+
+            return JwtBearerDefaults.AuthenticationScheme;
+        };
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = jwtBootstrapService.CreateValidationParameters();
+    })
+    .AddScheme<AuthenticationSchemeOptions, SessionTokenAuthenticationHandler>(
+        SessionTokenAuthenticationHandler.SchemeName,
+        _ => { });
+builder.Services.AddAuthorization();
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
@@ -146,6 +185,9 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+    context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
+    context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
     context.Response.Headers["Permissions-Policy"] =
         "camera=(self), microphone=(), geolocation=(), payment=(), usb=()";
 
@@ -215,6 +257,7 @@ app.Use(async (context, next) =>
     }
 });
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Map the routes

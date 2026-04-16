@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ImajinationAPI.Models;
 using ImajinationAPI.Services;
 using Npgsql;
@@ -47,6 +48,7 @@ namespace ImajinationAPI.Controllers
 
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BookingController : ControllerBase
     {
         private readonly string _connectionString;
@@ -525,6 +527,7 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureBookingsTableExists(connection);
                 await EnsureNotificationsTableExists(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
                 await EnsureEventBookingSupportExists(connection);
 
                 string targetRole;
@@ -967,6 +970,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureBookingsTableExists(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
 
                 const string bookingSql = @"
                     SELECT COALESCE(event_title, 'Booking Request'),
@@ -975,7 +979,10 @@ namespace ImajinationAPI.Controllers
                            COALESCE(status, 'Pending'),
                            COALESCE(payment_status, 'Unpaid'),
                            COALESCE(service_fee_status, COALESCE(payment_status, 'Unpaid')),
-                           COALESCE(talent_fee_status, 'Unpaid')
+                           COALESCE(talent_fee_status, 'Unpaid'),
+                           customer_id,
+                           target_user_id,
+                           event_id
                     FROM bookings
                     WHERE id = @id;";
 
@@ -986,6 +993,9 @@ namespace ImajinationAPI.Controllers
                 string paymentStatus;
                 string serviceFeeStatus;
                 string talentFeeStatus;
+                Guid customerId;
+                Guid targetUserId;
+                Guid? eventId;
 
                 using (var bookingCmd = new NpgsqlCommand(bookingSql, connection))
                 {
@@ -1003,6 +1013,9 @@ namespace ImajinationAPI.Controllers
                     paymentStatus = NormalizePaymentStatus(reader.IsDBNull(4) ? "Unpaid" : reader.GetString(4));
                     serviceFeeStatus = NormalizeServiceFeeStatus(reader.IsDBNull(5) ? paymentStatus : reader.GetString(5), paymentStatus);
                     talentFeeStatus = NormalizeTalentFeeStatus(reader.IsDBNull(6) ? "Unpaid" : reader.GetString(6));
+                    customerId = reader.IsDBNull(7) ? Guid.Empty : reader.GetGuid(7);
+                    targetUserId = reader.IsDBNull(8) ? Guid.Empty : reader.GetGuid(8);
+                    eventId = reader.IsDBNull(9) ? null : reader.GetGuid(9);
                 }
 
                 var paymentType = string.Equals(req.paymentType, "talent", StringComparison.OrdinalIgnoreCase)
@@ -1141,6 +1154,27 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.Add("@amountToCharge", NpgsqlDbType.Numeric).Value = amountToCharge;
                 updateCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
                 await updateCmd.ExecuteNonQueryAsync();
+
+                await PaymentLedgerService.UpsertPendingAsync(
+                    connection,
+                    paymentScope: paymentType == "talent" ? "booking_talent_fee" : "booking_service_fee",
+                    userId: customerId == Guid.Empty ? null : customerId,
+                    organizerId: targetUserId == Guid.Empty ? null : targetUserId,
+                    eventId: eventId,
+                    ticketId: null,
+                    bookingId: bookingId,
+                    amount: amountToCharge,
+                    description: $"{paymentLabel} for {eventTitle}",
+                    checkoutId: checkoutId ?? string.Empty,
+                    checkoutReference: checkoutReference ?? string.Empty,
+                    featureUnlockState: paymentType == "talent" ? "AwaitingTalentSettlement" : "MessagesLocked",
+                    metadata: new
+                    {
+                        paymentType,
+                        eventTitle,
+                        bookingFee,
+                        budget
+                    });
 
                 return Ok(new
                 {
@@ -1332,6 +1366,17 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.Add("@checkoutReference", NpgsqlDbType.Text).Value = (object?)checkoutReference ?? DBNull.Value;
                 updateCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
                 await updateCmd.ExecuteNonQueryAsync();
+
+                await PaymentLedgerService.MarkPaidAsync(
+                    connection,
+                    paymentScope: normalizedPaymentType == "talent" ? "booking_talent_fee" : "booking_service_fee",
+                    ticketId: null,
+                    bookingId: bookingId,
+                    paymentMethod: paymentMethod,
+                    paymentReference: paymentReference,
+                    checkoutReference: checkoutReference,
+                    featureUnlockState: normalizedPaymentType == "talent" ? "TalentFeeSettled" : "MessagesUnlocked",
+                    paidAt: paidAt);
 
                 if (normalizedPaymentType == "service" && targetUserId != Guid.Empty)
                 {

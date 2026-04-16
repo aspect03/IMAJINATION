@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using ImajinationAPI.Services;
 using System.Threading;
@@ -10,12 +11,14 @@ namespace ImajinationAPI.Controllers
     public class SessionistController : ControllerBase
     {
         private readonly string _connectionString;
+        private readonly UploadScanningService _uploadScanningService;
         private static readonly SemaphoreSlim SessionistSchemaLock = new(1, 1);
         private static volatile bool _sessionistSchemaEnsured;
 
-        public SessionistController(IConfiguration configuration)
+        public SessionistController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
+            _uploadScanningService = uploadScanningService;
         }
 
         private async Task EnsureEventLineupColumns(NpgsqlConnection connection)
@@ -350,6 +353,7 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
 
+        [Authorize(Roles = "Sessionist")]
         [HttpPut("{id}/profile")]
         public async Task<IActionResult> UpdateProfile(Guid id, [FromBody] UpdateArtistProfileDto req) 
         {
@@ -367,6 +371,11 @@ namespace ImajinationAPI.Controllers
                 if (imageError is not null)
                 {
                     return BadRequest(new { message = imageError });
+                }
+                var pictureScan = await _uploadScanningService.ScanDataUrlAsync(normalizedPicture, "sessionist profile image");
+                if (!pictureScan.IsClean)
+                {
+                    return BadRequest(new { message = pictureScan.Message });
                 }
 
                 string sql = @"
@@ -460,6 +469,7 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
 
+        [Authorize(Roles = "Sessionist")]
         [HttpPatch("{id}/availability")]
         public async Task<IActionResult> UpdateAvailability(Guid id, [FromBody] UpdateAvailabilityDto req)
         {

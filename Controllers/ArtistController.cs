@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using ImajinationAPI.Services;
 using System.Threading;
@@ -25,12 +26,14 @@ namespace ImajinationAPI.Controllers
     public class ArtistController : ControllerBase
     {
         private readonly string _connectionString;
+        private readonly UploadScanningService _uploadScanningService;
         private static readonly SemaphoreSlim ArtistSchemaLock = new(1, 1);
         private static volatile bool _artistSchemaEnsured;
 
-        public ArtistController(IConfiguration configuration)
+        public ArtistController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
+            _uploadScanningService = uploadScanningService;
         }
 
         private async Task EnsureEventLineupColumns(NpgsqlConnection connection)
@@ -317,6 +320,7 @@ namespace ImajinationAPI.Controllers
         }
 
         // 3. UPDATE ARTIST PROFILE (Picture, Bio, etc.)
+        [Authorize(Roles = "Artist")]
         [HttpPut("{id}/profile")]
         public async Task<IActionResult> UpdateProfile(Guid id, [FromBody] UpdateArtistProfileDto req)
         {
@@ -334,6 +338,11 @@ namespace ImajinationAPI.Controllers
                 if (imageError is not null)
                 {
                     return BadRequest(new { message = imageError });
+                }
+                var pictureScan = await _uploadScanningService.ScanDataUrlAsync(normalizedPicture, "artist profile image");
+                if (!pictureScan.IsClean)
+                {
+                    return BadRequest(new { message = pictureScan.Message });
                 }
 
                 string sql = @"
@@ -428,6 +437,7 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
         }
 
+        [Authorize(Roles = "Artist")]
         [HttpPatch("{id}/availability")]
         public async Task<IActionResult> UpdateAvailability(Guid id, [FromBody] UpdateAvailabilityDto req)
         {

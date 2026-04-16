@@ -8,4 +8,12 @@ bin/
 obj/
 out/
 temp-build-verify/
+temp_build_verify/
 runtime-test-*.log
+
+# Local backup and docker backup artifacts
+backups/
+docker-compose.backup.yml
+docs/BACKUPS.md
+scripts/backup-db.ps1
+scripts/restore-mirror.ps1

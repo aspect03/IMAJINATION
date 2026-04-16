@@ -368,6 +368,11 @@
                 </div>
               </div>
 
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">5. Multi-Factor Authentication</h3>
+                <div id="customerMfaSettings"></div>
+              </div>
+
               <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors mt-4">
                 Save Profile Changes
               </button>
@@ -413,6 +418,9 @@
         <div class="space-y-2 mb-6 border-b border-gray-300 pb-6 border-dashed">
           <div class="flex justify-between items-start"><p>Tier:</p><p id="rTier" class="font-bold text-right">VIP</p></div>
           <div class="flex justify-between items-start"><p>Quantity:</p><p id="rQty" class="font-bold text-right">2</p></div>
+          <div class="flex justify-between items-start"><p>Phase:</p><p id="rPhase" class="font-bold text-right">Pre-Sale</p></div>
+          <div class="flex justify-between items-start"><p>Subtotal:</p><p id="rSubtotal" class="font-bold text-right">₱0.00</p></div>
+          <div class="flex justify-between items-start"><p>Service Fee:</p><p id="rServiceFee" class="font-bold text-right">₱0.00</p></div>
           <div class="flex justify-between items-start"><p>Payment:</p><p id="rMethod" class="font-bold uppercase text-right">GCash</p></div>
           <div class="flex justify-between items-start"><p>Date Bought:</p><p id="rDate" class="font-bold text-[10px] text-right">Date</p></div>
         </div>
@@ -472,6 +480,7 @@
 
   <script>lucide.createIcons();</script>
   <script src="/assets/js/navbar-profile-menu.js"></script>
+  <script src="/assets/js/mfa-settings.js"></script>
 
   <script>
     let globalTickets = []; 
@@ -668,6 +677,7 @@
       const savedView = sessionStorage.getItem('customerActiveView');
       const initialView = CUSTOMER_VIEWS.has(requestedView || '') ? requestedView : (CUSTOMER_VIEWS.has(savedView || '') ? savedView : 'dashboard');
       setActiveView(initialView);
+      window.initDashboardMfaSettings?.({ containerId: 'customerMfaSettings', title: 'Customer MFA' });
 
       if (storedProfilePicture) {
           document.getElementById('navProfilePic').src = storedProfilePicture;
@@ -1454,6 +1464,9 @@
       document.getElementById('rLocTime').innerText = `${t.location}\n${evDate}`;
       document.getElementById('rTier').innerText = t.tierName;
       document.getElementById('rQty').innerText = t.quantity;
+      document.getElementById('rPhase').innerText = `${t.pricingPhase || 'Pre-Sale'}${Number(t.pricingPhasePercentage || 0) > 0 ? ` (+${t.pricingPhasePercentage}%)` : ''}`;
+      document.getElementById('rSubtotal').innerText = `₱${Number(t.subtotal || t.totalPrice || 0).toFixed(2)}`;
+      document.getElementById('rServiceFee').innerText = `₱${Number(t.serviceFee || 0).toFixed(2)}`;
       document.getElementById('rMethod').innerText = formatPaymentMethod(t.paymentMethod || '');
       document.getElementById('rDate').innerText = pDate;
       document.getElementById('rTotal').innerText = `₱${t.totalPrice.toFixed(2)}`;

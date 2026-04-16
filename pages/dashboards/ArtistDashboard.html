@@ -11,6 +11,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-profile-menu.js"></script>
+  <script src="/assets/js/mfa-settings.js"></script>
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -406,6 +407,11 @@
                   </div>
                 </div>
 
+                <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">3. Multi-Factor Authentication</h3>
+                  <div id="artistMfaSettings"></div>
+                </div>
+
                 <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors">
                   Save Profile Changes
                 </button>
@@ -673,6 +679,7 @@
         ? requestedTab
         : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
       await switchTab(initialTab);
+      window.initDashboardMfaSettings?.({ containerId: 'artistMfaSettings', title: 'Artist MFA' });
 
       await Promise.allSettled([
         loadArtistProfile(userId),

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
@@ -23,10 +24,12 @@ namespace ImajinationAPI.Controllers
     public class CommunityController : ControllerBase
     {
         private readonly string _connectionString;
+        private readonly UploadScanningService _uploadScanningService;
 
-        public CommunityController(IConfiguration configuration)
+        public CommunityController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
+            _uploadScanningService = uploadScanningService;
         }
 
         [HttpGet("feed")]
@@ -177,6 +180,7 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize(Roles = "Artist,Sessionist,Organizer")]
         [HttpPost("posts")]
         [RequestSizeLimit(20_000_000)]
         public async Task<IActionResult> CreatePost([FromBody] CreateCommunityPostDto req)
@@ -212,6 +216,11 @@ namespace ImajinationAPI.Controllers
                 if (imageError is not null)
                 {
                     return BadRequest(new { message = imageError });
+                }
+                var imageScan = await _uploadScanningService.ScanDataUrlAsync(normalizedImage, "community image");
+                if (!imageScan.IsClean)
+                {
+                    return BadRequest(new { message = imageScan.Message });
                 }
 
                 if (string.IsNullOrWhiteSpace(sanitizedContent) && string.IsNullOrWhiteSpace(normalizedImage))
@@ -265,6 +274,7 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize]
         [HttpPost("posts/{postId}/like")]
         public async Task<IActionResult> TogglePostLike(Guid postId, [FromBody] ToggleCommunityLikeDto req)
         {

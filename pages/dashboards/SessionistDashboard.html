@@ -11,6 +11,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-profile-menu.js"></script>
+  <script src="/assets/js/mfa-settings.js"></script>
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -404,9 +405,14 @@
                 </div>
               </div>
 
+              <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">3. Multi-Factor Authentication</h3>
+                <div id="sessionistMfaSettings"></div>
+              </div>
+
               <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-4 backdrop-blur-md shadow-2xl">
                 <div>
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">3. Calendar Control</h3>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">4. Calendar Control</h3>
                   <p class="text-xs text-white/50">Block dates when you do not want people to send booking requests.</p>
                 </div>
                 <div id="sessionistCalendarBlockForm" class="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-3">
@@ -681,6 +687,7 @@
         ? requestedTab
         : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
       await switchTab(initialTab);
+      window.initDashboardMfaSettings?.({ containerId: 'sessionistMfaSettings', title: 'Sessionist MFA' });
 
       await Promise.allSettled([
         loadSessionistProfile(userId),

@@ -338,9 +338,17 @@
       const firstName = localStorage.getItem('userFirstName');
       const role = localStorage.getItem('userRole');
       const userId = localStorage.getItem('userId');
+      const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
+      const accessToken = (localStorage.getItem('accessToken') || '').trim();
 
       if (!firstName || role !== 'Admin') {
           window.location.href = '/pages/auth/login.html';
+          return;
+      }
+
+      if (!sessionToken && !accessToken) {
+          localStorage.setItem('sessionEndedReason', 'session_ended');
+          window.location.href = '/pages/auth/login.html?session=expired';
           return;
       }
 

@@ -155,7 +155,8 @@
         ? new Request(resource, finalOptions)
         : resource;
 
-      return nativeFetch(finalResource, finalOptions);
+      const response = await nativeFetch(finalResource, finalOptions);
+      return handleUnauthorizedApiResponse(response, originalUrl);
     };
   }
 
@@ -282,6 +283,29 @@
     if (reasonKey) {
       localStorage.setItem('sessionEndedReason', reasonKey);
     }
+  }
+
+  function handleUnauthorizedApiResponse(response, requestUrl) {
+    const path = (window.location.pathname || '').toLowerCase();
+    if (path.includes('/pages/auth/') || response?.status !== 401) {
+      return response;
+    }
+
+    const url = String(requestUrl || '').toLowerCase();
+    if (url.includes('/api/auth/login') || url.includes('/api/auth/google-login') || url.includes('/api/auth/mfa/')) {
+      return response;
+    }
+
+    if (!localStorage.getItem('userId')) {
+      return response;
+    }
+
+    clearStoredUserSession('session_ended');
+    window.setTimeout(() => {
+      window.location.href = '/pages/auth/login.html?session=expired';
+    }, 0);
+
+    return response;
   }
 
   function installSessionMonitor() {

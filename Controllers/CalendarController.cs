@@ -8,7 +8,8 @@ namespace ImajinationAPI.Controllers
     {
         public Guid userId { get; set; }
         public string? role { get; set; }
-        public DateTime blockDate { get; set; }
+        public DateTime? blockDate { get; set; }
+        public DateTime? blockedDate { get; set; }
         public string? reason { get; set; }
     }
 
@@ -107,7 +108,14 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
 
-                var blockDate = DateOnly.FromDateTime(PlatformFeatureSupport.NormalizeToUtc(req.blockDate)!.Value);
+                var requestedDate = req.blockDate ?? req.blockedDate;
+                var normalizedRequestedDate = PlatformFeatureSupport.NormalizeToUtc(requestedDate);
+                if (!normalizedRequestedDate.HasValue)
+                {
+                    return BadRequest(new { message = "Missing calendar block date." });
+                }
+
+                var blockDate = DateOnly.FromDateTime(normalizedRequestedDate.Value);
 
                 const string sql = @"
                     INSERT INTO user_calendar_blocks (id, user_id, role, blocked_date, reason, created_at)

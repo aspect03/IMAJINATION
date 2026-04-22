@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/chart.js@4.4.3/dist/chart.umd.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
 </head>
-<body class="bg-neutral-950 text-white antialiased h-screen overflow-hidden" style="font-family: 'Montserrat', sans-serif;">
+<body class="bg-neutral-950 text-white antialiased min-h-screen overflow-x-hidden overflow-y-auto" style="font-family: 'Montserrat', sans-serif;">
   
   <div class="bg-dashboard-backdrop"></div>
 
@@ -43,8 +43,8 @@
     </div>
   </nav>
 
-  <main class="relative z-10 max-w-[1680px] mx-auto px-6 pt-24 pb-8 h-screen">
-    <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6 h-[calc(100vh-8rem)] items-start">
+  <main class="relative z-10 max-w-[1680px] mx-auto px-6 pt-24 pb-8 min-h-screen">
+    <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6 xl:min-h-[calc(100vh-8rem)] items-start">
       <aside class="bg-white/[0.03] border border-white/10 rounded-3xl p-4 backdrop-blur-sm h-fit xl:mt-2">
         <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-4 px-2">Admin Modules</p>
         <div class="space-y-2">
@@ -66,13 +66,28 @@
         </div>
       </aside>
 
-      <div class="min-h-0 overflow-y-auto pr-1 pb-6 xl:pt-2">
-        <div class="mb-8">
-          <h2 class="text-3xl font-extrabold tracking-tight text-white">Platform Monitoring</h2>
-          <p class="text-white/60 mt-1">Real-time analytics, moderation, and payment visibility from one admin console.</p>
+      <div class="min-h-0 pr-1 pb-6 xl:pt-2">
+        <div class="mb-8 rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.14),transparent_34%),rgba(255,255,255,0.03)] p-6">
+          <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-red-300/80">Admin Control Room</p>
+              <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mt-3">Platform Monitoring</h2>
+              <p class="text-white/60 mt-2 max-w-3xl">Real-time analytics, moderation, payments, verification load, and security visibility from one admin console.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 min-w-[260px]">
+              <div class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Health</p>
+                <p id="adminHeroHealth" class="mt-2 text-sm font-semibold text-emerald-300">Loading...</p>
+              </div>
+              <div class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Reviews</p>
+                <p id="adminHeroReviews" class="mt-2 text-sm font-semibold text-white">0 pending</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <section id="adminSection-overview" class="admin-section space-y-6">
+        <section id="adminSection-overview" class="admin-section space-y-6 min-h-0 overflow-y-auto pr-1">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div class="md:col-span-2 bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm relative overflow-hidden flex flex-col justify-center">
         <div class="absolute -right-4 -top-4 w-32 h-32 bg-green-500/10 blur-3xl rounded-full"></div>
@@ -99,6 +114,14 @@
             <i data-lucide="music" class="w-4 h-4 text-white/30"></i>
         </div>
         <p id="activeGigs" class="text-4xl font-extrabold mt-4 text-white">0</p>
+      </div>
+
+      <div class="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-sm flex flex-col justify-between">
+        <div class="flex justify-between items-start">
+            <p class="text-xs font-semibold uppercase text-white/60 tracking-wider">Pending Reviews</p>
+            <i data-lucide="badge-check" class="w-4 h-4 text-white/30"></i>
+        </div>
+        <p id="pendingVerificationRequests" class="text-4xl font-extrabold mt-4 text-white">0</p>
       </div>
 
       <div class="md:col-span-2 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
@@ -153,10 +176,25 @@
             <span id="systemHealthBadge" class="text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-2 rounded-full border border-green-500/20">Loading system health...</span>
         </div>
       </div>
+
+      <div class="md:col-span-2 lg:col-span-4 bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
+        <div class="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 class="text-xl font-bold text-white">Verification Queue</h3>
+            <p class="text-sm text-white/50 mt-1">Talent accounts waiting for review before they can earn trust at scale.</p>
+          </div>
+          <span class="px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-widest text-white/55">Admin Review Load</span>
+        </div>
+        <div id="overviewVerificationQueue" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+            <p class="text-sm text-white/55">Loading verification queue...</p>
+          </div>
+        </div>
+      </div>
           </div>
         </section>
 
-        <section id="adminSection-moderation" class="admin-section hidden space-y-6 h-full">
+        <section id="adminSection-moderation" class="admin-section hidden space-y-6 h-full min-h-0 overflow-y-auto pr-1">
           <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full min-h-0">
             <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0 max-h-[calc(100vh-14rem)]">
               <div class="flex justify-between items-center mb-6">
@@ -225,9 +263,9 @@
           </div>
         </section>
 
-        <section id="adminSection-analytics" class="admin-section hidden space-y-6">
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <section id="adminSection-analytics" class="admin-section hidden space-y-6 min-h-0 overflow-y-auto pr-1">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-0">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-bold text-white">Booking Status Breakdown</h3>
           <i data-lucide="bar-chart-3" class="text-white/30 w-5 h-5"></i>
@@ -235,12 +273,12 @@
         <div class="rounded-2xl border border-white/5 bg-black/30 p-4 mb-6 h-72">
           <canvas id="bookingStatusChart" class="!w-full !h-full"></canvas>
         </div>
-        <div id="bookingStatusList" class="space-y-3">
+        <div id="bookingStatusList" class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2">
           <p class="text-sm text-white/50">Loading booking breakdown...</p>
         </div>
       </div>
 
-      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-bold text-white">Top Events</h3>
           <i data-lucide="ticket" class="text-white/30 w-5 h-5"></i>
@@ -248,27 +286,27 @@
         <div class="rounded-2xl border border-white/5 bg-black/30 p-4 mb-6 h-72">
           <canvas id="topEventsChart" class="!w-full !h-full"></canvas>
         </div>
-        <div id="topEventsList" class="space-y-3">
+        <div id="topEventsList" class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2">
           <p class="text-sm text-white/50">Loading top events...</p>
         </div>
       </div>
 
-      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-bold text-white">Top Talent</h3>
           <i data-lucide="mic-2" class="text-white/30 w-5 h-5"></i>
         </div>
-        <div id="topTalentList" class="space-y-3">
+        <div id="topTalentList" class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2">
           <p class="text-sm text-white/50">Loading top talent...</p>
         </div>
       </div>
 
-      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-bold text-white">Recent Signups</h3>
           <i data-lucide="user-plus" class="text-white/30 w-5 h-5"></i>
         </div>
-        <div id="recentSignupsList" class="space-y-3">
+        <div id="recentSignupsList" class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2">
           <p class="text-sm text-white/50">Loading recent signups...</p>
         </div>
       </div>
@@ -276,9 +314,9 @@
           </div>
         </section>
 
-        <section id="adminSection-payments" class="admin-section hidden space-y-6">
-          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+        <section id="adminSection-payments" class="admin-section hidden space-y-6 min-h-0 overflow-y-auto pr-1">
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-0">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-bold text-white">Payment Summary</h3>
           <i data-lucide="wallet" class="text-white/30 w-5 h-5"></i>
@@ -286,40 +324,63 @@
         <div class="rounded-2xl border border-white/5 bg-black/30 p-4 mb-6 h-72">
           <canvas id="paymentSummaryChart" class="!w-full !h-full"></canvas>
         </div>
-        <div id="paymentSummaryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div id="paymentSummaryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 min-h-0 overflow-y-auto pr-2">
           <p class="text-sm text-white/50">Loading payment summary...</p>
         </div>
       </div>
 
-      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-bold text-white">Payment Watchlist</h3>
           <i data-lucide="alert-triangle" class="text-white/30 w-5 h-5"></i>
         </div>
-        <div id="paymentWatchlist" class="space-y-3">
+        <div id="paymentWatchlist" class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2">
           <p class="text-sm text-white/50">Loading payment watchlist...</p>
         </div>
       </div>
           </div>
         </section>
 
-        <section id="adminSection-security" class="admin-section hidden space-y-6">
+        <section id="adminSection-security" class="admin-section hidden space-y-6 min-h-0 overflow-y-auto pr-1">
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" id="securitySummaryGrid">
             <div class="bg-white/5 border border-white/10 rounded-3xl p-6"><p class="text-sm text-white/50">Loading security summary...</p></div>
           </div>
-          <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+          <div class="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col min-h-0">
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-xl font-bold text-white">Recent Security Activity</h3>
               <i data-lucide="shield-alert" class="text-white/30 w-5 h-5"></i>
             </div>
-            <div id="securityActivityList" class="space-y-3">
+            <div id="securityActivityList" class="space-y-3 flex-1 min-h-0 overflow-y-auto pr-2">
               <p class="text-sm text-white/50">Loading security activity...</p>
             </div>
           </div>
         </section>
       </div>
     </div>
-  </main>
+</main>
+
+  <div id="adminImageLightbox" class="hidden fixed inset-0 z-[70] items-center justify-center bg-black/85 backdrop-blur-sm p-4 sm:p-6">
+    <button
+      type="button"
+      id="adminImageLightboxClose"
+      class="absolute right-4 top-4 sm:right-6 sm:top-6 rounded-full border border-white/15 bg-white/10 p-3 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+      aria-label="Close image preview"
+    >
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+    <div class="relative w-full max-w-6xl rounded-[28px] border border-white/10 bg-neutral-950/95 shadow-2xl">
+      <div class="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-6">
+        <div>
+          <p class="text-[10px] uppercase tracking-[0.22em] text-white/40">Verification Preview</p>
+          <p id="adminImageLightboxTitle" class="mt-2 text-sm font-semibold text-white">Document Preview</p>
+        </div>
+        <p class="hidden text-[11px] uppercase tracking-[0.18em] text-white/35 sm:block">Click outside or press ESC to close</p>
+      </div>
+      <div class="max-h-[80vh] overflow-auto p-4 sm:p-6">
+        <img id="adminImageLightboxImg" src="" alt="Verification document preview" class="mx-auto max-h-[72vh] w-auto max-w-full rounded-2xl border border-white/10 bg-black object-contain">
+      </div>
+    </div>
+  </div>
   
   <script>lucide.createIcons();</script>
 
@@ -494,6 +555,45 @@
       }
     }
 
+    function openAdminImageLightbox(imageSrc, title) {
+      const lightbox = document.getElementById('adminImageLightbox');
+      const image = document.getElementById('adminImageLightboxImg');
+      const titleEl = document.getElementById('adminImageLightboxTitle');
+      if (!lightbox || !image || !imageSrc) return;
+
+      image.src = imageSrc;
+      image.alt = title || 'Verification document preview';
+      if (titleEl) titleEl.innerText = title || 'Document Preview';
+      lightbox.classList.remove('hidden');
+      lightbox.classList.add('flex');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function closeAdminImageLightbox() {
+      const lightbox = document.getElementById('adminImageLightbox');
+      const image = document.getElementById('adminImageLightboxImg');
+      if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+      lightbox.classList.add('hidden');
+      lightbox.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
+      if (image) {
+        image.src = '';
+        image.alt = 'Verification document preview';
+      }
+    }
+
+    function bindVerificationPreviewTriggers() {
+      document.querySelectorAll('.admin-verification-preview').forEach((button) => {
+        button.addEventListener('click', () => {
+          const imageSrc = button.dataset.imageSrc;
+          const imageTitle = button.dataset.imageTitle || 'Document Preview';
+          if (!imageSrc) return;
+          openAdminImageLightbox(imageSrc, imageTitle);
+        });
+      });
+    }
+
     function bindAdminSectionButtons() {
       document.querySelectorAll('.admin-section-btn').forEach((button) => {
         button.addEventListener('click', () => {
@@ -610,10 +710,13 @@
         document.getElementById('grossTicketSales').innerText = formatPeso(dashboard.grossTicketSales);
         document.getElementById('totalUsers').innerText = dashboard.totalUsers ?? 0;
         document.getElementById('activeGigs').innerText = dashboard.activeGigs ?? 0;
+        document.getElementById('pendingVerificationRequests').innerText = dashboard.pendingVerificationRequests ?? 0;
         document.getElementById('completedContracts').innerText = dashboard.completedContracts ?? 0;
+        document.getElementById('adminHeroReviews').innerText = `${dashboard.pendingVerificationRequests ?? 0} pending`;
 
         const systemHealthBadge = document.getElementById('systemHealthBadge');
         const health = dashboard.systemHealth || 'System Running Smoothly';
+        document.getElementById('adminHeroHealth').innerText = health;
         systemHealthBadge.innerText = health;
         const quiet = /waiting/i.test(health);
         systemHealthBadge.className = quiet
@@ -646,7 +749,7 @@
       }
     }
 
-    function renderOverviewSnapshot(dashboard) {
+    function renderOverviewSnapshotOld(dashboard) {
       const container = document.getElementById('overviewBookingSummary');
       const statusItems = Array.isArray(dashboard.bookingStatusCounts) ? dashboard.bookingStatusCounts.slice(0, 4) : [];
       if (!statusItems.length) {
@@ -678,7 +781,7 @@
       `;
     }
 
-    function renderPaymentSummary(summary) {
+    function renderPaymentSummaryOld(summary) {
       const container = document.getElementById('paymentSummaryGrid');
       const cards = [
         { label: 'Service Fees Paid', value: Number(summary.serviceFeesPaid || 0), tone: 'text-emerald-300', helper: formatPeso(summary.serviceFeeRevenue || 0) },
@@ -722,7 +825,7 @@
       }
     }
 
-    function renderPaymentWatchlist(items) {
+    function renderPaymentWatchlistOld(items) {
       const container = document.getElementById('paymentWatchlist');
       if (!items.length) {
         container.innerHTML = '<p class="text-sm text-white/50">No payment issues to monitor right now.</p>';
@@ -746,6 +849,193 @@
             <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
               <p class="text-white/40 uppercase tracking-widest">Talent Fee</p>
               <p class="mt-1 text-white">${escapeHtml(item.talentFeeStatus || 'Unpaid')} • ${escapeHtml(formatPeso(item.budget || 0))}</p>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Created</p>
+              <p class="mt-1 text-white">${escapeHtml(formatDateTime(item.createdAt))}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderOverviewSnapshot(dashboard) {
+      const container = document.getElementById('overviewBookingSummary');
+      const statusItems = Array.isArray(dashboard.bookingStatusCounts) ? dashboard.bookingStatusCounts.slice(0, 4) : [];
+      if (!statusItems.length) {
+        container.innerHTML = '<div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-sm text-white/55">No booking activity yet.</p></div>';
+      } else {
+        container.innerHTML = statusItems.map((item) => `
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+            <p class="text-xs uppercase tracking-widest text-white/40">${escapeHtml(item.status || 'Unknown')}</p>
+            <p class="mt-3 text-3xl font-bold text-white">${Number(item.count || 0)}</p>
+            <p class="mt-2 text-xs text-white/40">Current booking count in this state.</p>
+          </div>
+        `).join('');
+      }
+
+      const topEventTarget = document.getElementById('overviewTopEvent');
+      const topEvent = Array.isArray(dashboard.topEvents) && dashboard.topEvents.length ? dashboard.topEvents[0] : null;
+      topEventTarget.innerHTML = topEvent ? `
+        <p class="text-sm font-semibold text-white">Top Event</p>
+        <p class="mt-3 text-lg font-bold text-white">${escapeHtml(topEvent.title || 'Untitled Event')}</p>
+        <p class="mt-2 text-sm text-emerald-300">${escapeHtml(formatPeso(topEvent.grossRevenue || 0))}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/45">
+          <span>${Number(topEvent.ticketsSold || 0)} tickets sold</span>
+          <span class="text-white/25">|</span>
+          <span class="px-2 py-1 text-[10px] uppercase rounded-full ${getStatusClass(topEvent.status || 'Upcoming')}">${escapeHtml(topEvent.status || 'Upcoming')}</span>
+        </div>
+      ` : `
+        <p class="text-sm font-semibold text-white">Top Event</p>
+        <p class="mt-2 text-xs text-white/45">No event sales data yet.</p>
+      `;
+
+      const verificationTarget = document.getElementById('overviewVerificationQueue');
+      const verificationItems = Array.isArray(dashboard.verificationQueue) ? dashboard.verificationQueue : [];
+      if (!verificationItems.length) {
+        verificationTarget.innerHTML = '<div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-sm text-white/55">No pending verification requests right now.</p></div>';
+        return;
+      }
+
+      verificationTarget.innerHTML = verificationItems.map((item) => `
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-white">${escapeHtml(item.displayName || 'Unknown talent')}</p>
+              <p class="mt-1 text-[11px] uppercase tracking-widest text-white/40">${escapeHtml(item.role || 'Talent')}</p>
+            </div>
+            <span class="px-2 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-[10px] uppercase tracking-widest text-amber-300">${escapeHtml(item.status || 'Pending')}</span>
+          </div>
+          <p class="mt-3 text-sm text-white/65">${escapeHtml(item.verificationPath || 'Manual review')}</p>
+          <p class="mt-2 text-xs text-white/45 line-clamp-3">${escapeHtml(item.evidenceSummary || 'No evidence summary provided.')}</p>
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            ${item.idImageFront ? `
+              <button type="button" data-image-src="${escapeHtml(item.idImageFront)}" data-image-title="ID Front • ${escapeHtml(item.displayName || 'Talent')}" class="admin-verification-preview group relative h-28 overflow-hidden rounded-xl border border-white/10 bg-black/40 text-left transition-colors hover:border-white/25">
+                <img src="${escapeHtml(item.idImageFront)}" alt="ID front" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
+                <span class="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/80">
+                  <span>ID Front</span>
+                  <span>View</span>
+                </span>
+              </button>
+            ` : '<div class="h-28 rounded-xl border border-dashed border-white/10 bg-black/20 flex items-center justify-center text-[10px] uppercase tracking-widest text-white/30">No ID front</div>'}
+            ${item.idImageBack ? `
+              <button type="button" data-image-src="${escapeHtml(item.idImageBack)}" data-image-title="ID Back • ${escapeHtml(item.displayName || 'Talent')}" class="admin-verification-preview group relative h-28 overflow-hidden rounded-xl border border-white/10 bg-black/40 text-left transition-colors hover:border-white/25">
+                <img src="${escapeHtml(item.idImageBack)}" alt="ID back" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
+                <span class="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/80">
+                  <span>ID Back</span>
+                  <span>View</span>
+                </span>
+              </button>
+            ` : '<div class="h-28 rounded-xl border border-dashed border-white/10 bg-black/20 flex items-center justify-center text-[10px] uppercase tracking-widest text-white/30">No ID back</div>'}
+            ${item.selfieImage ? `
+              <button type="button" data-image-src="${escapeHtml(item.selfieImage)}" data-image-title="Selfie Review • ${escapeHtml(item.displayName || 'Talent')}" class="admin-verification-preview group relative h-28 overflow-hidden rounded-xl border border-white/10 bg-black/40 text-left transition-colors hover:border-white/25">
+                <img src="${escapeHtml(item.selfieImage)}" alt="Selfie" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]">
+                <span class="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-white/80">
+                  <span>Selfie</span>
+                  <span>View</span>
+                </span>
+              </button>
+            ` : '<div class="h-28 rounded-xl border border-dashed border-white/10 bg-black/20 flex items-center justify-center text-[10px] uppercase tracking-widest text-white/30">No selfie</div>'}
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3 text-xs">
+            <div class="rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+              <p class="text-white/35 uppercase tracking-widest">PH ID</p>
+              <p class="mt-1 text-white">${escapeHtml(item.idType || 'Not specified')}</p>
+              <p class="mt-1 text-white/55">Ending in ${escapeHtml(item.idNumberLast4 || 'N/A')}</p>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+              <p class="text-white/35 uppercase tracking-widest">Face Review</p>
+              <p class="mt-1 text-white">ID: ${escapeHtml(item.idReviewStatus || 'Pending')}</p>
+              <p class="mt-1 text-white/55">Selfie: ${escapeHtml(item.facialReviewStatus || 'Pending')}</p>
+            </div>
+          </div>
+          <div class="mt-4 flex items-center justify-between gap-3 text-xs text-white/40">
+            <span>Submitted ${escapeHtml(formatDateTime(item.createdAt))}</span>
+            <span>ID ${escapeHtml(String(item.requestId || '').slice(0, 8) || 'N/A')}</span>
+          </div>
+          <div class="mt-4 flex items-center gap-3">
+            <button data-request-id="${escapeHtml(item.requestId)}" data-action="approve" class="admin-verification-action flex-1 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200 hover:bg-emerald-500/20 transition-colors">Approve</button>
+            <button data-request-id="${escapeHtml(item.requestId)}" data-action="reject" class="admin-verification-action flex-1 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-red-200 hover:bg-red-500/20 transition-colors">Reject</button>
+          </div>
+        </div>
+      `).join('');
+      bindVerificationPreviewTriggers();
+      bindVerificationActions();
+    }
+
+    function renderPaymentSummary(summary) {
+      const container = document.getElementById('paymentSummaryGrid');
+      const cards = [
+        { label: 'Service Fees Paid', value: Number(summary.serviceFeesPaid || 0), tone: 'text-emerald-300', helper: formatPeso(summary.serviceFeeRevenue || 0) },
+        { label: 'Talent Fees Paid', value: Number(summary.talentFeesPaid || 0), tone: 'text-cyan-300', helper: formatPeso(summary.talentFeeCollected || 0) },
+        { label: 'Platform Fees Paid', value: Number(summary.platformFeesPaid || 0), tone: 'text-fuchsia-300', helper: formatPeso(summary.platformFeeRevenue || 0) },
+        { label: 'Payments Waiting', value: Number(summary.paymentsWaiting || 0), tone: 'text-amber-300', helper: 'Needs follow-up' },
+        { label: 'Refunds Pending', value: Number(summary.refundsPending || 0), tone: 'text-red-300', helper: 'Watch closely' }
+      ];
+
+      container.innerHTML = cards.map(card => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <p class="text-xs font-semibold uppercase tracking-widest text-white/45">${escapeHtml(card.label)}</p>
+          <p class="mt-3 text-3xl font-bold ${card.tone}">${card.value}</p>
+          <p class="mt-2 text-xs text-white/40">${escapeHtml(card.helper)}</p>
+        </div>
+      `).join('');
+
+      const canvas = document.getElementById('paymentSummaryChart');
+      if (canvas && typeof Chart !== 'undefined') {
+        destroyChartInstance(paymentSummaryChart);
+        paymentSummaryChart = new Chart(canvas.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: cards.map(card => card.label),
+            datasets: [{
+              data: cards.map(card => card.value),
+              backgroundColor: ['rgba(110, 231, 183, 0.9)', 'rgba(103, 232, 249, 0.9)', 'rgba(232, 121, 249, 0.9)', 'rgba(252, 211, 77, 0.9)', 'rgba(248, 113, 113, 0.9)'],
+              borderColor: 'rgba(10,10,10,0.85)',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: 'rgba(255,255,255,0.7)' } }
+            }
+          }
+        });
+      } else if (canvas) {
+        container.insertAdjacentHTML('beforeend', '<p class="text-xs text-red-300 sm:col-span-2">Chart library is unavailable right now.</p>');
+      }
+    }
+
+    function renderPaymentWatchlist(items) {
+      const container = document.getElementById('paymentWatchlist');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No payment issues to monitor right now.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <p class="font-semibold text-white">${escapeHtml(item.eventTitle || 'Untitled Booking')}</p>
+              <p class="text-xs text-white/45 mt-1">${escapeHtml(item.customerName || 'Unknown Customer')} to ${escapeHtml(item.talentName || 'Unknown Talent')}</p>
+            </div>
+            <span class="text-xs uppercase tracking-widest ${/refund/i.test(item.paymentStatus || '') ? 'text-red-300' : 'text-amber-300'}">${escapeHtml(item.paymentStatus || 'Unpaid')}</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4 text-xs">
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Service Fee</p>
+              <p class="mt-1 text-white">${escapeHtml(item.serviceFeeStatus || 'Unpaid')} | ${escapeHtml(formatPeso(item.bookingFee || 0))}</p>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Talent Fee</p>
+              <p class="mt-1 text-white">${escapeHtml(item.talentFeeStatus || 'Unpaid')} | ${escapeHtml(formatPeso(item.budget || 0))}</p>
+            </div>
+            <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
+              <p class="text-white/40 uppercase tracking-widest">Platform Fee</p>
+              <p class="mt-1 text-white">${escapeHtml(item.talentPlatformFeeStatus || 'Unpaid')} | ${escapeHtml(formatPeso(item.talentPlatformFee || 0))}</p>
             </div>
             <div class="rounded-xl border border-white/5 bg-white/5 px-3 py-2">
               <p class="text-white/40 uppercase tracking-widest">Created</p>
@@ -811,7 +1101,7 @@
       }
     }
 
-    function renderTopEvents(items) {
+    function renderTopEventsOld(items) {
       const container = document.getElementById('topEventsList');
       if (!items.length) {
         container.innerHTML = '<p class="text-sm text-white/50">No event sales yet.</p>';
@@ -882,7 +1172,7 @@
       `).join('');
     }
 
-    function renderRecentSignups(items) {
+    function renderRecentSignupsOld(items) {
       const container = document.getElementById('recentSignupsList');
       if (!items.length) {
         container.innerHTML = '<p class="text-sm text-white/50">No recent signups yet.</p>';
@@ -895,6 +1185,77 @@
             <div>
               <p class="font-semibold text-white">${escapeHtml(item.displayName)}</p>
               <p class="text-xs text-white/40 mt-1">${escapeHtml(item.role || 'User')} • ${escapeHtml(item.email || 'No email')}</p>
+            </div>
+            <span class="text-xs text-white/50">${escapeHtml(formatDateTime(item.createdAt))}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderTopEvents(items) {
+      const container = document.getElementById('topEventsList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No event sales yet.</p>';
+        destroyChartInstance(topEventsChart);
+        topEventsChart = null;
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl flex items-center justify-between gap-4">
+          <div>
+            <p class="font-semibold text-white">${escapeHtml(item.title)}</p>
+            <div class="text-xs text-white/40 mt-1 flex flex-wrap items-center gap-2">
+              <span>${Number(item.ticketsSold || 0)} tickets sold</span>
+              <span class="text-white/25">|</span>
+              <span class="px-2 py-1 text-[10px] uppercase rounded-full ${getStatusClass(item.status || 'Upcoming')}">${escapeHtml(item.status || 'Upcoming')}</span>
+            </div>
+          </div>
+          <span class="text-sm font-bold text-emerald-400">${escapeHtml(formatPeso(item.grossRevenue || 0))}</span>
+        </div>
+      `).join('');
+
+      const canvas = document.getElementById('topEventsChart');
+      if (canvas && typeof Chart !== 'undefined') {
+        destroyChartInstance(topEventsChart);
+        topEventsChart = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: items.map(item => item.title || 'Untitled'),
+            datasets: [{
+              label: 'Revenue',
+              data: items.map(item => Number(item.grossRevenue || 0)),
+              backgroundColor: 'rgba(52, 211, 153, 0.78)',
+              borderRadius: 10
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+              y: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { display: false } }
+            }
+          }
+        });
+      }
+    }
+
+    function renderRecentSignups(items) {
+      const container = document.getElementById('recentSignupsList');
+      if (!items.length) {
+        container.innerHTML = '<p class="text-sm text-white/50">No recent signups yet.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div class="p-4 bg-black/30 border border-white/5 rounded-2xl">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <p class="font-semibold text-white">${escapeHtml(item.displayName)}</p>
+              <p class="text-xs text-white/40 mt-1">${escapeHtml(item.role || 'User')} | ${escapeHtml(item.email || 'No email')}</p>
             </div>
             <span class="text-xs text-white/50">${escapeHtml(formatDateTime(item.createdAt))}</span>
           </div>
@@ -939,7 +1300,7 @@
       `).join('');
     }
 
-    function renderEventModeration(events) {
+    function renderEventModerationOld(events) {
       const table = document.getElementById('eventModerationTable');
       if (!events.length) {
         table.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-white/50">No events to moderate yet.</td></tr>';
@@ -958,6 +1319,37 @@
             <td class="py-4">
               <p>${escapeHtml(event.organizer)}</p>
               <p class="text-xs text-white/40 mt-1">${Number(event.ticketsSold || 0)} tickets • ${escapeHtml(formatPeso(event.grossRevenue || 0))}</p>
+            </td>
+            <td class="py-4"><span class="px-2 py-1 text-[10px] uppercase rounded ${getStatusClass(status)}">${status}</span></td>
+            <td class="py-4 text-right">
+              <button data-event-id="${escapeHtml(event.eventId)}" data-next-status="${nextAction === 'Suspend' ? 'Suspended' : 'Flagged'}" class="admin-event-action text-xs text-red-400 hover:text-red-300 uppercase font-bold transition-colors">${nextAction}</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      bindEventActions();
+    }
+
+    function renderEventModeration(events) {
+      const table = document.getElementById('eventModerationTable');
+      if (!events.length) {
+        table.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-white/50">No events to moderate yet.</td></tr>';
+        return;
+      }
+
+      table.innerHTML = events.map(event => {
+        const status = escapeHtml(event.status || 'Upcoming');
+        const nextAction = /flagged/i.test(status) ? 'Suspend' : 'Flag';
+        return `
+          <tr>
+            <td class="py-4">
+              <p class="text-white">${escapeHtml(event.title)}</p>
+              <p class="text-xs text-white/40 mt-1">${escapeHtml(formatDateTime(event.eventTime))}</p>
+            </td>
+            <td class="py-4">
+              <p>${escapeHtml(event.organizer)}</p>
+              <p class="text-xs text-white/40 mt-1">${Number(event.ticketsSold || 0)} tickets | ${escapeHtml(formatPeso(event.grossRevenue || 0))}</p>
             </td>
             <td class="py-4"><span class="px-2 py-1 text-[10px] uppercase rounded ${getStatusClass(status)}">${status}</span></td>
             <td class="py-4 text-right">
@@ -1089,6 +1481,44 @@
         });
       });
     }
+
+    function bindVerificationActions() {
+      document.querySelectorAll('.admin-verification-action').forEach(button => {
+        button.addEventListener('click', async () => {
+          const requestId = button.dataset.requestId;
+          const action = button.dataset.action;
+          if (!requestId || !action) return;
+
+          const originalText = button.innerText;
+          button.disabled = true;
+          button.innerText = 'Saving...';
+
+          try {
+            const response = await fetch(`/api/admin/verification/${requestId}/review`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action })
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || 'Failed to review verification request.');
+            await loadAdminDashboard();
+          } catch (error) {
+            console.warn('Verification review failed:', error);
+            button.disabled = false;
+            button.innerText = originalText;
+          }
+        });
+      });
+    }
+
+    document.getElementById('adminImageLightboxClose')?.addEventListener('click', closeAdminImageLightbox);
+    document.getElementById('adminImageLightbox')?.addEventListener('click', (event) => {
+      if (event.target?.id === 'adminImageLightbox') closeAdminImageLightbox();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeAdminImageLightbox();
+    });
   </script>
 </body>
 </html>

@@ -26,6 +26,7 @@ namespace ImajinationAPI.Models
         public string? posterUrl { get; set; }
         public decimal price { get; set; }
         public int slots { get; set; }
+        public int? maxTicketsPerCustomer { get; set; }
         
         public string? eventType { get; set; } 
         public string? genres { get; set; }
@@ -59,6 +60,7 @@ namespace ImajinationAPI.Models
         public decimal price { get; set; }
         public int slots { get; set; }
         public int ticketsSold { get; set; }
+        public int maxTicketsPerCustomer { get; set; }
         public int attendedTickets { get; set; }
         public string status { get; set; }
         public string? posterUrl { get; set; } 

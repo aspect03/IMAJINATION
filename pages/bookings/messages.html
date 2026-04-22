@@ -492,10 +492,13 @@
       document.getElementById('bookingEventTitle').innerText = booking.eventTitle || 'Untitled event';
       document.getElementById('bookingStatus').innerText = booking.status || 'Pending';
       document.getElementById('bookingStatus').className = `font-medium ${getBookingStatusClasses(booking.status)}`;
-      document.getElementById('bookingEventDate').innerText = formatDateTime(booking.eventDate);
+      const bookingWindow = booking.eventEndTime
+        ? `${formatDateTime(booking.eventDate)} to ${formatDateTime(booking.eventEndTime)}`
+        : formatDateTime(booking.eventDate);
+      document.getElementById('bookingEventDate').innerText = bookingWindow;
       document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}`;
       document.getElementById('bookingLocation').innerText = booking.location || 'Location to be confirmed';
-      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}`;
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee ${formatPeso(booking.talentPlatformFee)}` : ''}`;
 
       const paymentRow = document.getElementById('paymentActionRow');
       const paymentStatusText = document.getElementById('paymentStatusText');
@@ -503,6 +506,7 @@
       const completeButton = document.getElementById('completeBookingBtn');
       const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
       const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
+      const platformFeeStatus = normalizeTalentFeeStatus(booking.talentPlatformFeeStatus);
       const canPayServiceFee = userRole === 'Customer' && serviceFeeStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled');
       const canPayTalentFee = userRole === 'Customer'
         && serviceFeeStatus === 'Paid'
@@ -510,9 +514,14 @@
         && Number(booking.budget || 0) > 0
         && talentFeeStatus !== 'Paid'
         && !(booking.status || '').startsWith('Cancelled');
+      const canPayPlatformFee = (userRole === 'Artist' || userRole === 'Sessionist')
+        && booking.status === 'Confirmed'
+        && Number(booking.talentPlatformFee || 0) > 0
+        && platformFeeStatus !== 'Paid'
+        && !(booking.status || '').startsWith('Cancelled');
 
-      paymentStatusText.innerText = `Service fee: ${serviceFeeStatus}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}`;
-      paymentStatusText.className = `text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(canPayTalentFee ? talentFeeStatus : serviceFeeStatus)}`;
+      paymentStatusText.innerText = `Service fee: ${serviceFeeStatus}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee: ${platformFeeStatus}` : ''}`;
+      paymentStatusText.className = `text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(canPayTalentFee ? talentFeeStatus : canPayPlatformFee ? platformFeeStatus : serviceFeeStatus)}`;
       completeButton.classList.toggle('hidden', !canMarkBookingCompleted(booking));
 
       if (canPayServiceFee) {
@@ -522,6 +531,10 @@
       } else if (canPayTalentFee) {
         payButton.dataset.paymentType = 'talent';
         payButton.innerText = talentFeeStatus === 'AwaitingPayment' ? 'Continue Talent Fee Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee`;
+        paymentRow.classList.remove('hidden');
+      } else if (canPayPlatformFee) {
+        payButton.dataset.paymentType = 'platform';
+        payButton.innerText = platformFeeStatus === 'AwaitingPayment' ? 'Continue Platform Fee Payment' : `Pay ${formatPeso(booking.talentPlatformFee || 0)} Platform Fee`;
         paymentRow.classList.remove('hidden');
       } else {
         payButton.dataset.paymentType = 'service';

@@ -278,7 +278,7 @@
     let allSessionists = [];
     const sessionistsCacheKey = 'sessionistsPageCacheV1';
     const sessionistsCacheTtlMs = 2 * 60 * 1000;
-    async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

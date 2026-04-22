@@ -373,6 +373,19 @@
                 <div id="customerMfaSettings"></div>
               </div>
 
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">6. Password Recovery</h3>
+                <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
+                    <p class="text-sm text-white/65 mt-2">Request a reset code if you cannot remember your current password and need to recover access.</p>
+                  </div>
+                  <a id="customerForgotPasswordLink" href="/pages/auth/forgotpassword.html" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-neutral-950 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-neutral-200 transition-colors">
+                    <i data-lucide="key-round" class="w-4 h-4"></i> Forgot Password
+                  </a>
+                </div>
+              </div>
+
               <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors mt-4">
                 Save Profile Changes
               </button>
@@ -407,6 +420,13 @@
           <img id="rQrCode" src="" alt="QR Code" class="w-40 h-40 border-4 border-white shadow-sm rounded-lg bg-white">
           <div id="qrOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden rounded-lg">
              <span id="qrOverlayText" class="font-extrabold text-2xl rotate-12 tracking-widest text-red-600 border-4 border-red-600 px-3 py-1 rounded">USED</span>
+          </div>
+        </div>
+        <div id="ticketUnitNavigator" class="hidden mb-6">
+          <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+            <button id="ticketUnitPrevBtn" type="button" class="px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase tracking-widest text-gray-700 hover:bg-white transition-colors">Prev</button>
+            <p id="ticketUnitLabel" class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Ticket 1 of 1</p>
+            <button id="ticketUnitNextBtn" type="button" class="px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase tracking-widest text-gray-700 hover:bg-white transition-colors">Next</button>
           </div>
         </div>
 
@@ -566,16 +586,28 @@
       setActiveView(tabName);
     }
 
+    function syncCustomerForgotPasswordLink(email) {
+      const forgotPasswordLink = document.getElementById('customerForgotPasswordLink');
+      if (!forgotPasswordLink) return;
+
+      const normalizedEmail = (email || localStorage.getItem('userEmail') || '').trim();
+      forgotPasswordLink.href = normalizedEmail
+        ? `/pages/auth/forgotpassword.html?email=${encodeURIComponent(normalizedEmail)}`
+        : '/pages/auth/forgotpassword.html';
+    }
+
     function applyCustomerProfile(customer = {}) {
       const firstName = customer.firstName || localStorage.getItem('userFirstName') || 'Guest';
       const lastName = customer.lastName || '';
       const displayName = customer.displayName || `${firstName} ${lastName}`.trim() || firstName;
       const profilePicture = customer.profilePicture || '';
+      const email = customer.email || '';
       const bio = customer.bio && !customer.bio.includes("hasn't written")
         ? customer.bio
         : '';
 
       localStorage.setItem('userFirstName', firstName);
+      if (email) localStorage.setItem('userEmail', email);
       document.getElementById('userNameDisplay').innerText = firstName;
       document.getElementById('dropdownName').innerText = displayName;
       document.getElementById('sidebarName').innerText = displayName;
@@ -584,8 +616,9 @@
       document.getElementById('firstNameInput').value = customer.firstName || firstName;
       document.getElementById('lastNameInput').value = customer.lastName || '';
       document.getElementById('usernameInput').value = customer.username || localStorage.getItem('username') || '';
-      document.getElementById('emailInput').value = customer.email || '';
+      document.getElementById('emailInput').value = email;
       document.getElementById('bioInput').value = bio;
+      syncCustomerForgotPasswordLink(email);
 
       const profilePageBioEl = document.getElementById('profilePageBio');
       if (profilePageBioEl) {
@@ -678,6 +711,7 @@
       const initialView = CUSTOMER_VIEWS.has(requestedView || '') ? requestedView : (CUSTOMER_VIEWS.has(savedView || '') ? savedView : 'dashboard');
       setActiveView(initialView);
       window.initDashboardMfaSettings?.({ containerId: 'customerMfaSettings', title: 'Customer MFA' });
+      syncCustomerForgotPasswordLink();
 
       if (storedProfilePicture) {
           document.getElementById('navProfilePic').src = storedProfilePicture;
@@ -1362,6 +1396,9 @@
       modal.classList.remove('flex');
     }
 
+    let activeReceiptTicketIndex = -1;
+    let activeReceiptUnitNumber = 1;
+
     function renderTickets() {
       const container = document.getElementById('ticketsListContainer');
       const previewContainer = document.getElementById('dashboardTicketsPreview');
@@ -1370,13 +1407,18 @@
 
       // 1. Process all tickets first to get the total Active count (regardless of filter)
       let processedTickets = globalTickets.map((t, originalIndex) => {
+          const quantity = Number(t.quantity || 0);
+          const usedQuantity = Math.max(0, Number(t.usedQuantity || 0));
+          const remainingQuantity = Math.max(quantity - usedQuantity, 0);
           const eventPassed24Hrs = new Date(t.eventTime).getTime() < now - (24 * 60 * 60 * 1000);
-          const isExpired = !t.isUsed && (t.eventStatus === 'Finished' || eventPassed24Hrs);
-          const isUpcoming = !t.isUsed && !isExpired;
+          const isFullyUsed = quantity > 0 && usedQuantity >= quantity;
+          const hasScannedUnits = usedQuantity > 0;
+          const isExpired = remainingQuantity > 0 && (t.eventStatus === 'Finished' || eventPassed24Hrs);
+          const isUpcoming = remainingQuantity > 0 && !isExpired;
           
-          if(isUpcoming) activeTicketsCount++;
+          if(isUpcoming) activeTicketsCount += remainingQuantity;
           
-          return { ...t, originalIndex, isExpired, isUpcoming };
+          return { ...t, quantity, usedQuantity, remainingQuantity, isUsed: isFullyUsed, hasScannedUnits, originalIndex, isExpired, isUpcoming };
       });
 
       // Update Dashboard Top Stat
@@ -1393,7 +1435,7 @@
       if (currentTicketFilter === 'upcoming') {
         processedTickets = processedTickets.filter(t => t.isUpcoming);
       } else if (currentTicketFilter === 'used') {
-        processedTickets = processedTickets.filter(t => t.isUsed);
+        processedTickets = processedTickets.filter(t => t.hasScannedUnits);
       } else if (currentTicketFilter === 'expired') {
         processedTickets = processedTickets.filter(t => t.isExpired);
       }
@@ -1415,6 +1457,8 @@
         if (t.isUsed) {
             statusBadge = `<span class="px-2 py-0.5 bg-neutral-600/30 text-neutral-400 text-[10px] font-bold uppercase tracking-widest rounded">Scanned / Used</span>`;
             opacityClass = 'opacity-50 grayscale';
+        } else if (t.hasScannedUnits) {
+            statusBadge = `<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">${t.usedQuantity}/${t.quantity} Scanned</span>`;
         } else if (t.isExpired) {
             statusBadge = `<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest rounded">Expired</span>`;
             opacityClass = 'opacity-50 grayscale border-red-500/20';
@@ -1427,7 +1471,7 @@
             <div>
               <div class="flex items-center gap-2 mb-2">
                 ${statusBadge}
-                <span class="text-[10px] font-bold uppercase tracking-widest text-red-500">${t.tierName} (Qty: ${t.quantity})</span>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-red-500">${t.tierName} (Qty: ${t.quantity}${t.hasScannedUnits ? ` • Used: ${t.usedQuantity}` : ''})</span>
               </div>
               <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" class="text-lg font-bold text-white mb-2 hover:text-red-300 transition-colors inline-flex">${t.eventTitle}</a>
               <div class="space-y-1 text-xs text-white/60">
@@ -1455,10 +1499,80 @@
     }
 
     // Receipt Modal Logic
+    function buildTicketQrPayload(ticketId, unitNumber) {
+      return `${window.location.origin}/ticket-pass?ticketId=${encodeURIComponent(ticketId)}&unit=${unitNumber}`;
+    }
+
+    function syncReceiptUnitView() {
+      const t = globalTickets[activeReceiptTicketIndex];
+      if (!t) return;
+
+      const quantity = Math.max(1, Number(t.quantity || 1));
+      const usedQuantity = Math.max(0, Number(t.usedQuantity || 0));
+      const usedTicketUnits = Array.isArray(t.usedTicketUnits)
+        ? t.usedTicketUnits.map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0)
+        : [];
+      const currentUnitUsed = t.isUsed || usedTicketUnits.includes(activeReceiptUnitNumber) || (usedTicketUnits.length === 0 && activeReceiptUnitNumber <= usedQuantity);
+      const overlay = document.getElementById('qrOverlay');
+      const overlayText = document.getElementById('qrOverlayText');
+      const warningDiv = document.getElementById('usedWarning');
+      const warningText = document.getElementById('warningText');
+      const instruction = document.getElementById('qrInstruction');
+      const nav = document.getElementById('ticketUnitNavigator');
+      const label = document.getElementById('ticketUnitLabel');
+      const prevBtn = document.getElementById('ticketUnitPrevBtn');
+      const nextBtn = document.getElementById('ticketUnitNextBtn');
+
+      document.getElementById('rId').innerText = `${t.ticketId.split('-')[0].toUpperCase()}-${String(activeReceiptUnitNumber).padStart(2, '0')}`;
+      document.getElementById('rQrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(buildTicketQrPayload(t.ticketId, activeReceiptUnitNumber))}`;
+
+      if (quantity > 1) {
+        nav.classList.remove('hidden');
+        label.innerText = `Ticket ${activeReceiptUnitNumber} of ${quantity}`;
+      } else {
+        nav.classList.add('hidden');
+      }
+
+      prevBtn.disabled = activeReceiptUnitNumber <= 1;
+      nextBtn.disabled = activeReceiptUnitNumber >= quantity;
+      prevBtn.classList.toggle('opacity-40', prevBtn.disabled);
+      nextBtn.classList.toggle('opacity-40', nextBtn.disabled);
+
+      if (t.isUsed || currentUnitUsed) {
+        overlay.classList.remove('hidden');
+        overlayText.innerText = "SCANNED";
+        warningDiv.classList.remove('hidden');
+        warningText.innerText = quantity > 1
+          ? `TICKET ${activeReceiptUnitNumber} OF ${quantity} WAS ALREADY SCANNED.`
+          : "THIS TICKET WAS SCANNED AND USED.";
+        instruction.innerText = "Ticket receipt stub.";
+      } else if (t.__modalExpired) {
+        overlay.classList.remove('hidden');
+        overlayText.innerText = "EXPIRED";
+        warningDiv.classList.remove('hidden');
+        warningText.innerText = "EVENT HAS FINISHED. TICKET EXPIRED.";
+        instruction.innerText = "This ticket is no longer valid.";
+      } else if (usedQuantity > 0) {
+        overlay.classList.add('hidden');
+        warningDiv.classList.remove('hidden');
+        warningText.innerText = `${usedQuantity} of ${quantity} ticket(s) in this order were already scanned.`;
+        instruction.innerText = `Present ticket ${activeReceiptUnitNumber} of ${quantity} at the entrance.`;
+      } else {
+        overlay.classList.add('hidden');
+        warningDiv.classList.add('hidden');
+        instruction.innerText = quantity > 1
+          ? `Present ticket ${activeReceiptUnitNumber} of ${quantity} at the entrance.`
+          : "Present this QR code at the entrance.";
+      }
+    }
+
     function showReceipt(originalIndex, isExpired) {
       const t = globalTickets[originalIndex];
       const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
       const pDate = formatPurchaseDateTime(t.purchaseDate);
+      activeReceiptTicketIndex = originalIndex;
+      activeReceiptUnitNumber = Math.min(Math.max(Number(t.usedQuantity || 0) + 1, 1), Math.max(Number(t.quantity || 1), 1));
+      t.__modalExpired = isExpired;
 
       document.getElementById('rTitle').innerText = t.eventTitle;
       document.getElementById('rLocTime').innerText = `${t.location}\n${evDate}`;
@@ -1470,38 +1584,26 @@
       document.getElementById('rMethod').innerText = formatPaymentMethod(t.paymentMethod || '');
       document.getElementById('rDate').innerText = pDate;
       document.getElementById('rTotal').innerText = `₱${t.totalPrice.toFixed(2)}`;
-      document.getElementById('rId').innerText = t.ticketId.split('-')[0].toUpperCase(); 
-
-      document.getElementById('rQrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${t.ticketId}`;
-
-      const overlay = document.getElementById('qrOverlay');
-      const overlayText = document.getElementById('qrOverlayText');
-      const warningDiv = document.getElementById('usedWarning');
-      const warningText = document.getElementById('warningText');
-      const instruction = document.getElementById('qrInstruction');
-
-      if (t.isUsed) {
-        overlay.classList.remove('hidden');
-        overlayText.innerText = "SCANNED";
-        warningDiv.classList.remove('hidden');
-        warningText.innerText = "THIS TICKET WAS SCANNED AND USED.";
-        instruction.innerText = "Ticket receipt stub.";
-      } else if (isExpired) {
-        overlay.classList.remove('hidden');
-        overlayText.innerText = "EXPIRED";
-        warningDiv.classList.remove('hidden');
-        warningText.innerText = "EVENT HAS FINISHED. TICKET EXPIRED.";
-        instruction.innerText = "This ticket is no longer valid.";
-      } else {
-        overlay.classList.add('hidden');
-        warningDiv.classList.add('hidden');
-        instruction.innerText = "Present this QR code at the entrance.";
-      }
+      syncReceiptUnitView();
 
       const modal = document.getElementById('receiptModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
     }
+
+    document.getElementById('ticketUnitPrevBtn')?.addEventListener('click', () => {
+      if (activeReceiptUnitNumber <= 1) return;
+      activeReceiptUnitNumber -= 1;
+      syncReceiptUnitView();
+    });
+
+    document.getElementById('ticketUnitNextBtn')?.addEventListener('click', () => {
+      const t = globalTickets[activeReceiptTicketIndex];
+      const quantity = Math.max(1, Number(t?.quantity || 1));
+      if (activeReceiptUnitNumber >= quantity) return;
+      activeReceiptUnitNumber += 1;
+      syncReceiptUnitView();
+    });
 
     function closeReceipt() {
       const modal = document.getElementById('receiptModal');

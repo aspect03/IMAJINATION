@@ -17,6 +17,12 @@ namespace ImajinationAPI.Controllers
         public string? action { get; set; }
     }
 
+    public class ReviewVerificationRequest
+    {
+        public string? action { get; set; }
+        public string? notes { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
@@ -36,10 +42,13 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+                Response.Headers["Pragma"] = "no-cache";
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureUserModerationColumnsAsync(connection);
                 await EnsureBookingMonitoringColumnsAsync(connection);
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
                 var now = DateTime.Now;
@@ -47,8 +56,10 @@ namespace ImajinationAPI.Controllers
                 int totalUsers = 0;
                 int activeGigs = 0;
                 int completedContracts = 0;
+                int pendingVerificationRequests = 0;
                 var eventModeration = new List<object>();
                 var accountModeration = new List<object>();
+                var verificationQueue = new List<object>();
                 var bookingStatusCounts = new List<object>();
                 var topEvents = new List<object>();
                 var topTalent = new List<object>();
@@ -85,6 +96,15 @@ namespace ImajinationAPI.Controllers
                         activeGigs = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetInt64(2));
                         completedContracts = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetInt64(3));
                     }
+                }
+
+                const string verificationCountSql = @"
+                    SELECT COUNT(*)
+                    FROM talent_verification_requests
+                    WHERE COALESCE(status, 'Pending') = 'Pending';";
+                using (var cmd = new NpgsqlCommand(verificationCountSql, connection))
+                {
+                    pendingVerificationRequests = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
                 }
 
                 const string eventsSql = @"
@@ -293,18 +313,83 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
+                const string verificationQueueSql = @"
+                    SELECT
+                        tvr.id,
+                        tvr.user_id,
+                        COALESCE(tvr.role, ''),
+                        COALESCE(tvr.verification_path, ''),
+                        COALESCE(tvr.status, 'Pending'),
+                        COALESCE(tvr.evidence_summary, ''),
+                        tvr.created_at,
+                        COALESCE(tvr.id_type, ''),
+                        COALESCE(tvr.id_number_last4, ''),
+                        COALESCE(tvr.id_image_front, ''),
+                        COALESCE(tvr.id_image_back, ''),
+                        COALESCE(tvr.selfie_image, ''),
+                        COALESCE(tvr.id_review_status, 'Pending'),
+                        COALESCE(tvr.facial_review_status, 'Pending'),
+                        COALESCE(u.stagename, ''),
+                        COALESCE(u.productionname, ''),
+                        COALESCE(u.firstname, ''),
+                        COALESCE(u.lastname, '')
+                    FROM talent_verification_requests tvr
+                    LEFT JOIN users u ON u.id = tvr.user_id
+                    WHERE COALESCE(tvr.status, 'Pending') = 'Pending'
+                    ORDER BY tvr.created_at DESC
+                    LIMIT 6;";
+
+                using (var cmd = new NpgsqlCommand(verificationQueueSql, connection))
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var stageName = reader.IsDBNull(14) ? "" : reader.GetString(14);
+                        var productionName = reader.IsDBNull(15) ? "" : reader.GetString(15);
+                        var firstName = reader.IsDBNull(16) ? "" : reader.GetString(16);
+                        var lastName = reader.IsDBNull(17) ? "" : reader.GetString(17);
+                        var displayName = !string.IsNullOrWhiteSpace(stageName)
+                            ? stageName
+                            : !string.IsNullOrWhiteSpace(productionName)
+                                ? productionName
+                                : $"{firstName} {lastName}".Trim();
+
+                        verificationQueue.Add(new
+                        {
+                            requestId = reader.GetGuid(0),
+                            userId = reader.GetGuid(1),
+                            role = reader.IsDBNull(2) ? "Talent" : reader.GetString(2),
+                            verificationPath = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                            status = reader.IsDBNull(4) ? "Pending" : reader.GetString(4),
+                            evidenceSummary = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                            createdAt = reader.IsDBNull(6) ? now : reader.GetDateTime(6),
+                            idType = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                            idNumberLast4 = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                            idImageFront = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                            idImageBack = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                            selfieImage = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                            idReviewStatus = reader.IsDBNull(12) ? "Pending" : reader.GetString(12),
+                            facialReviewStatus = reader.IsDBNull(13) ? "Pending" : reader.GetString(13),
+                            displayName = string.IsNullOrWhiteSpace(displayName) ? "Unnamed Talent" : displayName
+                        });
+                    }
+                }
+
                 const string paymentSummarySql = @"
                     SELECT
                         COUNT(*) FILTER (WHERE COALESCE(service_fee_status, 'Unpaid') = 'Paid') AS service_fees_paid,
                         COUNT(*) FILTER (WHERE COALESCE(talent_fee_status, 'Unpaid') = 'Paid') AS talent_fees_paid,
+                        COUNT(*) FILTER (WHERE COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid') AS platform_fees_paid,
                         COUNT(*) FILTER (
                             WHERE COALESCE(payment_status, 'Unpaid') IN ('AwaitingPayment', 'AwaitingTalentFeePayment')
                                OR COALESCE(service_fee_status, 'Unpaid') = 'AwaitingPayment'
                                OR COALESCE(talent_fee_status, 'Unpaid') = 'AwaitingPayment'
+                               OR COALESCE(talent_platform_fee_status, 'Unpaid') = 'AwaitingPayment'
                         ) AS payments_waiting,
                         COUNT(*) FILTER (WHERE COALESCE(payment_status, 'Unpaid') = 'Refund Pending') AS refunds_pending,
                         COALESCE(SUM(CASE WHEN COALESCE(service_fee_status, 'Unpaid') = 'Paid' THEN COALESCE(booking_fee, 0) ELSE 0 END), 0) AS service_fee_revenue,
-                        COALESCE(SUM(CASE WHEN COALESCE(talent_fee_status, 'Unpaid') = 'Paid' THEN COALESCE(budget, 0) ELSE 0 END), 0) AS talent_fee_collected
+                        COALESCE(SUM(CASE WHEN COALESCE(talent_fee_status, 'Unpaid') = 'Paid' THEN COALESCE(budget, 0) ELSE 0 END), 0) AS talent_fee_collected,
+                        COALESCE(SUM(CASE WHEN COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' THEN COALESCE(talent_platform_fee, 0) ELSE 0 END), 0) AS platform_fee_revenue
                     FROM bookings;";
 
                 using (var cmd = new NpgsqlCommand(paymentSummarySql, connection))
@@ -316,10 +401,12 @@ namespace ImajinationAPI.Controllers
                         {
                             serviceFeesPaid = reader.IsDBNull(0) ? 0 : Convert.ToInt32(reader.GetInt64(0)),
                             talentFeesPaid = reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetInt64(1)),
-                            paymentsWaiting = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetInt64(2)),
-                            refundsPending = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetInt64(3)),
-                            serviceFeeRevenue = reader.IsDBNull(4) ? 0 : reader.GetDecimal(4),
-                            talentFeeCollected = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5)
+                            platformFeesPaid = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetInt64(2)),
+                            paymentsWaiting = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetInt64(3)),
+                            refundsPending = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetInt64(4)),
+                            serviceFeeRevenue = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
+                            talentFeeCollected = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6),
+                            platformFeeRevenue = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7)
                         };
                     }
                 }
@@ -336,8 +423,10 @@ namespace ImajinationAPI.Controllers
                         COALESCE(b.payment_status, 'Unpaid'),
                         COALESCE(b.service_fee_status, 'Unpaid'),
                         COALESCE(b.talent_fee_status, 'Unpaid'),
+                        COALESCE(b.talent_platform_fee_status, 'Unpaid'),
                         COALESCE(b.booking_fee, 0),
                         COALESCE(b.budget, 0),
+                        COALESCE(b.talent_platform_fee, 0),
                         b.created_at
                     FROM bookings b
                     LEFT JOIN users c ON c.id = b.customer_id
@@ -346,6 +435,7 @@ namespace ImajinationAPI.Controllers
                        OR COALESCE(b.payment_status, 'Unpaid') IN ('AwaitingPayment', 'AwaitingTalentFeePayment')
                        OR COALESCE(b.service_fee_status, 'Unpaid') = 'AwaitingPayment'
                        OR COALESCE(b.talent_fee_status, 'Unpaid') = 'AwaitingPayment'
+                       OR COALESCE(b.talent_platform_fee_status, 'Unpaid') = 'AwaitingPayment'
                     ORDER BY b.created_at DESC
                     LIMIT 8;";
 
@@ -369,9 +459,11 @@ namespace ImajinationAPI.Controllers
                             paymentStatus = reader.IsDBNull(7) ? "Unpaid" : reader.GetString(7),
                             serviceFeeStatus = reader.IsDBNull(8) ? "Unpaid" : reader.GetString(8),
                             talentFeeStatus = reader.IsDBNull(9) ? "Unpaid" : reader.GetString(9),
-                            bookingFee = reader.IsDBNull(10) ? 0 : reader.GetDecimal(10),
-                            budget = reader.IsDBNull(11) ? 0 : reader.GetDecimal(11),
-                            createdAt = reader.IsDBNull(12) ? now : reader.GetDateTime(12)
+                            talentPlatformFeeStatus = reader.IsDBNull(10) ? "Unpaid" : reader.GetString(10),
+                            bookingFee = reader.IsDBNull(11) ? 0 : reader.GetDecimal(11),
+                            budget = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12),
+                            talentPlatformFee = reader.IsDBNull(13) ? 0 : reader.GetDecimal(13),
+                            createdAt = reader.IsDBNull(14) ? now : reader.GetDateTime(14)
                         });
                     }
                 }
@@ -435,9 +527,11 @@ namespace ImajinationAPI.Controllers
                     totalUsers,
                     activeGigs,
                     completedContracts,
+                    pendingVerificationRequests,
                     systemHealth,
                     eventModeration,
                     accountModeration,
+                    verificationQueue,
                     bookingStatusCounts,
                     topEvents,
                     topTalent,
@@ -451,6 +545,161 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to load admin dashboard: " + ex.Message });
+            }
+        }
+
+        [HttpPost("verification/{requestId}/review")]
+        public async Task<IActionResult> ReviewVerification(Guid requestId, [FromBody] ReviewVerificationRequest req)
+        {
+            try
+            {
+                var action = (req.action ?? string.Empty).Trim().ToLowerInvariant();
+                if (action != "approve" && action != "reject")
+                {
+                    return BadRequest(new { message = "Invalid verification review action." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                Guid userId = Guid.Empty;
+                string role = string.Empty;
+                string displayName = "there";
+                string idType = string.Empty;
+                string idLast4 = string.Empty;
+
+                const string lookupSql = @"
+                    SELECT
+                        tvr.user_id,
+                        COALESCE(tvr.role, ''),
+                        COALESCE(tvr.id_type, ''),
+                        COALESCE(tvr.id_number_last4, ''),
+                        COALESCE(u.stagename, ''),
+                        COALESCE(u.productionname, ''),
+                        COALESCE(u.firstname, ''),
+                        COALESCE(u.lastname, '')
+                    FROM talent_verification_requests tvr
+                    LEFT JOIN users u ON u.id = tvr.user_id
+                    WHERE tvr.id = @id
+                    LIMIT 1;";
+
+                await using (var lookupCmd = new NpgsqlCommand(lookupSql, connection))
+                {
+                    lookupCmd.Parameters.AddWithValue("@id", requestId);
+                    await using var reader = await lookupCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Verification request not found." });
+                    }
+
+                    userId = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0);
+                    role = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                    idType = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+                    idLast4 = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+                    var stageName = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+                    var productionName = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
+                    var firstName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6);
+                    var lastName = reader.IsDBNull(7) ? string.Empty : reader.GetString(7);
+                    displayName = !string.IsNullOrWhiteSpace(productionName)
+                        ? productionName
+                        : !string.IsNullOrWhiteSpace(stageName)
+                            ? stageName
+                            : $"{firstName} {lastName}".Trim();
+                    if (string.IsNullOrWhiteSpace(displayName))
+                    {
+                        displayName = "there";
+                    }
+                }
+
+                var adminNotes = SecuritySupport.SanitizePlainText(req.notes, 1500, true);
+                var requestStatus = action == "approve" ? "Approved" : "Rejected";
+                var reviewStatus = action == "approve" ? "Verified" : "Rejected";
+                var userVerificationStatus = action == "approve" ? "Approved" : "Rejected";
+                var userVerificationLevel = action == "approve" ? "Identity Verified" : "Verification Rejected";
+                var userVerificationMethod = "Philippine ID + Facial Review";
+                var userVerificationNotes = string.IsNullOrWhiteSpace(adminNotes)
+                    ? (action == "approve"
+                        ? $"Admin approved {idType} verification ending in {idLast4}."
+                        : "Admin rejected the submitted Philippine ID and facial verification evidence.")
+                    : adminNotes;
+
+                const string updateRequestSql = @"
+                    UPDATE talent_verification_requests
+                    SET status = @status,
+                        admin_notes = @adminNotes,
+                        reviewed_at = NOW(),
+                        id_review_status = @idReviewStatus,
+                        facial_review_status = @facialReviewStatus
+                    WHERE id = @id;";
+                await using (var requestCmd = new NpgsqlCommand(updateRequestSql, connection))
+                {
+                    requestCmd.Parameters.AddWithValue("@id", requestId);
+                    requestCmd.Parameters.AddWithValue("@status", requestStatus);
+                    requestCmd.Parameters.AddWithValue("@adminNotes", (object?)adminNotes ?? DBNull.Value);
+                    requestCmd.Parameters.AddWithValue("@idReviewStatus", reviewStatus);
+                    requestCmd.Parameters.AddWithValue("@facialReviewStatus", reviewStatus);
+                    var affected = await requestCmd.ExecuteNonQueryAsync();
+                    if (affected == 0)
+                    {
+                        return NotFound(new { message = "Verification request not found." });
+                    }
+                }
+
+                const string updateUserSql = @"
+                    UPDATE users
+                    SET verification_status = @verificationStatus,
+                        verification_level = @verificationLevel,
+                        verification_method = @verificationMethod,
+                        verification_notes = @verificationNotes,
+                        verification_reviewed_at = NOW()
+                    WHERE id = @userId;";
+                await using (var userCmd = new NpgsqlCommand(updateUserSql, connection))
+                {
+                    userCmd.Parameters.AddWithValue("@userId", userId);
+                    userCmd.Parameters.AddWithValue("@verificationStatus", userVerificationStatus);
+                    userCmd.Parameters.AddWithValue("@verificationLevel", userVerificationLevel);
+                    userCmd.Parameters.AddWithValue("@verificationMethod", userVerificationMethod);
+                    userCmd.Parameters.AddWithValue("@verificationNotes", userVerificationNotes);
+                    await userCmd.ExecuteNonQueryAsync();
+                }
+
+                await CommunitySupport.SyncProfileVerificationFromDatabaseAsync(connection, userId, role);
+
+                await NotificationSupport.InsertNotificationAsync(
+                    connection,
+                    userId,
+                    "verification_review",
+                    action == "approve" ? "Identity verification approved" : "Identity verification needs attention",
+                    action == "approve"
+                        ? "Your Philippine ID and facial verification were approved by the admin team."
+                        : $"Your Philippine ID and facial verification were rejected. {userVerificationNotes}",
+                    requestId,
+                    "verification_request");
+
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    TryReadActorUserId(),
+                    TryReadActorRole() ?? "Admin",
+                    action == "approve" ? "identity_verification_approved" : "identity_verification_rejected",
+                    "verification_request",
+                    requestId,
+                    HttpContext,
+                    $"Admin {action}d {role} identity verification for {displayName}.");
+
+                return Ok(new
+                {
+                    message = action == "approve"
+                        ? "Identity verification approved."
+                        : "Identity verification rejected.",
+                    status = requestStatus
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to review verification request: " + ex.Message });
             }
         }
 
@@ -706,17 +955,21 @@ namespace ImajinationAPI.Controllers
                     id uuid PRIMARY KEY,
                     service_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid',
                     talent_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid',
+                    talent_platform_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid',
                     payment_status varchar(30) NOT NULL DEFAULT 'Unpaid',
                     booking_fee numeric NULL,
                     budget numeric NULL,
+                    talent_platform_fee numeric NULL,
                     created_at timestamptz NOT NULL DEFAULT NOW()
                 );
 
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status varchar(30) NOT NULL DEFAULT 'Unpaid';
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid';
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid';
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid';
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_fee numeric NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS budget numeric NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee numeric NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT NOW();";
 
             await using var cmd = new NpgsqlCommand(sql, connection);

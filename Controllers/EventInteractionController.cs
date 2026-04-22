@@ -71,7 +71,7 @@ namespace ImajinationAPI.Controllers
                                    FROM tickets t
                                    WHERE t.event_id = @eventId
                                      AND t.customer_id = @customerId
-                                     AND COALESCE(t.is_used, FALSE) = TRUE
+                                     AND COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END) > 0
                                      AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
                                );";
 
@@ -180,7 +180,7 @@ namespace ImajinationAPI.Controllers
                                FROM tickets t
                                WHERE t.event_id = @eventId
                                  AND t.customer_id = @customerId
-                                 AND COALESCE(t.is_used, FALSE) = TRUE
+                                 AND COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END) > 0
                                  AND COALESCE(t.payment_method, '') <> 'AwaitingPayment'
                            ),
                            COALESCE(e.organizer_id, '00000000-0000-0000-0000-000000000000'::uuid),

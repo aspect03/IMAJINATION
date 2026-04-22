@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
@@ -412,7 +413,9 @@ namespace ImajinationAPI.Services
                 revokedCount = await revokeCmd.ExecuteNonQueryAsync();
             }
 
-            var sessionToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray())
+            Span<byte> tokenBytes = stackalloc byte[32];
+            RandomNumberGenerator.Fill(tokenBytes);
+            var sessionToken = Convert.ToBase64String(tokenBytes)
                 .Replace("/", "_", StringComparison.Ordinal)
                 .Replace("+", "-", StringComparison.Ordinal)
                 .TrimEnd('=');

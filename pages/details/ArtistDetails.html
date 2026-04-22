@@ -287,7 +287,22 @@
           <div class="space-y-2">
             <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Date and time</label>
             <input id="bookingEventDate" type="datetime-local" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+            <p id="bookingDateAvailabilityHint" class="text-[11px] text-white/45">Choose an available booking date.</p>
           </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">End time</label>
+            <input id="bookingEventEndTime" type="datetime-local" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+          </div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Multiple Booking Slots</p>
+              <p class="text-xs text-white/45 mt-1">Add up to 5 separate time slots for the same artist request.</p>
+            </div>
+            <button id="addBookingSlotBtn" type="button" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-white/10 transition-colors">Add Slot</button>
+          </div>
+          <div id="bookingSlotsList" class="space-y-2"></div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-2">
@@ -313,7 +328,7 @@
         </div>
         <div class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
           <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Service fee</p>
-          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 20.00 booking fee first. Organizers can send direct event booking requests and continue in chat.</p>
+          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 20.00 booking fee first. Artists also see a platform fee after confirmation so the booking flow stays realistic for a live marketplace.</p>
         </div>
         <p id="bookingStatus" class="text-xs text-white/50">Customers and organizers can send booking requests here.</p>
         <button id="submitBookingBtn" type="submit" class="w-full py-3.5 rounded-xl bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors">
@@ -330,6 +345,129 @@
     let currentArtistBasePrice = 0;
     let artistInteractionSummary = null;
     let currentArtistAvailable = true;
+    let artistBlockedDateSet = new Set();
+    let artistBlockedDateLabels = [];
+    const maxBookingSlots = 5;
+
+    function getBookingCalendarDateKey(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function isArtistBlockedBookingDate(value) {
+      const key = getBookingCalendarDateKey(value);
+      return key ? artistBlockedDateSet.has(key) : false;
+    }
+
+    function updateArtistBookingDateHint(message = '', tone = 'muted') {
+      const hint = document.getElementById('bookingDateAvailabilityHint');
+      if (!hint) return;
+
+      hint.innerText = message || (artistBlockedDateLabels.length
+        ? `Unavailable dates: ${artistBlockedDateLabels.join(', ')}`
+        : 'Choose an available booking date.');
+      hint.className = `text-[11px] ${tone === 'error' ? 'text-red-300' : 'text-white/45'}`;
+    }
+
+    function validateArtistBookingInput(input) {
+      if (!input) return true;
+
+      if (isArtistBlockedBookingDate(input.value)) {
+        input.setCustomValidity(`${currentArtistName} is not available on that date.`);
+        input.classList.add('border-red-500');
+        updateArtistBookingDateHint(`${currentArtistName} is not available on ${new Date(input.value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`, 'error');
+        return false;
+      }
+
+      input.setCustomValidity('');
+      input.classList.remove('border-red-500');
+      updateArtistBookingDateHint();
+      return true;
+    }
+
+    async function loadArtistBlockedDates() {
+      if (!currentArtistId) return;
+
+      try {
+        const response = await fetch(`/api/calendar/Artist/${currentArtistId}`);
+        if (!response.ok) throw new Error('Failed to load artist calendar.');
+        const payload = await response.json().catch(() => ({}));
+        const blocks = Array.isArray(payload.blocks) ? payload.blocks : [];
+
+        artistBlockedDateSet = new Set(
+          blocks
+            .map((block) => getBookingCalendarDateKey(block.blockDate || block.blockedDate))
+            .filter(Boolean)
+        );
+        artistBlockedDateLabels = Array.from(artistBlockedDateSet)
+          .sort()
+          .map((value) => new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      } catch {
+        artistBlockedDateSet = new Set();
+        artistBlockedDateLabels = [];
+      }
+
+      updateArtistBookingDateHint();
+      validateArtistBookingInput(document.getElementById('bookingEventDate'));
+      document.querySelectorAll('.booking-slot-start').forEach((input) => validateArtistBookingInput(input));
+    }
+
+    function renderBookingSlots() {
+      const container = document.getElementById('bookingSlotsList');
+      if (!container) return;
+      const rows = Array.from(container.querySelectorAll('.booking-slot-row'));
+      rows.forEach((row, index) => {
+        row.querySelector('.booking-slot-label').innerText = `Extra Slot ${index + 2}`;
+      });
+    }
+
+    function addBookingSlotRow(startValue = '', endValue = '') {
+      const container = document.getElementById('bookingSlotsList');
+      if (!container || container.children.length >= maxBookingSlots - 1) return;
+      const row = document.createElement('div');
+      row.className = 'booking-slot-row grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end';
+      row.innerHTML = `
+        <div class="space-y-2">
+          <label class="booking-slot-label block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Extra Slot</label>
+          <input type="datetime-local" value="${startValue}" class="booking-slot-start w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+        </div>
+        <div class="space-y-2">
+          <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">End time</label>
+          <input type="datetime-local" value="${endValue}" class="booking-slot-end w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+        </div>
+        <button type="button" class="remove-booking-slot px-3 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-red-500/20 transition-colors">Remove</button>
+      `;
+      row.querySelector('.remove-booking-slot')?.addEventListener('click', () => {
+        row.remove();
+        renderBookingSlots();
+      });
+      container.appendChild(row);
+      row.querySelector('.booking-slot-start')?.addEventListener('input', (event) => validateArtistBookingInput(event.target));
+      row.querySelector('.booking-slot-start')?.addEventListener('change', (event) => validateArtistBookingInput(event.target));
+      validateArtistBookingInput(row.querySelector('.booking-slot-start'));
+      renderBookingSlots();
+    }
+
+    function collectBookingSlots() {
+      const slots = [];
+      const primaryStart = document.getElementById('bookingEventDate').value;
+      const primaryEnd = document.getElementById('bookingEventEndTime').value;
+      if (primaryStart && primaryEnd) {
+        slots.push({ eventDate: primaryStart, eventEndTime: primaryEnd });
+      }
+
+      document.querySelectorAll('.booking-slot-row').forEach((row) => {
+        const start = row.querySelector('.booking-slot-start')?.value;
+        const end = row.querySelector('.booking-slot-end')?.value;
+        if (start && end) {
+          slots.push({ eventDate: start, eventEndTime: end });
+        }
+      });
+
+      return slots;
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
       // Navbar Logic
@@ -397,7 +535,8 @@
 
         // Populate Text
         currentArtistName = artist.displayName;
-        currentArtistAvailable = artist.isAvailable !== false;
+        const artistVerifiedForBookings = String(artist.verificationStatus || '').toLowerCase() === 'approved';
+        currentArtistAvailable = artist.isAvailable !== false && artistVerifiedForBookings;
         document.getElementById('detailName').innerText = artist.displayName;
         document.getElementById('bookingModalSubtitle').innerText = `Book ${artist.displayName}, send the request, and continue in chat.`;
         document.getElementById('artistProfileBadge').innerHTML = artist.isVerified
@@ -405,14 +544,18 @@
           : '<i data-lucide="shield" class="w-4 h-4"></i>';
         document.getElementById('artistProfileBadge').className = `mb-3 inline-flex items-center justify-center w-8 h-8 rounded-full border ${artist.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
         document.getElementById('artistProfileBadge').title = artist.isVerified ? 'Verified profile' : (artist.profileCompletionLabel || 'Profile incomplete');
-        document.getElementById('detailAvailability').innerText = currentArtistAvailable ? 'Available' : 'Not Available';
+        document.getElementById('detailAvailability').innerText = currentArtistAvailable
+          ? 'Available'
+          : artistVerifiedForBookings ? 'Not Available' : 'Verification Pending';
         document.getElementById('detailAvailability').className = `mb-3 text-[10px] font-bold uppercase tracking-[0.18em] ${currentArtistAvailable ? 'text-emerald-400' : 'text-white/50'}`;
         currentArtistBasePrice = Number(artist.basePrice || 0);
         document.getElementById('detailBasePrice').innerText = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentArtistBasePrice);
         syncBookingBudgetWithBasePrice(true);
         document.getElementById('bookArtistBtn').disabled = !currentArtistAvailable;
         document.getElementById('bookArtistBtn').classList.toggle('opacity-50', !currentArtistAvailable);
-        document.getElementById('bookArtistBtn').innerText = currentArtistAvailable ? 'Book Artist' : 'Currently Unavailable';
+        document.getElementById('bookArtistBtn').innerText = currentArtistAvailable
+          ? 'Book Artist'
+          : artistVerifiedForBookings ? 'Currently Unavailable' : 'Verification Pending';
         document.getElementById('detailBio').innerText = artist.bio;
         document.getElementById('verifiedGigCount').innerText = artist.verifiedGigCount || 0;
         renderTalentSetup(artist.talentCategory, artist.memberNames, 'Artist');
@@ -441,6 +584,7 @@
         renderRelatedEvents(artist.relatedEvents || []);
         renderVerifiedGigs(artist.verifiedGigs || []);
         lucide.createIcons();
+        await loadArtistBlockedDates();
 
         await Promise.allSettled([
           loadArtistPosts(),
@@ -503,7 +647,9 @@
         return;
       }
       if (!currentArtistAvailable) {
-        await window.systemDialog.alert(`${currentArtistName} is currently marked unavailable for bookings.`, {
+        await window.systemDialog.alert(document.getElementById('bookArtistBtn').innerText === 'Verification Pending'
+          ? `${currentArtistName} cannot be booked until admin verification is approved.`
+          : `${currentArtistName} is currently marked unavailable for bookings.`, {
           title: 'Currently Unavailable',
           kicker: 'Booking Status'
         });
@@ -515,9 +661,11 @@
         document.getElementById('bookingEventTitle').value = linkedEventTitle;
       }
       syncBookingBudgetWithBasePrice(false);
+      document.getElementById('bookingSlotsList').innerHTML = '';
       document.getElementById('bookingStatus').innerText = role === 'Organizer'
         ? `You are sending an organizer booking request to ${currentArtistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
         : `You are booking ${currentArtistName}. The PHP 20.00 service fee is collected before the artist can review your request.`;
+      await loadArtistBlockedDates();
       bookingModal.classList.remove('hidden');
       bookingModal.classList.add('flex');
     }
@@ -588,10 +736,27 @@
         serviceType: document.getElementById('bookingServiceType').value,
         eventTitle: document.getElementById('bookingEventTitle').value,
         eventDate: document.getElementById('bookingEventDate').value,
+        eventEndTime: document.getElementById('bookingEventEndTime').value,
+        bookingSlots: collectBookingSlots(),
         location: document.getElementById('bookingLocation').value,
         budget: finalBudget > 0 ? finalBudget : 0,
         notes: document.getElementById('bookingMessage').value
       };
+
+      for (const slot of payload.bookingSlots) {
+        if (isArtistBlockedBookingDate(slot.eventDate)) {
+          document.getElementById('bookingStatus').innerText = `${currentArtistName} is not available on ${new Date(slot.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`;
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Book Now';
+          return;
+        }
+        if (new Date(slot.eventEndTime).getTime() <= new Date(slot.eventDate).getTime()) {
+          document.getElementById('bookingStatus').innerText = 'Each booking slot needs an end time after the start time.';
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Book Now';
+          return;
+        }
+      }
 
       try {
         const response = await fetch('/api/booking', {
@@ -612,7 +777,9 @@
           return;
         }
 
-        document.getElementById('bookingStatus').innerText = 'Booking created. Redirecting to the PHP 20.00 service fee checkout...';
+        document.getElementById('bookingStatus').innerText = data.bookingCount > 1
+          ? `Created ${data.bookingCount} booking requests. Redirecting to the first service-fee checkout...`
+          : 'Booking created. Redirecting to the PHP 20.00 service fee checkout...';
 
         const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}&bookingFeePaid=1`;
         const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}`;
@@ -646,6 +813,10 @@
     document.getElementById('bookingBudget').addEventListener('input', (event) => {
       event.target.dataset.userEdited = 'true';
     });
+    document.getElementById('bookingEventDate')?.addEventListener('input', (event) => validateArtistBookingInput(event.target));
+    document.getElementById('bookingEventDate')?.addEventListener('change', (event) => validateArtistBookingInput(event.target));
+
+    document.getElementById('addBookingSlotBtn')?.addEventListener('click', () => addBookingSlotRow());
 
     document.getElementById('reportArtistBtn')?.addEventListener('click', async () => {
       const reporterUserId = localStorage.getItem('userId');

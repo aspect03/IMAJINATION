@@ -154,6 +154,7 @@
         }
 
         currentTicketServiceFeeRate = Number(ev.ticketServiceFeeRate || 0.05);
+        const maxTicketsPerCustomer = Math.max(1, Math.min(10, Number(ev.maxTicketsPerCustomer || 5)));
         const badgeTone = String(ev.pricingPhaseTone || 'blue').toLowerCase();
         const badgeClassMap = {
           blue: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
@@ -211,6 +212,15 @@
               </label>
             `;
           });
+        }
+
+        const qtySelect = document.getElementById('ticketQty');
+        qtySelect.innerHTML = '';
+        for (let qty = 1; qty <= maxTicketsPerCustomer; qty += 1) {
+          const option = document.createElement('option');
+          option.value = String(qty);
+          option.textContent = `${qty} Ticket${qty === 1 ? '' : 's'}`;
+          qtySelect.appendChild(option);
         }
 
         document.querySelectorAll('input[name="tier"]').forEach(radio => radio.addEventListener('change', updateTotal));

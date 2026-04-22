@@ -229,12 +229,12 @@
     function handleLogout() { localStorage.clear(); window.location.reload(); }
 
     let allEvents = []; 
-    const eventsCacheKey = 'eventsPageCacheV1';
+    const eventsCacheKey = 'eventsPageCacheV2';
     const eventsCacheTtlMs = 2 * 60 * 1000;
     const eventDetailCachePrefix = 'eventDetailCacheV1:';
     let applyEventFiltersFrame = 0;
 
-    async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

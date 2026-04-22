@@ -403,11 +403,95 @@
                   </div>
                   <p class="text-xs text-white/60 mt-2">Complete your profile to unlock the verified badge customers see.</p>
                 </div>
+
+                <div id="sessionistVerificationPanel" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 space-y-4">
+                  <div>
+                    <p class="text-[10px] uppercase tracking-widest text-emerald-200/80">Verification Review</p>
+                    <p id="sessionistVerificationStatusText" class="text-sm font-semibold text-white mt-2">Not submitted yet.</p>
+                    <p id="sessionistVerificationHelperText" class="text-xs text-white/55 mt-2">Submit one Philippine government ID and a live selfie so admin can verify your sessionist account.</p>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="space-y-3">
+                      <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Philippine ID Type</label>
+                      <select id="sessionistIdType" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                        <option value="PhilSys National ID">PhilSys National ID</option>
+                        <option value="UMID">UMID</option>
+                        <option value="Passport">Passport</option>
+                        <option value="Driver's License">Driver's License</option>
+                        <option value="PRC ID">PRC ID</option>
+                        <option value="Postal ID">Postal ID</option>
+                        <option value="Voter's ID">Voter's ID</option>
+                      </select>
+                    </div>
+                    <div class="space-y-3">
+                      <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">ID Last 4 Digits</label>
+                      <input id="sessionistIdLast4" type="text" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                    </div>
+                  </div>
+                  <div class="space-y-3">
+                    <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Evidence Summary</label>
+                    <textarea id="sessionistVerificationSummary" rows="4" placeholder="State your instrument or role and anything admin should know when checking your ID and selfie." class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white resize-none shadow-inner"></textarea>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input id="sessionistVerificationLinks" type="text" placeholder="Portfolio or sample links (optional)" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                    <input id="sessionistVerificationReference" type="text" placeholder="Reference name / contact (optional)" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <label id="sessionistVerificationIdFrontCard" class="rounded-2xl border border-white/10 bg-black/30 p-4 cursor-pointer hover:bg-black/40 transition-colors">
+                      <span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">ID Front</span>
+                      <span id="sessionistVerificationIdFrontState" class="block text-xs text-white/45 mt-2">Required image upload</span>
+                      <span id="sessionistVerificationIdFrontName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                      <img id="sessionistVerificationIdFrontPreview" src="" alt="ID front preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                      <input id="sessionistVerificationIdFront" type="file" accept="image/*" class="hidden">
+                    </label>
+                    <label id="sessionistVerificationIdBackCard" class="rounded-2xl border border-white/10 bg-black/30 p-4 cursor-pointer hover:bg-black/40 transition-colors">
+                      <span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">ID Back</span>
+                      <span id="sessionistVerificationIdBackState" class="block text-xs text-white/45 mt-2">Optional if your ID has back details</span>
+                      <span id="sessionistVerificationIdBackName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                      <img id="sessionistVerificationIdBackPreview" src="" alt="ID back preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                      <input id="sessionistVerificationIdBack" type="file" accept="image/*" class="hidden">
+                    </label>
+                    <label id="sessionistVerificationSelfieCard" class="rounded-2xl border border-white/10 bg-black/30 p-4 cursor-pointer hover:bg-black/40 transition-colors">
+                      <span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Selfie Verification</span>
+                      <span id="sessionistVerificationSelfieState" class="block text-xs text-white/45 mt-2">Required clear face photo</span>
+                      <span id="sessionistVerificationSelfieName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                      <img id="sessionistVerificationSelfiePreview" src="" alt="Selfie verification preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                      <input id="sessionistVerificationSelfie" type="file" accept="image/*" class="hidden">
+                    </label>
+                  </div>
+                  <div id="sessionistVerificationUploadSummary" class="hidden rounded-2xl border border-emerald-400/20 bg-black/25 px-4 py-3 text-xs text-emerald-100/90"></div>
+                  <div class="space-y-3 text-xs text-white/65">
+                    <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                      <input id="sessionistVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
+                      <span>I confirm this Philippine ID belongs to me and I allow IMAJINATION admins to review the document for account verification.</span>
+                    </label>
+                    <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                      <input id="sessionistFaceVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
+                      <span>I consent to manual facial comparison between my uploaded selfie and my submitted ID photo for this verification request.</span>
+                    </label>
+                  </div>
+                  <button type="button" id="sessionistSubmitVerificationBtn" class="w-full py-4 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl border border-emerald-400/20 transition-colors">
+                    Submit Verification Request
+                  </button>
+                </div>
               </div>
 
               <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">3. Multi-Factor Authentication</h3>
                 <div id="sessionistMfaSettings"></div>
+              </div>
+
+              <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Password Recovery</h3>
+                <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
+                    <p class="text-sm text-white/65 mt-2">Use the recovery flow to receive a reset code when you cannot remember your password.</p>
+                  </div>
+                  <a id="sessionistForgotPasswordLink" href="/pages/auth/forgotpassword.html" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-neutral-950 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-neutral-200 transition-colors">
+                    <i data-lucide="key-round" class="w-4 h-4"></i> Forgot Password
+                  </a>
+                </div>
               </div>
 
               <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-4 backdrop-blur-md shadow-2xl">
@@ -487,8 +571,14 @@
     let sessionistAvailabilitySaveInFlight = false;
     let sessionistNotificationInterval = null;
     let sessionistProfileImageDirty = false;
+    let sessionistVerificationApproved = false;
     let sessionistCalendarBlocks = [];
     let sessionistPostsLoaded = false;
+    const sessionistVerificationUploads = {
+      sessionistVerificationIdFront: null,
+      sessionistVerificationIdBack: null,
+      sessionistVerificationSelfie: null
+    };
 
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -587,6 +677,251 @@
       return result;
     }
 
+    async function readSessionistVerificationImage(inputId, required = false) {
+      const cached = sessionistVerificationUploads[inputId];
+      if (cached?.dataUrl) return cached.dataUrl;
+
+      const file = document.getElementById(inputId)?.files?.[0];
+      if (!file) {
+        if (required) throw new Error('Please upload all required verification images.');
+        return '';
+      }
+      return compressImageFile(file, 1600, 4_000_000);
+    }
+
+    function getSessionistVerificationUploadMeta(inputId) {
+      const map = {
+        sessionistVerificationIdFront: {
+          cardId: 'sessionistVerificationIdFrontCard',
+          stateId: 'sessionistVerificationIdFrontState',
+          nameId: 'sessionistVerificationIdFrontName',
+          previewId: 'sessionistVerificationIdFrontPreview',
+          emptyText: 'Required image upload',
+          selectedText: 'Image selected and ready to submit',
+          submittedText: 'Image already submitted for review',
+          verifiedText: 'Approved document on file'
+        },
+        sessionistVerificationIdBack: {
+          cardId: 'sessionistVerificationIdBackCard',
+          stateId: 'sessionistVerificationIdBackState',
+          nameId: 'sessionistVerificationIdBackName',
+          previewId: 'sessionistVerificationIdBackPreview',
+          emptyText: 'Optional if your ID has back details',
+          selectedText: 'Image selected and ready to submit',
+          submittedText: 'Image already submitted for review',
+          verifiedText: 'Approved document on file'
+        },
+        sessionistVerificationSelfie: {
+          cardId: 'sessionistVerificationSelfieCard',
+          stateId: 'sessionistVerificationSelfieState',
+          nameId: 'sessionistVerificationSelfieName',
+          previewId: 'sessionistVerificationSelfiePreview',
+          emptyText: 'Required clear face photo',
+          selectedText: 'Selfie selected and ready to submit',
+          submittedText: 'Selfie already submitted for review',
+          verifiedText: 'Approved selfie on file'
+        }
+      };
+      return map[inputId];
+    }
+
+    function renderSessionistVerificationUploadCard(inputId, uploadState = null) {
+      const meta = getSessionistVerificationUploadMeta(inputId);
+      if (!meta) return;
+
+      const card = document.getElementById(meta.cardId);
+      const state = document.getElementById(meta.stateId);
+      const name = document.getElementById(meta.nameId);
+      const preview = document.getElementById(meta.previewId);
+      if (!card || !state || !name || !preview) return;
+
+      card.classList.remove('border-emerald-400/40', 'bg-emerald-500/10');
+      state.classList.remove('text-emerald-200/90');
+
+      if (!uploadState) {
+        state.innerText = meta.emptyText;
+        name.innerText = '';
+        name.classList.add('hidden');
+        preview.src = '';
+        preview.classList.add('hidden');
+        return;
+      }
+
+      card.classList.add('border-emerald-400/40', 'bg-emerald-500/10');
+      state.classList.add('text-emerald-200/90');
+      state.innerText = uploadState.persisted
+        ? (sessionistVerificationApproved ? meta.verifiedText : meta.submittedText)
+        : meta.selectedText;
+
+      if (uploadState.name) {
+        name.innerText = uploadState.name;
+        name.classList.remove('hidden');
+      } else if (uploadState.persisted) {
+        name.innerText = sessionistVerificationApproved
+          ? 'Locked after admin approval'
+          : 'Saved with your latest verification request';
+        name.classList.remove('hidden');
+      } else {
+        name.innerText = '';
+        name.classList.add('hidden');
+      }
+
+      if (uploadState.previewUrl) {
+        preview.src = uploadState.previewUrl;
+        preview.classList.remove('hidden');
+      } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+      }
+    }
+
+    function updateSessionistVerificationUploadSummary(submittedAt = '') {
+      const summary = document.getElementById('sessionistVerificationUploadSummary');
+      if (!summary) return;
+
+      const selectedItems = [];
+      if (sessionistVerificationUploads.sessionistVerificationIdFront) selectedItems.push('ID front');
+      if (sessionistVerificationUploads.sessionistVerificationIdBack) selectedItems.push('ID back');
+      if (sessionistVerificationUploads.sessionistVerificationSelfie) selectedItems.push('selfie');
+
+      if (!selectedItems.length) {
+        summary.innerHTML = '';
+        summary.classList.add('hidden');
+        return;
+      }
+
+      const suffix = submittedAt ? ` Submitted ${submittedAt}.` : '';
+      summary.innerHTML = `Verification files ready: <strong>${selectedItems.join(', ')}</strong>. Required uploads must be present before sending.${suffix}`;
+      summary.classList.remove('hidden');
+    }
+
+    async function handleSessionistVerificationFileChange(event) {
+      const input = event.target;
+      const inputId = input?.id;
+      if (!inputId) return;
+
+      const file = input.files?.[0];
+      if (!file) {
+        sessionistVerificationUploads[inputId] = null;
+        renderSessionistVerificationUploadCard(inputId, null);
+        updateSessionistVerificationUploadSummary();
+        return;
+      }
+
+      try {
+        const dataUrl = await compressImageFile(file, 1600, 4_000_000);
+        sessionistVerificationUploads[inputId] = {
+          name: file.name,
+          dataUrl,
+          previewUrl: dataUrl,
+          persisted: false
+        };
+        renderSessionistVerificationUploadCard(inputId, sessionistVerificationUploads[inputId]);
+        updateSessionistVerificationUploadSummary();
+      } catch (error) {
+        sessionistVerificationUploads[inputId] = null;
+        renderSessionistVerificationUploadCard(inputId, null);
+        updateSessionistVerificationUploadSummary();
+        alert(error.message || 'Could not process that verification image.');
+      }
+    }
+
+    function applyPersistedSessionistVerificationUploads(verificationUploads) {
+      const submittedAt = verificationUploads?.submittedAt
+        ? new Date(verificationUploads.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
+
+      const persistedMap = {
+        sessionistVerificationIdFront: !!verificationUploads?.idFrontSubmitted,
+        sessionistVerificationIdBack: !!verificationUploads?.idBackSubmitted,
+        sessionistVerificationSelfie: !!verificationUploads?.selfieSubmitted
+      };
+
+      Object.entries(persistedMap).forEach(([inputId, submitted]) => {
+        if (sessionistVerificationUploads[inputId]?.dataUrl) return;
+
+        sessionistVerificationUploads[inputId] = submitted
+          ? { name: '', dataUrl: '', previewUrl: '', persisted: true }
+          : null;
+        renderSessionistVerificationUploadCard(inputId, sessionistVerificationUploads[inputId]);
+      });
+
+      updateSessionistVerificationUploadSummary(submittedAt);
+    }
+
+    function applySessionistVerificationUiState(profile = {}) {
+      sessionistVerificationApproved = String(profile.verificationStatus || '').toLowerCase() === 'approved' || profile.isVerified === true;
+
+      const panel = document.getElementById('sessionistVerificationPanel');
+      const statusText = document.getElementById('sessionistVerificationStatusText');
+      const helperText = document.getElementById('sessionistVerificationHelperText');
+      const summary = document.getElementById('sessionistVerificationUploadSummary');
+      const submitBtn = document.getElementById('sessionistSubmitVerificationBtn');
+      const reviewedAt = profile.verificationReviewedAt
+        ? new Date(profile.verificationReviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
+
+      ['sessionistIdLast4', 'sessionistVerificationSummary', 'sessionistVerificationLinks', 'sessionistVerificationReference'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) return;
+        field.readOnly = sessionistVerificationApproved;
+        field.classList.toggle('text-white/65', sessionistVerificationApproved);
+      });
+
+      if (sessionistVerificationApproved) {
+        const summaryField = document.getElementById('sessionistVerificationSummary');
+        const linksField = document.getElementById('sessionistVerificationLinks');
+        const referenceField = document.getElementById('sessionistVerificationReference');
+        if (summaryField && !summaryField.value.trim()) summaryField.value = 'Approved by admin. Your verification evidence is already on file.';
+        if (linksField && !linksField.value.trim()) linksField.value = 'No additional links were attached.';
+        if (referenceField && !referenceField.value.trim()) referenceField.value = 'No reference contact was attached.';
+      }
+
+      ['sessionistIdType', 'sessionistVerificationIdFront', 'sessionistVerificationIdBack', 'sessionistVerificationSelfie'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (field) field.disabled = sessionistVerificationApproved;
+      });
+
+      ['sessionistVerificationConsent', 'sessionistFaceVerificationConsent'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) return;
+        field.disabled = sessionistVerificationApproved;
+        if (sessionistVerificationApproved) field.checked = true;
+      });
+
+      ['sessionistVerificationIdFrontCard', 'sessionistVerificationIdBackCard', 'sessionistVerificationSelfieCard'].forEach((id) => {
+        const card = document.getElementById(id);
+        if (!card) return;
+        card.classList.toggle('cursor-pointer', !sessionistVerificationApproved);
+        card.classList.toggle('cursor-default', sessionistVerificationApproved);
+        card.classList.toggle('hover:bg-black/40', !sessionistVerificationApproved);
+        card.classList.toggle('opacity-90', sessionistVerificationApproved);
+      });
+
+      Object.entries(sessionistVerificationUploads).forEach(([inputId, uploadState]) => {
+        renderSessionistVerificationUploadCard(inputId, uploadState);
+      });
+
+      if (panel) {
+        panel.classList.toggle('border-emerald-300/30', sessionistVerificationApproved);
+        panel.classList.toggle('bg-emerald-500/15', sessionistVerificationApproved);
+      }
+
+      if (!sessionistVerificationApproved) return;
+
+      if (statusText) statusText.innerText = 'Approved - Identity Verified';
+      if (helperText) helperText.innerText = 'Your Philippine ID and selfie were approved by admin. This verification record is now locked for protection.';
+      if (summary) {
+        summary.innerHTML = `Identity verified. Approved ID front, ID back, and selfie are now on file.${reviewedAt ? ` Reviewed ${reviewedAt}.` : ''}`;
+        summary.classList.remove('hidden');
+      }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Verified By Admin';
+        submitBtn.className = 'w-full py-4 bg-emerald-500/15 text-emerald-100 text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl border border-emerald-300/30 cursor-default';
+      }
+    }
+
     async function ensureSessionistTabData(tabName) {
       if (tabName === 'community' && !sessionistPostsLoaded) {
         sessionistPostsLoaded = true;
@@ -635,10 +970,22 @@
       const res = await fetch(`/api/sessionist/${userId}`);
       if (!res.ok) return;
 
-      const artist = await res.json();
-      document.getElementById('sidebarName').innerText = artist.displayName;
-      document.getElementById('userNameDisplay').innerText = artist.displayName;
-      document.getElementById('dropdownName').innerText = artist.displayName;
+      const artist = await res.json().catch(() => ({}));
+      if (artist.email) {
+        localStorage.setItem('userEmail', artist.email);
+      }
+      const sessionistForgotPasswordLink = document.getElementById('sessionistForgotPasswordLink');
+      if (sessionistForgotPasswordLink) {
+        sessionistForgotPasswordLink.href = artist.email
+          ? `/pages/auth/forgotpassword.html?email=${encodeURIComponent(artist.email)}`
+          : '/pages/auth/forgotpassword.html';
+      }
+      const displayName = artist.displayName || localStorage.getItem('userFirstName') || 'Sessionist';
+      const bioValue = typeof artist.bio === 'string' ? artist.bio : '';
+      const genresValue = typeof artist.genres === 'string' ? artist.genres : '';
+      document.getElementById('sidebarName').innerText = displayName;
+      document.getElementById('userNameDisplay').innerText = displayName;
+      document.getElementById('dropdownName').innerText = displayName;
       
       if (artist.profilePicture) {
         document.getElementById('avatarPreview').src = artist.profilePicture;
@@ -653,12 +1000,19 @@
         }
       }
       
-      document.getElementById('genresInput').value = artist.genres !== 'Sessionist' ? artist.genres : '';
+      document.getElementById('genresInput').value = genresValue !== 'Sessionist' ? genresValue : '';
       document.getElementById('spotifyInput').value = artist.spotifyLink || '';
-      document.getElementById('bioInput').value = artist.bio.includes("hasn't written") ? '' : artist.bio;
+      document.getElementById('bioInput').value = bioValue.includes("hasn't written") ? '' : bioValue;
       document.getElementById('basePriceInput').value = artist.basePrice || 0;
       document.getElementById('sessionistProfileStatusLabel').innerText = artist.isVerified ? 'Verified Profile' : (artist.profileCompletionLabel || 'Profile Incomplete');
       document.getElementById('sessionistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
+      const verificationStatusText = document.getElementById('sessionistVerificationStatusText');
+      if (verificationStatusText) {
+        const level = artist.verificationLevel ? ` • ${artist.verificationLevel}` : '';
+        verificationStatusText.innerText = `${artist.verificationStatus || 'Not Submitted'}${level}`;
+      }
+      applyPersistedSessionistVerificationUploads(artist.verificationUploads || null);
+      applySessionistVerificationUiState(artist);
       sessionistIsAvailable = artist.isAvailable !== false;
       sessionistRelatedEvents = Array.isArray(artist.relatedEvents) ? artist.relatedEvents : [];
       syncSessionistAvailabilityUi();
@@ -688,6 +1042,13 @@
         : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
       await switchTab(initialTab);
       window.initDashboardMfaSettings?.({ containerId: 'sessionistMfaSettings', title: 'Sessionist MFA' });
+      const sessionistForgotPasswordLink = document.getElementById('sessionistForgotPasswordLink');
+      if (sessionistForgotPasswordLink) {
+        const savedEmail = (localStorage.getItem('userEmail') || '').trim();
+        sessionistForgotPasswordLink.href = savedEmail
+          ? `/pages/auth/forgotpassword.html?email=${encodeURIComponent(savedEmail)}`
+          : '/pages/auth/forgotpassword.html';
+      }
 
       await Promise.allSettled([
         loadSessionistProfile(userId),
@@ -1171,7 +1532,7 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      compressImageFile(file, 1600, 6_000_000)
+      compressImageFile(file, 1400, 2_000_000)
         .then((optimizedImage) => {
           sessionistPostImage = optimizedImage;
           const preview = document.getElementById('sessionistPostPreview');
@@ -1320,7 +1681,7 @@
         const res = await fetch('/api/calendar/block', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, role: 'Sessionist', blockedDate, reason: reason || null })
+          body: JSON.stringify({ userId, role: 'Sessionist', blockDate: blockedDate, reason: reason || null })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Failed to block date.');
@@ -1332,8 +1693,61 @@
       }
     });
 
+    document.getElementById('sessionistSubmitVerificationBtn')?.addEventListener('click', async () => {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      const btn = document.getElementById('sessionistSubmitVerificationBtn');
+      btn.disabled = true;
+      btn.innerText = 'SUBMITTING...';
+
+      try {
+        const idImageFront = await readSessionistVerificationImage('sessionistVerificationIdFront', true);
+        const idImageBack = await readSessionistVerificationImage('sessionistVerificationIdBack', false);
+        const selfieImage = await readSessionistVerificationImage('sessionistVerificationSelfie', true);
+        const res = await fetch(`/api/sessionist/${userId}/verification-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            verificationPath: 'PhilippineIdAndFace',
+            evidenceSummary: document.getElementById('sessionistVerificationSummary')?.value,
+            portfolioLinks: document.getElementById('sessionistVerificationLinks')?.value,
+            referenceName: document.getElementById('sessionistVerificationReference')?.value,
+            referenceContact: document.getElementById('sessionistVerificationReference')?.value,
+            idType: document.getElementById('sessionistIdType')?.value,
+            idNumberLast4: document.getElementById('sessionistIdLast4')?.value,
+            idImageFront,
+            idImageBack,
+            selfieImage,
+            consentConfirmed: document.getElementById('sessionistVerificationConsent')?.checked === true,
+            faceVerificationConsent: document.getElementById('sessionistFaceVerificationConsent')?.checked === true
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to submit verification request.');
+        document.getElementById('sessionistVerificationStatusText').innerText = 'Pending - Identity Review';
+        ['sessionistVerificationIdFront', 'sessionistVerificationIdBack', 'sessionistVerificationSelfie'].forEach((inputId) => {
+          if (!sessionistVerificationUploads[inputId]) return;
+          sessionistVerificationUploads[inputId].persisted = true;
+          renderSessionistVerificationUploadCard(inputId, sessionistVerificationUploads[inputId]);
+          const input = document.getElementById(inputId);
+          if (input) input.value = '';
+        });
+        updateSessionistVerificationUploadSummary(new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }));
+        alert(data.message || 'Verification request submitted.');
+      } catch (error) {
+        alert(error.message || 'Failed to submit verification request.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'SUBMIT VERIFICATION REQUEST';
+      }
+    });
+
     ['genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
       document.getElementById(inputId)?.addEventListener('input', renderSessionistProfilePreview);
+    });
+    ['sessionistVerificationIdFront', 'sessionistVerificationIdBack', 'sessionistVerificationSelfie'].forEach((inputId) => {
+      document.getElementById(inputId)?.addEventListener('change', handleSessionistVerificationFileChange);
+      renderSessionistVerificationUploadCard(inputId, null);
     });
   </script>
 </body>

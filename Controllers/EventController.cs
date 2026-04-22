@@ -4,6 +4,7 @@ using Npgsql;
 using ImajinationAPI.Models;
 using System.Text.Json;
 using System.Threading;
+using System.Security.Claims;
 using ImajinationAPI.Services;
 
 namespace ImajinationAPI.Controllers
@@ -16,6 +17,7 @@ namespace ImajinationAPI.Controllers
         private readonly UploadScanningService _uploadScanningService;
         private static readonly SemaphoreSlim EventLineupSchemaLock = new(1, 1);
         private static volatile bool _eventLineupColumnsEnsured;
+        private const int EventListPosterDataUrlLimit = 5_000_000;
 
         public EventController(IConfiguration configuration, UploadScanningService uploadScanningService)
         {
@@ -410,8 +412,23 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActorUserId)
+                    ? parsedActorUserId
+                    : Guid.Empty;
+
+                if (!User.IsInRole("Admin") && actorUserId != Guid.Empty && actorUserId != req.organizerId)
+                {
+                    return Forbid();
+                }
+
+                if (!User.IsInRole("Admin") && !await CommunitySupport.IsIdentityApprovedAsync(connection, req.organizerId, "Organizer"))
+                {
+                    return StatusCode(403, new { message = "Organizer identity verification must be approved by admin before creating events." });
+                }
 
                 var sanitizedTitle = SecuritySupport.SanitizePlainText(req.title, 180, false);
                 var sanitizedArtists = SecuritySupport.SanitizePlainText(BuildLineupDisplay(req), 600, true);
@@ -443,12 +460,13 @@ namespace ImajinationAPI.Controllers
                 var lineupDisplay = sanitizedArtists;
                 var mergedLineup = MergeLineupMembers(normalizedArtistLineup, normalizedSessionistLineup);
                 var eventId = Guid.NewGuid();
+                var maxTicketsPerCustomer = Math.Clamp(req.maxTicketsPerCustomer ?? 5, 3, 10);
 
                 string sql = @"
                     INSERT INTO events 
-                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, status, artist_lineup, sessionist_lineup) 
+                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, max_tickets_per_customer, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, status, artist_lineup, sessionist_lineup) 
                     VALUES 
-                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @status, @artistLineup, @sessionistLineup)";
+                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @maxTicketsPerCustomer, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @status, @artistLineup, @sessionistLineup)";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", eventId);
@@ -462,6 +480,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@poster", (object?)normalizedPoster ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@price", req.price);
                 cmd.Parameters.AddWithValue("@slots", req.slots);
+                cmd.Parameters.AddWithValue("@maxTicketsPerCustomer", maxTicketsPerCustomer);
                 
                 cmd.Parameters.AddWithValue("@eType", string.IsNullOrWhiteSpace(sanitizedEventType) ? "Live Gig" : sanitizedEventType);
                 cmd.Parameters.AddWithValue("@genres", sanitizedGenres);
@@ -534,10 +553,9 @@ namespace ImajinationAPI.Controllers
                         e.artist_lineup,
                         e.sessionist_lineup,
                         COALESCE((
-                            SELECT SUM(COALESCE(t.quantity, 0))
+                            SELECT SUM(COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 0) ELSE 0 END))
                             FROM tickets t
                             WHERE t.event_id = e.id
-                              AND COALESCE(t.is_used, FALSE) = TRUE
                         ), 0) AS attended_tickets
                     FROM events e
                     WHERE e.organizer_id = @orgId
@@ -706,7 +724,9 @@ namespace ImajinationAPI.Controllers
                         COALESCE(t.total_price, 0),
                         t.purchase_date,
                         COALESCE(t.payment_method, 'Unknown'),
-                        COALESCE(t.is_used, FALSE)
+                        COALESCE(t.is_used, FALSE),
+                        COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 0) ELSE 0 END),
+                        COALESCE(t.used_ticket_units, '')
                     FROM tickets t
                     INNER JOIN events e ON e.id = t.event_id
                     LEFT JOIN users u ON u.id = t.customer_id
@@ -722,6 +742,10 @@ namespace ImajinationAPI.Controllers
                     var firstName = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     var lastName = reader.IsDBNull(3) ? "" : reader.GetString(3);
 
+                    var quantity = reader.IsDBNull(6) ? 0 : reader.GetInt32(6);
+                    var usedQuantity = reader.IsDBNull(11) ? (!reader.IsDBNull(10) && reader.GetBoolean(10) ? quantity : 0) : reader.GetInt32(11);
+                    var usedTicketUnits = TicketController.ParseUsedTicketUnits(reader.IsDBNull(12) ? "" : reader.GetString(12));
+
                     attendees.Add(new
                     {
                         ticketId = reader.GetGuid(0),
@@ -729,11 +753,13 @@ namespace ImajinationAPI.Controllers
                         attendeeName = $"{firstName} {lastName}".Trim(),
                         email = reader.IsDBNull(4) ? "" : reader.GetString(4),
                         tierName = reader.IsDBNull(5) ? "General Admission" : reader.GetString(5),
-                        quantity = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                        quantity = quantity,
                         totalPrice = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7),
                         purchaseDate = reader.IsDBNull(8) ? DateTime.Now : reader.GetDateTime(8),
                         paymentMethod = reader.IsDBNull(9) ? "Unknown" : reader.GetString(9),
-                        isUsed = !reader.IsDBNull(10) && reader.GetBoolean(10)
+                        isUsed = quantity > 0 && usedQuantity >= quantity,
+                        usedQuantity = usedQuantity,
+                        usedTicketUnits = usedTicketUnits
                     });
                 }
 
@@ -861,7 +887,7 @@ namespace ImajinationAPI.Controllers
                         COALESCE(e.sessionist_lineup, '[]'),
                         COALESCE(SUM(t.total_price), 0) AS gross_revenue,
                         COALESCE(SUM(t.quantity), 0) AS purchased_tickets,
-                        COALESCE(SUM(CASE WHEN COALESCE(t.is_used, FALSE) THEN t.quantity ELSE 0 END), 0) AS used_tickets,
+                        COALESCE(SUM(COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN t.quantity ELSE 0 END)), 0) AS used_tickets,
                         COUNT(t.id) AS transactions
                     FROM events e
                     LEFT JOIN tickets t ON t.event_id = e.id
@@ -959,7 +985,7 @@ namespace ImajinationAPI.Controllers
                         COALESCE(tier_name, 'General Admission') AS tier_name,
                         COALESCE(SUM(quantity), 0) AS tickets_sold,
                         COALESCE(SUM(total_price), 0) AS revenue,
-                        COALESCE(SUM(CASE WHEN COALESCE(is_used, FALSE) THEN quantity ELSE 0 END), 0) AS used_tickets
+                        COALESCE(SUM(COALESCE(used_quantity, CASE WHEN COALESCE(is_used, FALSE) THEN quantity ELSE 0 END)), 0) AS used_tickets
                     FROM tickets
                     WHERE event_id = @eventId
                     GROUP BY COALESCE(tier_name, 'General Admission')
@@ -992,7 +1018,8 @@ namespace ImajinationAPI.Controllers
                         COALESCE(t.total_price, 0),
                         t.purchase_date,
                         COALESCE(t.payment_method, 'Unknown'),
-                        COALESCE(t.is_used, FALSE)
+                        COALESCE(t.is_used, FALSE),
+                        COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 0) ELSE 0 END)
                     FROM tickets t
                     LEFT JOIN users u ON u.id = t.customer_id
                     WHERE t.event_id = @eventId
@@ -1009,16 +1036,20 @@ namespace ImajinationAPI.Controllers
                         var firstName = reader.IsDBNull(0) ? "" : reader.GetString(0);
                         var lastName = reader.IsDBNull(1) ? "" : reader.GetString(1);
 
+                        var quantity = reader.IsDBNull(4) ? 0 : reader.GetInt32(4);
+                        var usedQuantity = reader.IsDBNull(9) ? (!reader.IsDBNull(8) && reader.GetBoolean(8) ? quantity : 0) : reader.GetInt32(9);
+
                         recentTransactions.Add(new
                         {
                             attendeeName = $"{firstName} {lastName}".Trim(),
                             email = reader.IsDBNull(2) ? "" : reader.GetString(2),
                             tierName = reader.IsDBNull(3) ? "General Admission" : reader.GetString(3),
-                            quantity = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                            quantity = quantity,
                             totalPrice = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
                             purchaseDate = reader.IsDBNull(6) ? DateTime.Now : reader.GetDateTime(6),
                             paymentMethod = reader.IsDBNull(7) ? "Unknown" : reader.GetString(7),
-                            isUsed = !reader.IsDBNull(8) && reader.GetBoolean(8)
+                            isUsed = quantity > 0 && usedQuantity >= quantity,
+                            usedQuantity = usedQuantity
                         });
                     }
                 }
@@ -1144,7 +1175,10 @@ namespace ImajinationAPI.Controllers
                         city = reader.IsDBNull(3) ? "" : reader.GetString(3),
                         location = reader.GetString(4),
                         price = reader.GetDecimal(5),
-                        posterUrl = reader.IsDBNull(6) ? "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=1200" : reader.GetString(6),
+                        posterUrl = CommunitySupport.NormalizeListImage(
+                            reader.IsDBNull(6) ? "" : reader.GetString(6),
+                            "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=1200",
+                            EventListPosterDataUrlLimit),
                         eventType = reader.IsDBNull(7) ? "Live Gig" : reader.GetString(7),
                         genres = reader.IsDBNull(8) ? "" : reader.GetString(8),
                         organizerId = reader.IsDBNull(9) ? Guid.Empty : reader.GetGuid(9),
@@ -1170,6 +1204,8 @@ namespace ImajinationAPI.Controllers
                 var events = new List<object>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
+                await EnsureEventLineupColumnsOnce(connection);
+                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 string sql = @"
                     SELECT e.id,
@@ -1246,6 +1282,7 @@ namespace ImajinationAPI.Controllers
                            e.base_price,
                            e.total_slots,
                            e.tickets_sold,
+                           COALESCE(e.max_tickets_per_customer, 5),
                            e.status,
                            e.event_type,
                            e.genres,
@@ -1288,26 +1325,27 @@ namespace ImajinationAPI.Controllers
                         price = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
                         totalSlots = reader.IsDBNull(9) ? 0 : reader.GetInt32(9),
                         ticketsSold = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
-                        status = reader.IsDBNull(11) ? "Upcoming" : reader.GetString(11),
-                        eventType = reader.IsDBNull(12) ? "Live Gig" : reader.GetString(12),
-                        genres = reader.IsDBNull(13) ? "" : reader.GetString(13),
+                        maxTicketsPerCustomer = reader.IsDBNull(11) ? 5 : reader.GetInt32(11),
+                        status = reader.IsDBNull(12) ? "Upcoming" : reader.GetString(12),
+                        eventType = reader.IsDBNull(13) ? "Live Gig" : reader.GetString(13),
+                        genres = reader.IsDBNull(14) ? "" : reader.GetString(14),
                         
-                        tierName = reader.IsDBNull(14) ? null : reader.GetString(14),
-                        tierPrice = reader.IsDBNull(15) ? null : (decimal?)reader.GetDecimal(15),
-                        tierSlots = reader.IsDBNull(16) ? null : (int?)reader.GetInt32(16),
-                        bundles = reader.IsDBNull(17) ? null : reader.GetString(17),
-                        saleName = reader.IsDBNull(18) ? null : reader.GetString(18),
-                        saleType = reader.IsDBNull(19) ? null : reader.GetString(19),
-                        saleValue = reader.IsDBNull(20) ? null : (decimal?)reader.GetDecimal(20),
-                        saleStartsAt = reader.IsDBNull(21) ? null : (DateTime?)reader.GetDateTime(21),
-                        saleEndsAt = reader.IsDBNull(22) ? null : (DateTime?)reader.GetDateTime(22),
-                        artistLineup = DeserializeLineup(reader.IsDBNull(23) ? null : reader.GetString(23)),
-                        sessionistLineup = DeserializeLineup(reader.IsDBNull(24) ? null : reader.GetString(24)),
-                        organizerId = reader.IsDBNull(25) ? Guid.Empty : reader.GetGuid(25),
-                        organizerName = reader.IsDBNull(26) ? "Unknown Organizer" : reader.GetString(26),
-                        organizerProfilePicture = reader.IsDBNull(27) ? "" : reader.GetString(27),
-                        organizerBio = reader.IsDBNull(28) ? "" : reader.GetString(28),
-                        organizerVerified = !reader.IsDBNull(29) && reader.GetBoolean(29)
+                        tierName = reader.IsDBNull(15) ? null : reader.GetString(15),
+                        tierPrice = reader.IsDBNull(16) ? null : (decimal?)reader.GetDecimal(16),
+                        tierSlots = reader.IsDBNull(17) ? null : (int?)reader.GetInt32(17),
+                        bundles = reader.IsDBNull(18) ? null : reader.GetString(18),
+                        saleName = reader.IsDBNull(19) ? null : reader.GetString(19),
+                        saleType = reader.IsDBNull(20) ? null : reader.GetString(20),
+                        saleValue = reader.IsDBNull(21) ? null : (decimal?)reader.GetDecimal(21),
+                        saleStartsAt = reader.IsDBNull(22) ? null : (DateTime?)reader.GetDateTime(22),
+                        saleEndsAt = reader.IsDBNull(23) ? null : (DateTime?)reader.GetDateTime(23),
+                        artistLineup = DeserializeLineup(reader.IsDBNull(24) ? null : reader.GetString(24)),
+                        sessionistLineup = DeserializeLineup(reader.IsDBNull(25) ? null : reader.GetString(25)),
+                        organizerId = reader.IsDBNull(26) ? Guid.Empty : reader.GetGuid(26),
+                        organizerName = reader.IsDBNull(27) ? "Unknown Organizer" : reader.GetString(27),
+                        organizerProfilePicture = reader.IsDBNull(28) ? "" : reader.GetString(28),
+                        organizerBio = reader.IsDBNull(29) ? "" : reader.GetString(29),
+                        organizerVerified = !reader.IsDBNull(30) && reader.GetBoolean(30)
                     });
                 }
                 return NotFound(new { message = "Event not found." });
@@ -1330,8 +1368,23 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActorUserId)
+                    ? parsedActorUserId
+                    : Guid.Empty;
+
+                if (!User.IsInRole("Admin") && actorUserId != Guid.Empty && req.organizerId != Guid.Empty && actorUserId != req.organizerId)
+                {
+                    return Forbid();
+                }
+
+                if (!User.IsInRole("Admin") && req.organizerId != Guid.Empty && !await CommunitySupport.IsIdentityApprovedAsync(connection, req.organizerId, "Organizer"))
+                {
+                    return StatusCode(403, new { message = "Organizer identity verification must be approved by admin before updating events." });
+                }
 
                 var sanitizedTitle = SecuritySupport.SanitizePlainText(req.title, 180, false);
                 var sanitizedArtists = SecuritySupport.SanitizePlainText(BuildLineupDisplay(req), 600, true);
@@ -1386,6 +1439,7 @@ namespace ImajinationAPI.Controllers
                 var normalizedArtistLineup = NormalizeLineup(req.artistLineup, "Artist");
                 var normalizedSessionistLineup = NormalizeLineup(req.sessionistLineup, "Sessionist");
                 var lineupDisplay = sanitizedArtists;
+                var maxTicketsPerCustomer = Math.Clamp(req.maxTicketsPerCustomer ?? 5, 3, 10);
 
                 string sql = @"
                     UPDATE events SET 
@@ -1398,6 +1452,7 @@ namespace ImajinationAPI.Controllers
                         poster_url = COALESCE(@poster, poster_url), 
                         base_price = @price, 
                         total_slots = @slots, 
+                        max_tickets_per_customer = @maxTicketsPerCustomer,
                         event_type = @eType, 
                         genres = @genres,
                         tier_name = @tName,
@@ -1429,6 +1484,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@poster", (object?)normalizedPoster ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@price", req.price);
                 cmd.Parameters.AddWithValue("@slots", req.slots);
+                cmd.Parameters.AddWithValue("@maxTicketsPerCustomer", maxTicketsPerCustomer);
                 cmd.Parameters.AddWithValue("@eType", string.IsNullOrWhiteSpace(sanitizedEventType) ? "Live Gig" : sanitizedEventType);
                 cmd.Parameters.AddWithValue("@genres", sanitizedGenres);
                 

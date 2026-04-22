@@ -23,7 +23,7 @@ namespace ImajinationAPI.Services
                 ? Math.Clamp(configuredExpiry, 5, 1440)
                 : 120;
 
-            var configuredSecret = configuration["Auth:JwtSecret"];
+            var configuredSecret = Environment.GetEnvironmentVariable("Auth__JwtSecret") ?? configuration["Auth:JwtSecret"];
             if (!string.IsNullOrWhiteSpace(configuredSecret))
             {
                 _secretKeyBytes = Encoding.UTF8.GetBytes(configuredSecret);

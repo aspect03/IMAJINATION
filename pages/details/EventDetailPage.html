@@ -869,7 +869,7 @@
           ? tickets.filter(ticket => String(ticket.eventId || '') === String(eventId))
           : [];
         const hasPurchasedTicket = matchingTickets.length > 0;
-        const hasScannedTicket = matchingTickets.some(ticket => ticket.isUsed === true);
+        const hasScannedTicket = matchingTickets.some(ticket => Number(ticket.usedQuantity || 0) > 0 || ticket.isUsed === true);
 
         return {
           hasPurchasedTicket,

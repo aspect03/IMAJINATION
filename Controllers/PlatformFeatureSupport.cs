@@ -9,12 +9,19 @@ namespace ImajinationAPI.Controllers
         {
             const string sql = @"
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS base_price numeric NOT NULL DEFAULT 0;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_status varchar(30) NOT NULL DEFAULT 'Not Submitted';
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_level varchar(40) NULL;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_method varchar(60) NULL;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_notes text NULL;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_last_submitted_at timestamptz NULL;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_reviewed_at timestamptz NULL;
 
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_name text NULL;
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_type varchar(20) NULL;
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_value numeric NULL;
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_starts_at timestamptz NULL;
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_ends_at timestamptz NULL;
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS max_tickets_per_customer integer NOT NULL DEFAULT 5;
 
                 CREATE TABLE IF NOT EXISTS user_calendar_blocks (
                     id uuid PRIMARY KEY,
@@ -101,6 +108,22 @@ namespace ImajinationAPI.Controllers
                     location text NULL,
                     created_at timestamptz NOT NULL DEFAULT NOW(),
                     updated_at timestamptz NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS talent_verification_requests (
+                    id uuid PRIMARY KEY,
+                    user_id uuid NOT NULL,
+                    role varchar(30) NOT NULL,
+                    verification_path varchar(60) NOT NULL,
+                    evidence_summary text NOT NULL,
+                    portfolio_links text NULL,
+                    supporting_links text NULL,
+                    reference_name text NULL,
+                    reference_contact text NULL,
+                    status varchar(30) NOT NULL DEFAULT 'Pending',
+                    admin_notes text NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    reviewed_at timestamptz NULL
                 );";
 
             await using var cmd = new NpgsqlCommand(sql, connection);
@@ -169,6 +192,50 @@ namespace ImajinationAPI.Controllers
             cmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
             cmd.Parameters.Add("@ignoreBookingId", NpgsqlDbType.Uuid).Value = (object?)ignoreBookingId ?? DBNull.Value;
             cmd.Parameters.Add("@blockDate", NpgsqlDbType.Date).Value = blockDate;
+            var result = await cmd.ExecuteScalarAsync();
+            return result is bool value && value;
+        }
+
+        public static async Task<bool> UserHasBookingConflictAsync(
+            NpgsqlConnection connection,
+            Guid userId,
+            DateTime? eventStart,
+            DateTime? eventEnd,
+            Guid? ignoreBookingId = null)
+        {
+            if (userId == Guid.Empty || !eventStart.HasValue) return false;
+
+            await EnsureSharedBusinessSchemaAsync(connection);
+            var normalizedStart = NormalizeToUtc(eventStart);
+            var normalizedEnd = NormalizeToUtc(eventEnd) ?? normalizedStart?.AddHours(4);
+            if (!normalizedStart.HasValue || !normalizedEnd.HasValue)
+            {
+                return false;
+            }
+
+            if (normalizedEnd <= normalizedStart)
+            {
+                normalizedEnd = normalizedStart.Value.AddHours(1);
+            }
+
+            const string sql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM bookings
+                    WHERE target_user_id = @userId
+                      AND event_date IS NOT NULL
+                      AND status NOT ILIKE 'Cancelled%'
+                      AND LOWER(COALESCE(status, 'Pending')) <> 'completed'
+                      AND (@ignoreBookingId IS NULL OR id <> @ignoreBookingId)
+                      AND COALESCE(event_end_time, event_date + INTERVAL '4 hours') > @eventStart
+                      AND event_date < @eventEnd
+                );";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
+            cmd.Parameters.Add("@ignoreBookingId", NpgsqlDbType.Uuid).Value = (object?)ignoreBookingId ?? DBNull.Value;
+            cmd.Parameters.Add("@eventStart", NpgsqlDbType.TimestampTz).Value = normalizedStart.Value;
+            cmd.Parameters.Add("@eventEnd", NpgsqlDbType.TimestampTz).Value = normalizedEnd.Value;
             var result = await cmd.ExecuteScalarAsync();
             return result is bool value && value;
         }

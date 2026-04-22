@@ -25,6 +25,8 @@ namespace ImajinationAPI.Controllers
         public string? ticketValue { get; set; }
     }
 
+    internal sealed record ParsedTicketScan(Guid TicketId, int? UnitNumber);
+
     internal sealed record TicketPricingPhase(
         string Name,
         decimal Multiplier,
@@ -38,11 +40,13 @@ namespace ImajinationAPI.Controllers
     {
         private readonly string _connectionString;
         private readonly string _paymongoSecretKey;
+        private readonly IConfiguration _configuration;
         private const decimal PayMongoMinimumAmount = 20m;
         private const decimal TicketServiceFeeRate = 0.05m;
 
         public TicketController(IConfiguration configuration)
         {
+            _configuration = configuration;
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _paymongoSecretKey = configuration["PayMongo:SecretKey"] ?? string.Empty;
         }
@@ -121,7 +125,8 @@ namespace ImajinationAPI.Controllers
                            sale_type,
                            sale_value,
                            sale_starts_at,
-                           sale_ends_at
+                           sale_ends_at,
+                           COALESCE(max_tickets_per_customer, 5)
                     FROM events
                     WHERE id = @id";
                 using var cmd = new NpgsqlCommand(sql, connection);
@@ -139,6 +144,7 @@ namespace ImajinationAPI.Controllers
                     var saleValue = reader.IsDBNull(12) ? null : (decimal?)reader.GetDecimal(12);
                     var saleStartsAt = reader.IsDBNull(13) ? null : (DateTime?)reader.GetDateTime(13);
                     var saleEndsAt = reader.IsDBNull(14) ? null : (DateTime?)reader.GetDateTime(14);
+                    var maxTicketsPerCustomer = reader.IsDBNull(15) ? 5 : Math.Clamp(reader.GetInt32(15), 3, 10);
                     var saleActive = IsSaleActive(saleStartsAt, saleEndsAt);
                     var pricingPhase = GetTicketPricingPhase(eventTime);
                     var adjustedBasePrice = ApplyPhaseMarkup(ApplySale(basePrice, saleType, saleValue, saleActive), pricingPhase);
@@ -177,6 +183,7 @@ namespace ImajinationAPI.Controllers
                         pricingPhaseTone = pricingPhase.BadgeTone,
                         pricingPhaseDescription = pricingPhase.Description,
                         pricingMultiplier = pricingPhase.Multiplier,
+                        maxTicketsPerCustomer,
                         ticketServiceFeeRate = TicketServiceFeeRate,
                         ticketServiceFeeLabel = $"Ticket Service Fee ({TicketServiceFeeRate * 100:0}%)",
                         bundleTiers
@@ -218,8 +225,9 @@ namespace ImajinationAPI.Controllers
                 decimal? saleValue = null;
                 DateTime? saleStartsAt = null;
                 DateTime? saleEndsAt = null;
+                int maxTicketsPerCustomer = 5;
                 string getTitleSql = @"
-                    SELECT title, organizer_id, base_price, tier_name, tier_price, bundles, event_time, sale_type, sale_value, sale_starts_at, sale_ends_at
+                    SELECT title, organizer_id, base_price, tier_name, tier_price, bundles, event_time, sale_type, sale_value, sale_starts_at, sale_ends_at, COALESCE(max_tickets_per_customer, 5)
                     FROM events
                     WHERE id = @id";
                 using (var titleCmd = new NpgsqlCommand(getTitleSql, connection))
@@ -239,6 +247,7 @@ namespace ImajinationAPI.Controllers
                         saleValue = reader.IsDBNull(8) ? null : reader.GetDecimal(8);
                         saleStartsAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9);
                         saleEndsAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10);
+                        maxTicketsPerCustomer = reader.IsDBNull(11) ? 5 : Math.Clamp(reader.GetInt32(11), 3, 10);
                     }
                     else
                     {
@@ -249,6 +258,30 @@ namespace ImajinationAPI.Controllers
                 if (organizerId != Guid.Empty && organizerId == parsedCustomerId)
                 {
                     return BadRequest(new { message = "Event organizers cannot buy tickets for their own event." });
+                }
+
+                if (req.quantity < 1 || req.quantity > maxTicketsPerCustomer)
+                {
+                    return BadRequest(new { message = $"This event allows up to {maxTicketsPerCustomer} tickets per customer." });
+                }
+
+                const string personalLimitSql = @"
+                    SELECT COALESCE(SUM(quantity), 0)
+                    FROM tickets
+                    WHERE event_id = @eventId
+                      AND customer_id = @customerId;";
+                await using (var personalLimitCmd = new NpgsqlCommand(personalLimitSql, connection))
+                {
+                    personalLimitCmd.Parameters.AddWithValue("@eventId", parsedEventId);
+                    personalLimitCmd.Parameters.AddWithValue("@customerId", parsedCustomerId);
+                    var existingCount = Convert.ToInt32(await personalLimitCmd.ExecuteScalarAsync() ?? 0);
+                    if (existingCount + req.quantity > maxTicketsPerCustomer)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"You already reserved {existingCount} ticket(s) for this event. The organizer limit is {maxTicketsPerCustomer} per customer."
+                        });
+                    }
                 }
 
                 var normalizedTierName = string.IsNullOrWhiteSpace(req.tierName) ? "General Admission" : req.tierName.Trim();
@@ -390,7 +423,16 @@ namespace ImajinationAPI.Controllers
 
                 return Ok(new { message = "Checkout session created!", checkoutUrl = checkoutUrl });
             }
-            catch (Exception ex) { return StatusCode(500, new { message = "Checkout Logic Error: " + ex.Message }); }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _configuration,
+                        "Checkout could not be started right now.",
+                        ex)
+                });
+            }
         }
 
         private static bool IsSaleActive(DateTime? startsAt, DateTime? endsAt)
@@ -551,7 +593,9 @@ namespace ImajinationAPI.Controllers
                     SELECT t.id, t.event_id, t.tier_name, t.quantity, t.total_price, t.payment_method, t.purchase_date, t.is_used,
                            e.title, e.event_time, e.location, e.status, COALESCE(t.paymongo_payment_reference, ''), COALESCE(t.paymongo_checkout_reference, ''),
                            COALESCE(t.ticket_unit_price, 0), COALESCE(t.ticket_subtotal, t.total_price), COALESCE(t.ticket_service_fee, 0),
-                           COALESCE(t.ticket_service_fee_rate, 0), COALESCE(t.pricing_phase_name, 'Pre-Sale'), COALESCE(t.pricing_phase_percentage, 0)
+                           COALESCE(t.ticket_service_fee_rate, 0), COALESCE(t.pricing_phase_name, 'Pre-Sale'), COALESCE(t.pricing_phase_percentage, 0),
+                           COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END),
+                           COALESCE(t.used_ticket_units, '')
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id
                     WHERE t.customer_id = @cId
@@ -563,16 +607,23 @@ namespace ImajinationAPI.Controllers
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
+                    var quantity = reader.GetInt32(3);
+                    var usedQuantity = reader.IsDBNull(20) ? (reader.IsDBNull(7) ? 0 : (reader.GetBoolean(7) ? quantity : 0)) : reader.GetInt32(20);
+                    usedQuantity = Math.Clamp(usedQuantity, 0, Math.Max(quantity, 0));
                     tickets.Add(new
                     {
                         ticketId = reader.GetGuid(0),
                         eventId = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1),
                         tierName = reader.GetString(2),
-                        quantity = reader.GetInt32(3),
+                        quantity = quantity,
                         totalPrice = reader.GetDecimal(4),
                         paymentMethod = reader.GetString(5),
                         purchaseDate = reader.GetDateTime(6),
-                        isUsed = reader.IsDBNull(7) ? false : reader.GetBoolean(7),
+                        isUsed = quantity > 0 && usedQuantity >= quantity,
+                        usedQuantity = usedQuantity,
+                        remainingQuantity = Math.Max(quantity - usedQuantity, 0),
+                        hasScannedUnits = usedQuantity > 0,
+                        usedTicketUnits = ParseUsedTicketUnits(reader.IsDBNull(21) ? "" : reader.GetString(21)),
                         eventTitle = reader.GetString(8),
                         eventTime = reader.GetDateTime(9),
                         location = reader.GetString(10),
@@ -739,7 +790,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to confirm ticket payment: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _configuration,
+                        "Failed to confirm ticket payment.",
+                        ex)
+                });
             }
         }
 
@@ -753,8 +810,8 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "EVENT REQUIRED", details = "Open the scanner from a specific organizer event before validating tickets." });
                 }
 
-                var ticketId = ExtractTicketId(req?.ticketValue);
-                if (ticketId == null || ticketId == Guid.Empty)
+                var parsedScan = ParseTicketScan(req?.ticketValue);
+                if (parsedScan == null || parsedScan.TicketId == Guid.Empty)
                 {
                     return BadRequest(new
                     {
@@ -765,15 +822,24 @@ namespace ImajinationAPI.Controllers
 
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
+                await EnsureTicketPaymentColumnsExist(connection);
 
                 string checkSql = @"
-                    SELECT t.is_used, t.tier_name, t.quantity, e.title, e.event_time, e.status, e.id
+                    SELECT t.is_used,
+                           t.tier_name,
+                           t.quantity,
+                           e.title,
+                           e.event_time,
+                           e.status,
+                           e.id,
+                           COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END),
+                           COALESCE(t.used_ticket_units, '')
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id 
                     WHERE t.id = @id";
                     
                 using var checkCmd = new NpgsqlCommand(checkSql, connection);
-                checkCmd.Parameters.AddWithValue("@id", ticketId.Value);
+                checkCmd.Parameters.AddWithValue("@id", parsedScan.TicketId);
 
                 using var reader = await checkCmd.ExecuteReaderAsync();
                 if (!await reader.ReadAsync())
@@ -788,6 +854,8 @@ namespace ImajinationAPI.Controllers
                 DateTime eventTime = reader.GetDateTime(4);
                 string eventStatus = reader.IsDBNull(5) ? "Upcoming" : reader.GetString(5);
                 Guid ticketEventId = reader.IsDBNull(6) ? Guid.Empty : reader.GetGuid(6);
+                int usedQuantity = reader.IsDBNull(7) ? (isUsed ? qty : 0) : reader.GetInt32(7);
+                var usedUnits = ParseUsedTicketUnits(reader.IsDBNull(8) ? "" : reader.GetString(8));
                 
                 await reader.CloseAsync();
 
@@ -805,29 +873,78 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "EXPIRED TICKET", details = $"The event '{evTitle}' has already ended." });
                 }
 
-                if (isUsed)
+                if (qty > 1 && !parsedScan.UnitNumber.HasValue)
+                {
+                    return BadRequest(new
+                    {
+                        message = "INDIVIDUAL QR REQUIRED",
+                        details = $"This purchase contains {qty} tickets. Use the specific QR for each ticket holder."
+                    });
+                }
+
+                var unitNumber = parsedScan.UnitNumber.GetValueOrDefault(1);
+                if (unitNumber < 1 || unitNumber > Math.Max(qty, 1))
+                {
+                    return BadRequest(new
+                    {
+                        message = "INVALID QR",
+                        details = $"The scanned QR points to ticket {unitNumber}, but this order only has {qty} ticket(s)."
+                    });
+                }
+
+                if (usedUnits.Contains(unitNumber))
+                {
+                    return BadRequest(new
+                    {
+                        message = "ALREADY SCANNED!",
+                        details = $"Ticket {unitNumber} of {qty} for {evTitle} was already used."
+                    });
+                }
+
+                if (isUsed || usedQuantity >= qty)
                 {
                     return BadRequest(new { message = "ALREADY SCANNED!", details = $"{qty}x {tier} for {evTitle} was already used." });
                 }
 
-                string updateSql = "UPDATE tickets SET is_used = TRUE WHERE id = @id";
+                usedUnits.Add(unitNumber);
+                var nextUsedQuantity = usedUnits.Count;
+                var fullyUsed = nextUsedQuantity >= qty;
+
+                string updateSql = @"
+                    UPDATE tickets
+                    SET used_quantity = @usedQuantity,
+                        used_ticket_units = @usedUnits,
+                        is_used = @isUsed
+                    WHERE id = @id";
                 using var updateCmd = new NpgsqlCommand(updateSql, connection);
-                updateCmd.Parameters.AddWithValue("@id", ticketId.Value);
+                updateCmd.Parameters.AddWithValue("@id", parsedScan.TicketId);
+                updateCmd.Parameters.AddWithValue("@usedQuantity", nextUsedQuantity);
+                updateCmd.Parameters.AddWithValue("@usedUnits", SerializeUsedTicketUnits(usedUnits));
+                updateCmd.Parameters.AddWithValue("@isUsed", fullyUsed);
                 await updateCmd.ExecuteNonQueryAsync();
 
-                return Ok(new { message = "SUCCESS! Ticket is Valid.", details = $"{qty}x {tier} for {evTitle}" });
+                return Ok(new
+                {
+                    message = "SUCCESS! Ticket is Valid.",
+                    details = qty > 1
+                        ? $"Ticket {unitNumber} of {qty} for {tier} at {evTitle} was accepted. {Math.Max(qty - nextUsedQuantity, 0)} remaining."
+                        : $"1x {tier} for {evTitle}",
+                    usedQuantity = nextUsedQuantity,
+                    remainingQuantity = Math.Max(qty - nextUsedQuantity, 0),
+                    isFullyUsed = fullyUsed
+                });
             }
             catch (Exception ex) { return StatusCode(500, new { message = "Database Error: " + ex.Message }); }
         }
 
-        private static Guid? ExtractTicketId(string? ticketValue)
+        private static ParsedTicketScan? ParseTicketScan(string? ticketValue)
         {
             if (string.IsNullOrWhiteSpace(ticketValue)) return null;
 
             var trimmed = ticketValue.Trim();
             if (Guid.TryParse(trimmed, out var directGuid))
             {
-                return directGuid;
+                return new ParsedTicketScan(directGuid, null);
             }
 
             if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
@@ -835,17 +952,55 @@ namespace ImajinationAPI.Controllers
                 var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
                 if (query.TryGetValue("ticketId", out var ticketIdValues) && Guid.TryParse(ticketIdValues.FirstOrDefault(), out var queryGuid))
                 {
-                    return queryGuid;
+                    int? unitNumber = null;
+                    if (query.TryGetValue("unit", out var unitValues) && int.TryParse(unitValues.FirstOrDefault(), out var parsedUnit))
+                    {
+                        unitNumber = parsedUnit;
+                    }
+
+                    return new ParsedTicketScan(queryGuid, unitNumber);
                 }
+            }
+
+            var pipeMatch = System.Text.RegularExpressions.Regex.Match(trimmed, @"(?<ticketId>[0-9a-fA-F]{8}\-(?:[0-9a-fA-F]{4}\-){3}[0-9a-fA-F]{12})\|(?<unit>\d+)$");
+            if (pipeMatch.Success && Guid.TryParse(pipeMatch.Groups["ticketId"].Value, out var pipeGuid))
+            {
+                return new ParsedTicketScan(
+                    pipeGuid,
+                    int.TryParse(pipeMatch.Groups["unit"].Value, out var pipeUnit) ? pipeUnit : null);
             }
 
             var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"[0-9a-fA-F]{8}\-(?:[0-9a-fA-F]{4}\-){3}[0-9a-fA-F]{12}");
             if (match.Success && Guid.TryParse(match.Value, out var embeddedGuid))
             {
-                return embeddedGuid;
+                return new ParsedTicketScan(embeddedGuid, null);
             }
 
             return null;
+        }
+
+        internal static List<int> ParseUsedTicketUnits(string? rawValue)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                return new List<int>();
+            }
+
+            return rawValue
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(value => int.TryParse(value, out var parsed) ? parsed : 0)
+                .Where(value => value > 0)
+                .Distinct()
+                .OrderBy(value => value)
+                .ToList();
+        }
+
+        private static string SerializeUsedTicketUnits(IEnumerable<int> units)
+        {
+            return string.Join(",", units
+                .Where(value => value > 0)
+                .Distinct()
+                .OrderBy(value => value));
         }
 
         private static async Task EnsureTicketPaymentColumnsExist(NpgsqlConnection connection)
@@ -859,7 +1014,13 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_service_fee numeric(12,2) NOT NULL DEFAULT 0;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_service_fee_rate numeric(8,4) NOT NULL DEFAULT 0;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS pricing_phase_name varchar(50) NOT NULL DEFAULT 'Pre-Sale';
-                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS pricing_phase_percentage integer NOT NULL DEFAULT 0;";
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS pricing_phase_percentage integer NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS used_quantity integer NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS used_ticket_units text NOT NULL DEFAULT '';
+                UPDATE tickets
+                SET used_quantity = COALESCE(quantity, 1)
+                WHERE COALESCE(is_used, FALSE) = TRUE
+                  AND COALESCE(used_quantity, 0) = 0;";
 
             using var cmd = new NpgsqlCommand(alterSql, connection);
             await cmd.ExecuteNonQueryAsync();

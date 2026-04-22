@@ -205,7 +205,11 @@ namespace ImajinationAPI.Controllers
                 var providerHint = ex.Message.IndexOf("sender", StringComparison.OrdinalIgnoreCase) >= 0
                     ? "The mail provider rejected the sender identity. Verify the Brevo sender email or authenticated domain."
                     : "The mail provider rejected the OTP email.";
-                return StatusCode(500, new { message = $"{providerHint} Details: {ex.Message}", attemptId });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(_config, providerHint, ex),
+                    attemptId
+                });
             }
             catch (Exception ex)
             {
@@ -215,7 +219,14 @@ namespace ImajinationAPI.Controllers
                     ConfigurationFallbacks.GetSetting(_config, "EmailSettings:SenderEmail", "EmailSettings__SenderEmail") ?? string.Empty,
                     "ServerError",
                     ex.Message);
-                return StatusCode(500, new { message = "Failed to send email: " + ex.Message, attemptId });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to send email right now. Please try again in a moment.",
+                        ex),
+                    attemptId
+                });
             }
         }
 
@@ -316,7 +327,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Backend Error: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Registration could not be completed right now.",
+                        ex)
+                });
             }
         }
 
@@ -512,11 +529,22 @@ namespace ImajinationAPI.Controllers
                     return NotFound(new { message = config.Message });
                 }
 
-                return Ok(new { clientId = config.ClientId });
+                return Ok(new
+                {
+                    clientId = config.ClientId,
+                    currentOrigin = $"{Request.Scheme}://{Request.Host}",
+                    setupHint = BuildGoogleOriginSetupHint()
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to load Google client ID: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to load Google sign-in settings.",
+                        ex)
+                });
             }
         }
 
@@ -674,7 +702,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Google Sign-In error: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Google sign-in could not be completed right now.",
+                        ex)
+                });
             }
         }
 
@@ -715,7 +749,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to load MFA status: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to load MFA status.",
+                        ex)
+                });
             }
         }
 
@@ -774,7 +814,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to start MFA enrollment: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to start MFA enrollment.",
+                        ex)
+                });
             }
         }
 
@@ -827,7 +873,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to enable MFA: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to enable MFA.",
+                        ex)
+                });
             }
         }
 
@@ -889,7 +941,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to disable MFA: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to disable MFA.",
+                        ex)
+                });
             }
         }
 
@@ -959,7 +1017,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Failed to complete MFA login: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Failed to complete MFA login.",
+                        ex)
+                });
             }
         }
 
@@ -1090,7 +1154,13 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Backend Error: " + ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Password reset could not be completed right now.",
+                        ex)
+                });
             }
         }
 
@@ -1126,6 +1196,19 @@ namespace ImajinationAPI.Controllers
             }
 
             return new GoogleClientConfiguration(null, "Google Sign-In credentials are invalid. Expected the 'web' client format from Google Cloud.");
+        }
+
+        private string BuildGoogleOriginSetupHint()
+        {
+            var scheme = Request?.Scheme;
+            var host = Request?.Host;
+            if (string.IsNullOrWhiteSpace(scheme) || !host.HasValue)
+            {
+                return "Use a Google Web application client and add your app URL to Authorized JavaScript origins.";
+            }
+
+            var currentOrigin = $"{scheme}://{host.Value}";
+            return $"If Google says the origin is not allowed, add {currentOrigin} to Authorized JavaScript origins for this Web client in Google Cloud Console.";
         }
 
         private async Task<UserLoginResult?> FindUserByEmailAsync(NpgsqlConnection connection, string email)

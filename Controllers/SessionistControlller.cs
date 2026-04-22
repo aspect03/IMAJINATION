@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Npgsql;
+using NpgsqlTypes;
 using ImajinationAPI.Services;
 using System.Threading;
 
@@ -168,7 +169,9 @@ namespace ImajinationAPI.Controllers
                     {
                         id = reader.GetGuid(0),
                         displayName = !string.IsNullOrEmpty(stage) ? stage : $"{first} {last}".Trim(),
-                        profilePicture = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                        profilePicture = CommunitySupport.NormalizeListImage(
+                            reader.IsDBNull(4) ? "" : reader.GetString(4),
+                            "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=300"),
                         genres = reader.IsDBNull(5) ? "Sessionist" : reader.GetString(5),
                         isAvailable = reader.IsDBNull(6) || reader.GetBoolean(6),
                         isVerified = !reader.IsDBNull(7) && reader.GetBoolean(7),
@@ -230,6 +233,37 @@ namespace ImajinationAPI.Controllers
                     var profileSummary = CommunitySupport.CalculateProfileCompletion("Sessionist", first, last, bio, profilePicture, genres, spotifyLink, "", "", "", stage);
                     await reader.CloseAsync();
                     await CommunitySupport.SyncProfileVerificationAsync(connection, id, "Sessionist", first, last, bio, profilePicture, genres, spotifyLink, "", "", "", stage);
+                    var verification = await CommunitySupport.GetTalentVerificationSnapshotAsync(connection, id, "Sessionist");
+                    DateTime? verificationAssetSubmittedAt = null;
+                    bool hasVerificationIdFront = false;
+                    bool hasVerificationIdBack = false;
+                    bool hasVerificationSelfie = false;
+
+                    const string verificationAssetsSql = @"
+                        SELECT created_at,
+                               COALESCE(id_image_front, ''),
+                               COALESCE(id_image_back, ''),
+                               COALESCE(selfie_image, '')
+                        FROM talent_verification_requests
+                        WHERE user_id = @id
+                          AND role = 'Sessionist'
+                        ORDER BY created_at DESC
+                        LIMIT 1;";
+
+                    using (var verificationAssetsCmd = new NpgsqlCommand(verificationAssetsSql, connection))
+                    {
+                        verificationAssetsCmd.Parameters.AddWithValue("@id", id);
+                        verificationAssetsCmd.CommandTimeout = 5;
+
+                        using var verificationAssetsReader = await verificationAssetsCmd.ExecuteReaderAsync(System.Data.CommandBehavior.SingleRow);
+                        if (await verificationAssetsReader.ReadAsync())
+                        {
+                            verificationAssetSubmittedAt = verificationAssetsReader.IsDBNull(0) ? null : (DateTime?)verificationAssetsReader.GetDateTime(0);
+                            hasVerificationIdFront = !verificationAssetsReader.IsDBNull(1) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(1));
+                            hasVerificationIdBack = !verificationAssetsReader.IsDBNull(2) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(2));
+                            hasVerificationSelfie = !verificationAssetsReader.IsDBNull(3) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(3));
+                        }
+                    }
 
                     var relatedEvents = new List<object>();
                     const string relatedEventsSql = @"
@@ -305,6 +339,19 @@ namespace ImajinationAPI.Controllers
                         basePrice,
                         isAvailable,
                         isVerified = profileSummary.IsVerified || isVerified,
+                        verificationStatus = verification.Status,
+                        verificationLevel = verification.Level,
+                        verificationMethod = verification.Method,
+                        verificationNotes = verification.Notes,
+                        verificationSubmittedAt = verification.SubmittedAt,
+                        verificationReviewedAt = verification.ReviewedAt,
+                        verificationUploads = new
+                        {
+                            idFrontSubmitted = hasVerificationIdFront,
+                            idBackSubmitted = hasVerificationIdBack,
+                            selfieSubmitted = hasVerificationSelfie,
+                            submittedAt = verificationAssetSubmittedAt
+                        },
                         profileCompletionPercent = profileSummary.Percent,
                         profileCompletionLabel = profileSummary.Label,
                         relatedEvents,
@@ -445,6 +492,7 @@ namespace ImajinationAPI.Controllers
 
                 var profileSummary = CommunitySupport.CalculateProfileCompletion("Sessionist", first, last, bio, profilePicture, genres, spotifyLink, "", "", "", stage);
                 await CommunitySupport.SyncProfileVerificationAsync(connection, id, "Sessionist", first, last, bio, profilePicture, genres, spotifyLink, "", "", "", stage);
+                var verification = await CommunitySupport.GetTalentVerificationSnapshotAsync(connection, id, "Sessionist");
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
                     id,
@@ -462,11 +510,155 @@ namespace ImajinationAPI.Controllers
                     profilePicture,
                     basePrice,
                     isVerified = profileSummary.IsVerified,
+                    verificationStatus = verification.Status,
+                    verificationLevel = verification.Level,
+                    verificationMethod = verification.Method,
                     profileCompletionPercent = profileSummary.Percent,
                     profileCompletionLabel = profileSummary.Label
                 });
             }
             catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+        }
+
+        [Authorize(Roles = "Sessionist")]
+        [HttpPost("{id}/verification-request")]
+        public async Task<IActionResult> SubmitVerificationRequest(Guid id, [FromBody] SubmitTalentVerificationRequestDto req)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureSessionistSchemaOnce(connection);
+
+                if (!req.consentConfirmed || !req.faceVerificationConsent)
+                {
+                    return BadRequest(new { message = "You must consent to ID and facial verification before submitting." });
+                }
+
+                var verificationPath = SecuritySupport.SanitizePlainText(req.verificationPath, 60, true) ?? "PhilippineIdAndFace";
+                var evidenceSummary = SecuritySupport.SanitizePlainText(req.evidenceSummary, 1200, true);
+                var idType = SecuritySupport.SanitizePlainText(req.idType, 60, false);
+                var idNumberLast4 = SecuritySupport.SanitizePlainText(req.idNumberLast4, 8, false);
+                if (string.IsNullOrWhiteSpace(evidenceSummary))
+                {
+                    return BadRequest(new { message = "Add a clear summary of your proof, references, or sample work." });
+                }
+                if (string.IsNullOrWhiteSpace(idType))
+                {
+                    return BadRequest(new { message = "Choose the Philippine ID type you are submitting." });
+                }
+                if (string.IsNullOrWhiteSpace(idNumberLast4) || idNumberLast4.Length < 4)
+                {
+                    return BadRequest(new { message = "Enter the last 4 characters of the submitted ID number." });
+                }
+
+                var normalizedIdFront = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.idImageFront, 3_500_000, out var idFrontError);
+                if (idFrontError is not null)
+                {
+                    return BadRequest(new { message = idFrontError });
+                }
+                if (string.IsNullOrWhiteSpace(normalizedIdFront))
+                {
+                    return BadRequest(new { message = "Upload the front image of your Philippine ID." });
+                }
+
+                var normalizedIdBack = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.idImageBack, 3_500_000, out var idBackError);
+                if (idBackError is not null)
+                {
+                    return BadRequest(new { message = idBackError });
+                }
+
+                var normalizedSelfie = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.selfieImage, 3_500_000, out var selfieError);
+                if (selfieError is not null)
+                {
+                    return BadRequest(new { message = selfieError });
+                }
+                if (string.IsNullOrWhiteSpace(normalizedSelfie))
+                {
+                    return BadRequest(new { message = "Upload a clear selfie for facial verification." });
+                }
+
+                var idFrontScan = await _uploadScanningService.ScanDataUrlAsync(normalizedIdFront, "sessionist ID front");
+                if (!idFrontScan.IsClean)
+                {
+                    return BadRequest(new { message = idFrontScan.Message });
+                }
+                var idBackScan = await _uploadScanningService.ScanDataUrlAsync(normalizedIdBack, "sessionist ID back");
+                if (!idBackScan.IsClean)
+                {
+                    return BadRequest(new { message = idBackScan.Message });
+                }
+                var selfieScan = await _uploadScanningService.ScanDataUrlAsync(normalizedSelfie, "sessionist verification selfie");
+                if (!selfieScan.IsClean)
+                {
+                    return BadRequest(new { message = selfieScan.Message });
+                }
+
+                const string pendingSql = @"
+                    SELECT COUNT(*)
+                    FROM talent_verification_requests
+                    WHERE user_id = @userId
+                      AND status = 'Pending';";
+                await using (var pendingCmd = new NpgsqlCommand(pendingSql, connection))
+                {
+                    pendingCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = id;
+                    var pendingCount = Convert.ToInt32(await pendingCmd.ExecuteScalarAsync() ?? 0);
+                    if (pendingCount > 0)
+                    {
+                        return Conflict(new { message = "A verification request is already under review." });
+                    }
+                }
+
+                const string insertSql = @"
+                    INSERT INTO talent_verification_requests (
+                        id, user_id, role, verification_path, evidence_summary, portfolio_links, supporting_links, reference_name, reference_contact,
+                        id_type, id_number_last4, id_image_front, id_image_back, selfie_image, consent_confirmed, face_verification_consent,
+                        id_review_status, facial_review_status, status, created_at
+                    )
+                    VALUES (
+                        @id, @userId, 'Sessionist', @verificationPath, @evidenceSummary, @portfolioLinks, @supportingLinks, @referenceName, @referenceContact,
+                        @idType, @idNumberLast4, @idImageFront, @idImageBack, @selfieImage, @consentConfirmed, @faceVerificationConsent,
+                        'Pending', 'Pending', 'Pending', NOW()
+                    );";
+                await using (var insertCmd = new NpgsqlCommand(insertSql, connection))
+                {
+                    insertCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = Guid.NewGuid();
+                    insertCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = id;
+                    insertCmd.Parameters.Add("@verificationPath", NpgsqlDbType.Text).Value = verificationPath;
+                    insertCmd.Parameters.Add("@evidenceSummary", NpgsqlDbType.Text).Value = evidenceSummary;
+                    insertCmd.Parameters.Add("@portfolioLinks", NpgsqlDbType.Text).Value = (object?)SecuritySupport.SanitizePlainText(req.portfolioLinks, 1500, true) ?? DBNull.Value;
+                    insertCmd.Parameters.Add("@supportingLinks", NpgsqlDbType.Text).Value = (object?)SecuritySupport.SanitizePlainText(req.supportingLinks, 1500, true) ?? DBNull.Value;
+                    insertCmd.Parameters.Add("@referenceName", NpgsqlDbType.Text).Value = (object?)SecuritySupport.SanitizePlainText(req.referenceName, 160, true) ?? DBNull.Value;
+                    insertCmd.Parameters.Add("@referenceContact", NpgsqlDbType.Text).Value = (object?)SecuritySupport.SanitizePlainText(req.referenceContact, 160, true) ?? DBNull.Value;
+                    insertCmd.Parameters.Add("@idType", NpgsqlDbType.Text).Value = idType;
+                    insertCmd.Parameters.Add("@idNumberLast4", NpgsqlDbType.Text).Value = idNumberLast4;
+                    insertCmd.Parameters.Add("@idImageFront", NpgsqlDbType.Text).Value = normalizedIdFront;
+                    insertCmd.Parameters.Add("@idImageBack", NpgsqlDbType.Text).Value = (object?)normalizedIdBack ?? DBNull.Value;
+                    insertCmd.Parameters.Add("@selfieImage", NpgsqlDbType.Text).Value = normalizedSelfie;
+                    insertCmd.Parameters.Add("@consentConfirmed", NpgsqlDbType.Boolean).Value = req.consentConfirmed;
+                    insertCmd.Parameters.Add("@faceVerificationConsent", NpgsqlDbType.Boolean).Value = req.faceVerificationConsent;
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
+
+                const string updateSql = @"
+                    UPDATE users
+                    SET verification_status = 'Pending',
+                        verification_level = 'Identity Review',
+                        verification_method = @verificationMethod,
+                        verification_notes = 'Submitted Philippine ID and selfie evidence. Waiting for admin review.',
+                        verification_last_submitted_at = NOW()
+                    WHERE id = @userId;";
+                await using var updateCmd = new NpgsqlCommand(updateSql, connection);
+                updateCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = id;
+                updateCmd.Parameters.Add("@verificationMethod", NpgsqlDbType.Text).Value = "Philippine ID + Facial Review";
+                await updateCmd.ExecuteNonQueryAsync();
+
+                return Ok(new { message = "Verification request submitted.", status = "Pending" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to submit verification request: " + ex.Message });
+            }
         }
 
         [Authorize(Roles = "Sessionist")]

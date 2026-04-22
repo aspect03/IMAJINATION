@@ -28,6 +28,16 @@ namespace ImajinationAPI.Controllers
             return configuration[sectionPath];
         }
 
+        public static bool GetBooleanSetting(
+            IConfiguration configuration,
+            string sectionPath,
+            string environmentKey,
+            bool defaultValue = false)
+        {
+            var rawValue = GetSetting(configuration, sectionPath, environmentKey);
+            return bool.TryParse(rawValue, out var parsed) ? parsed : defaultValue;
+        }
+
         public static string GetRequiredSetting(IConfiguration configuration, string sectionPath, string environmentKey, string friendlyName)
         {
             var value = GetSetting(configuration, sectionPath, environmentKey);
@@ -39,6 +49,24 @@ namespace ImajinationAPI.Controllers
             }
 
             return value;
+        }
+
+        public static string BuildSafeErrorMessage(
+            IConfiguration configuration,
+            string publicMessage,
+            Exception? ex = null)
+        {
+            var exposeDetails = GetBooleanSetting(
+                configuration,
+                "AppSecurity:ExposeDetailedErrors",
+                "AppSecurity__ExposeDetailedErrors");
+
+            if (!exposeDetails || ex is null || string.IsNullOrWhiteSpace(ex.Message))
+            {
+                return publicMessage;
+            }
+
+            return $"{publicMessage} Details: {ex.Message}";
         }
     }
 }

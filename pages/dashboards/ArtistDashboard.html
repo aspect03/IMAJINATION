@@ -405,11 +405,97 @@
                     </div>
                     <p class="text-xs text-white/60 mt-2">Complete your profile to unlock the verified badge customers see.</p>
                   </div>
+
+                  <div id="artistVerificationPanel" class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 space-y-4">
+                    <div class="flex items-center justify-between gap-4">
+                      <div>
+                        <p class="text-[10px] uppercase tracking-widest text-emerald-200/80">Verification Review</p>
+                        <p id="artistVerificationStatusText" class="text-sm font-semibold text-white mt-2">Not submitted yet.</p>
+                        <p id="artistVerificationHelperText" class="text-xs text-white/55 mt-2">Submit one Philippine government ID and a live selfie so admin can verify your artist account.</p>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div class="space-y-3">
+                        <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Philippine ID Type</label>
+                        <select id="artistIdType" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                          <option value="PhilSys National ID">PhilSys National ID</option>
+                          <option value="UMID">UMID</option>
+                          <option value="Passport">Passport</option>
+                          <option value="Driver's License">Driver's License</option>
+                          <option value="PRC ID">PRC ID</option>
+                          <option value="Postal ID">Postal ID</option>
+                          <option value="Voter's ID">Voter's ID</option>
+                        </select>
+                      </div>
+                      <div class="space-y-3">
+                        <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">ID Last 4 Digits</label>
+                        <input id="artistIdLast4" type="text" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                      </div>
+                    </div>
+                    <div class="space-y-3">
+                      <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Evidence Summary</label>
+                      <textarea id="artistVerificationSummary" rows="4" placeholder="State your artist name, your role, and anything admin should know when checking your ID and selfie." class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white resize-none shadow-inner"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input id="artistVerificationLinks" type="text" placeholder="Portfolio or sample links (optional)" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                      <input id="artistVerificationReference" type="text" placeholder="Reference name / contact (optional)" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-emerald-500 text-white shadow-inner">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <label id="artistVerificationIdFrontCard" class="rounded-2xl border border-white/10 bg-black/30 p-4 cursor-pointer hover:bg-black/40 transition-colors">
+                        <span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">ID Front</span>
+                        <span id="artistVerificationIdFrontState" class="block text-xs text-white/45 mt-2">Required image upload</span>
+                        <span id="artistVerificationIdFrontName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                        <img id="artistVerificationIdFrontPreview" src="" alt="Artist ID front preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                        <input id="artistVerificationIdFront" type="file" accept="image/*" class="hidden">
+                      </label>
+                      <label id="artistVerificationIdBackCard" class="rounded-2xl border border-white/10 bg-black/30 p-4 cursor-pointer hover:bg-black/40 transition-colors">
+                        <span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">ID Back</span>
+                        <span id="artistVerificationIdBackState" class="block text-xs text-white/45 mt-2">Optional if your ID has back details</span>
+                        <span id="artistVerificationIdBackName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                        <img id="artistVerificationIdBackPreview" src="" alt="Artist ID back preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                        <input id="artistVerificationIdBack" type="file" accept="image/*" class="hidden">
+                      </label>
+                      <label id="artistVerificationSelfieCard" class="rounded-2xl border border-white/10 bg-black/30 p-4 cursor-pointer hover:bg-black/40 transition-colors">
+                        <span class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Selfie Verification</span>
+                        <span id="artistVerificationSelfieState" class="block text-xs text-white/45 mt-2">Required clear face photo</span>
+                        <span id="artistVerificationSelfieName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                        <img id="artistVerificationSelfiePreview" src="" alt="Artist selfie verification preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                        <input id="artistVerificationSelfie" type="file" accept="image/*" class="hidden">
+                      </label>
+                    </div>
+                    <div id="artistVerificationUploadSummary" class="hidden rounded-2xl border border-emerald-400/20 bg-black/25 px-4 py-3 text-xs text-emerald-100/90"></div>
+                    <div class="space-y-3 text-xs text-white/65">
+                      <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                        <input id="artistVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
+                        <span>I confirm this Philippine ID belongs to me and I allow IMAJINATION admins to review the document for account verification.</span>
+                      </label>
+                      <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                        <input id="artistFaceVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
+                        <span>I consent to manual facial comparison between my uploaded selfie and my submitted ID photo for this verification request.</span>
+                      </label>
+                    </div>
+                    <button type="button" id="artistSubmitVerificationBtn" class="w-full py-4 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl border border-emerald-400/20 transition-colors">
+                      Submit Verification Request
+                    </button>
+                  </div>
                 </div>
 
                 <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
                   <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">3. Multi-Factor Authentication</h3>
                   <div id="artistMfaSettings"></div>
+                </div>
+
+                <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Password Recovery</h3>
+                  <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
+                      <p class="text-sm text-white/65 mt-2">Send yourself a reset code if you are locked out or cannot remember your current password.</p>
+                    </div>
+                    <a id="artistForgotPasswordLink" href="/pages/auth/forgotpassword.html" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-neutral-950 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-neutral-200 transition-colors">
+                      <i data-lucide="key-round" class="w-4 h-4"></i> Forgot Password
+                    </a>
+                  </div>
                 </div>
 
                 <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors">
@@ -473,8 +559,14 @@
     let artistAvailabilitySaveInFlight = false;
     let artistNotificationInterval = null;
     let artistProfileImageDirty = false;
+    let artistVerificationApproved = false;
     let artistCalendarBlocks = [];
     let artistPostsLoaded = false;
+    const artistVerificationUploads = {
+      artistVerificationIdFront: null,
+      artistVerificationIdBack: null,
+      artistVerificationSelfie: null
+    };
 
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -581,6 +673,251 @@
       return result;
     }
 
+    async function readArtistVerificationImage(inputId, required = false) {
+      const cached = artistVerificationUploads[inputId];
+      if (cached?.dataUrl) return cached.dataUrl;
+
+      const file = document.getElementById(inputId)?.files?.[0];
+      if (!file) {
+        if (required) throw new Error('Please upload all required verification images.');
+        return '';
+      }
+      return compressImageFile(file, 1600, 4_000_000);
+    }
+
+    function getArtistVerificationUploadMeta(inputId) {
+      const map = {
+        artistVerificationIdFront: {
+          cardId: 'artistVerificationIdFrontCard',
+          stateId: 'artistVerificationIdFrontState',
+          nameId: 'artistVerificationIdFrontName',
+          previewId: 'artistVerificationIdFrontPreview',
+          emptyText: 'Required image upload',
+          selectedText: 'Image selected and ready to submit',
+          submittedText: 'Image already submitted for review',
+          verifiedText: 'Approved document on file'
+        },
+        artistVerificationIdBack: {
+          cardId: 'artistVerificationIdBackCard',
+          stateId: 'artistVerificationIdBackState',
+          nameId: 'artistVerificationIdBackName',
+          previewId: 'artistVerificationIdBackPreview',
+          emptyText: 'Optional if your ID has back details',
+          selectedText: 'Image selected and ready to submit',
+          submittedText: 'Image already submitted for review',
+          verifiedText: 'Approved document on file'
+        },
+        artistVerificationSelfie: {
+          cardId: 'artistVerificationSelfieCard',
+          stateId: 'artistVerificationSelfieState',
+          nameId: 'artistVerificationSelfieName',
+          previewId: 'artistVerificationSelfiePreview',
+          emptyText: 'Required clear face photo',
+          selectedText: 'Selfie selected and ready to submit',
+          submittedText: 'Selfie already submitted for review',
+          verifiedText: 'Approved selfie on file'
+        }
+      };
+      return map[inputId];
+    }
+
+    function renderArtistVerificationUploadCard(inputId, uploadState = null) {
+      const meta = getArtistVerificationUploadMeta(inputId);
+      if (!meta) return;
+
+      const card = document.getElementById(meta.cardId);
+      const state = document.getElementById(meta.stateId);
+      const name = document.getElementById(meta.nameId);
+      const preview = document.getElementById(meta.previewId);
+      if (!card || !state || !name || !preview) return;
+
+      card.classList.remove('border-emerald-400/40', 'bg-emerald-500/10');
+      state.classList.remove('text-emerald-200/90');
+
+      if (!uploadState) {
+        state.innerText = meta.emptyText;
+        name.innerText = '';
+        name.classList.add('hidden');
+        preview.src = '';
+        preview.classList.add('hidden');
+        return;
+      }
+
+      card.classList.add('border-emerald-400/40', 'bg-emerald-500/10');
+      state.classList.add('text-emerald-200/90');
+      state.innerText = uploadState.persisted
+        ? (artistVerificationApproved ? meta.verifiedText : meta.submittedText)
+        : meta.selectedText;
+
+      if (uploadState.name) {
+        name.innerText = uploadState.name;
+        name.classList.remove('hidden');
+      } else if (uploadState.persisted) {
+        name.innerText = artistVerificationApproved
+          ? 'Locked after admin approval'
+          : 'Saved with your latest verification request';
+        name.classList.remove('hidden');
+      } else {
+        name.innerText = '';
+        name.classList.add('hidden');
+      }
+
+      if (uploadState.previewUrl) {
+        preview.src = uploadState.previewUrl;
+        preview.classList.remove('hidden');
+      } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+      }
+    }
+
+    function updateArtistVerificationUploadSummary(submittedAt = '') {
+      const summary = document.getElementById('artistVerificationUploadSummary');
+      if (!summary) return;
+
+      const selectedItems = [];
+      if (artistVerificationUploads.artistVerificationIdFront) selectedItems.push('ID front');
+      if (artistVerificationUploads.artistVerificationIdBack) selectedItems.push('ID back');
+      if (artistVerificationUploads.artistVerificationSelfie) selectedItems.push('selfie');
+
+      if (!selectedItems.length) {
+        summary.innerHTML = '';
+        summary.classList.add('hidden');
+        return;
+      }
+
+      const suffix = submittedAt ? ` Submitted ${submittedAt}.` : '';
+      summary.innerHTML = `Verification files ready: <strong>${selectedItems.join(', ')}</strong>. Required uploads must be present before sending.${suffix}`;
+      summary.classList.remove('hidden');
+    }
+
+    async function handleArtistVerificationFileChange(event) {
+      const input = event.target;
+      const inputId = input?.id;
+      if (!inputId) return;
+
+      const file = input.files?.[0];
+      if (!file) {
+        artistVerificationUploads[inputId] = null;
+        renderArtistVerificationUploadCard(inputId, null);
+        updateArtistVerificationUploadSummary();
+        return;
+      }
+
+      try {
+        const dataUrl = await compressImageFile(file, 1600, 4_000_000);
+        artistVerificationUploads[inputId] = {
+          name: file.name,
+          dataUrl,
+          previewUrl: dataUrl,
+          persisted: false
+        };
+        renderArtistVerificationUploadCard(inputId, artistVerificationUploads[inputId]);
+        updateArtistVerificationUploadSummary();
+      } catch (error) {
+        artistVerificationUploads[inputId] = null;
+        renderArtistVerificationUploadCard(inputId, null);
+        updateArtistVerificationUploadSummary();
+        alert(error.message || 'Could not process that verification image.');
+      }
+    }
+
+    function applyPersistedArtistVerificationUploads(verificationUploads) {
+      const submittedAt = verificationUploads?.submittedAt
+        ? new Date(verificationUploads.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
+
+      const persistedMap = {
+        artistVerificationIdFront: !!verificationUploads?.idFrontSubmitted,
+        artistVerificationIdBack: !!verificationUploads?.idBackSubmitted,
+        artistVerificationSelfie: !!verificationUploads?.selfieSubmitted
+      };
+
+      Object.entries(persistedMap).forEach(([inputId, submitted]) => {
+        if (artistVerificationUploads[inputId]?.dataUrl) return;
+
+        artistVerificationUploads[inputId] = submitted
+          ? { name: '', dataUrl: '', previewUrl: '', persisted: true }
+          : null;
+        renderArtistVerificationUploadCard(inputId, artistVerificationUploads[inputId]);
+      });
+
+      updateArtistVerificationUploadSummary(submittedAt);
+    }
+
+    function applyArtistVerificationUiState(profile = {}) {
+      artistVerificationApproved = String(profile.verificationStatus || '').toLowerCase() === 'approved' || profile.isVerified === true;
+
+      const panel = document.getElementById('artistVerificationPanel');
+      const statusText = document.getElementById('artistVerificationStatusText');
+      const helperText = document.getElementById('artistVerificationHelperText');
+      const summary = document.getElementById('artistVerificationUploadSummary');
+      const submitBtn = document.getElementById('artistSubmitVerificationBtn');
+      const reviewedAt = profile.verificationReviewedAt
+        ? new Date(profile.verificationReviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
+
+      ['artistIdLast4', 'artistVerificationSummary', 'artistVerificationLinks', 'artistVerificationReference'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) return;
+        field.readOnly = artistVerificationApproved;
+        field.classList.toggle('text-white/65', artistVerificationApproved);
+      });
+
+      if (artistVerificationApproved) {
+        const summaryField = document.getElementById('artistVerificationSummary');
+        const linksField = document.getElementById('artistVerificationLinks');
+        const referenceField = document.getElementById('artistVerificationReference');
+        if (summaryField && !summaryField.value.trim()) summaryField.value = 'Approved by admin. Your verification evidence is already on file.';
+        if (linksField && !linksField.value.trim()) linksField.value = 'No additional links were attached.';
+        if (referenceField && !referenceField.value.trim()) referenceField.value = 'No reference contact was attached.';
+      }
+
+      ['artistIdType', 'artistVerificationIdFront', 'artistVerificationIdBack', 'artistVerificationSelfie'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (field) field.disabled = artistVerificationApproved;
+      });
+
+      ['artistVerificationConsent', 'artistFaceVerificationConsent'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) return;
+        field.disabled = artistVerificationApproved;
+        if (artistVerificationApproved) field.checked = true;
+      });
+
+      ['artistVerificationIdFrontCard', 'artistVerificationIdBackCard', 'artistVerificationSelfieCard'].forEach((id) => {
+        const card = document.getElementById(id);
+        if (!card) return;
+        card.classList.toggle('cursor-pointer', !artistVerificationApproved);
+        card.classList.toggle('cursor-default', artistVerificationApproved);
+        card.classList.toggle('hover:bg-black/40', !artistVerificationApproved);
+        card.classList.toggle('opacity-90', artistVerificationApproved);
+      });
+
+      Object.entries(artistVerificationUploads).forEach(([inputId, uploadState]) => {
+        renderArtistVerificationUploadCard(inputId, uploadState);
+      });
+
+      if (panel) {
+        panel.classList.toggle('border-emerald-300/30', artistVerificationApproved);
+        panel.classList.toggle('bg-emerald-500/15', artistVerificationApproved);
+      }
+
+      if (!artistVerificationApproved) return;
+
+      if (statusText) statusText.innerText = 'Approved - Identity Verified';
+      if (helperText) helperText.innerText = 'Your Philippine ID and selfie were approved by admin. This verification record is now locked for protection.';
+      if (summary) {
+        summary.innerHTML = `Identity verified. Approved ID front, ID back, and selfie are now on file.${reviewedAt ? ` Reviewed ${reviewedAt}.` : ''}`;
+        summary.classList.remove('hidden');
+      }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Verified By Admin';
+        submitBtn.className = 'w-full py-4 bg-emerald-500/15 text-emerald-100 text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl border border-emerald-300/30 cursor-default';
+      }
+    }
+
     async function ensureArtistTabData(tabName) {
       if (tabName === 'community' && !artistPostsLoaded) {
         artistPostsLoaded = true;
@@ -628,11 +965,25 @@
       switchTab('schedules');
     }
 
+    function syncArtistForgotPasswordLink(email) {
+      const forgotPasswordLink = document.getElementById('artistForgotPasswordLink');
+      if (!forgotPasswordLink) return;
+
+      const normalizedEmail = (email || localStorage.getItem('userEmail') || '').trim();
+      forgotPasswordLink.href = normalizedEmail
+        ? `/pages/auth/forgotpassword.html?email=${encodeURIComponent(normalizedEmail)}`
+        : '/pages/auth/forgotpassword.html';
+    }
+
     async function loadArtistProfile(userId) {
       const res = await fetch(`/api/artist/${userId}`);
       if (!res.ok) return;
 
       const artist = await res.json();
+      if (artist.email) {
+        localStorage.setItem('userEmail', artist.email);
+      }
+      syncArtistForgotPasswordLink(artist.email);
       document.getElementById('sidebarName').innerText = artist.displayName;
       document.getElementById('userNameDisplay').innerText = artist.displayName;
       document.getElementById('dropdownName').innerText = artist.displayName;
@@ -652,6 +1003,13 @@
       document.getElementById('basePriceInput').value = artist.basePrice || 0;
       document.getElementById('artistProfileStatusLabel').innerText = artist.isVerified ? 'Verified Profile' : (artist.profileCompletionLabel || 'Profile Incomplete');
       document.getElementById('artistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
+      const verificationStatusText = document.getElementById('artistVerificationStatusText');
+      if (verificationStatusText) {
+        const level = artist.verificationLevel ? ` • ${artist.verificationLevel}` : '';
+        verificationStatusText.innerText = `${artist.verificationStatus || 'Not Submitted'}${level}`;
+      }
+      applyPersistedArtistVerificationUploads(artist.verificationUploads || null);
+      applyArtistVerificationUiState(artist);
       artistIsAvailable = artist.isAvailable !== false;
       artistRelatedEvents = Array.isArray(artist.relatedEvents) ? artist.relatedEvents : [];
       syncAvailabilityUi();
@@ -680,6 +1038,7 @@
         : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
       await switchTab(initialTab);
       window.initDashboardMfaSettings?.({ containerId: 'artistMfaSettings', title: 'Artist MFA' });
+      syncArtistForgotPasswordLink();
 
       await Promise.allSettled([
         loadArtistProfile(userId),
@@ -1291,7 +1650,7 @@
         const res = await fetch('/api/calendar/block', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, role: 'Artist', blockedDate, reason: reason || null })
+          body: JSON.stringify({ userId, role: 'Artist', blockDate: blockedDate, reason: reason || null })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Failed to block date.');
@@ -1302,8 +1661,61 @@
       }
     });
 
+    document.getElementById('artistSubmitVerificationBtn')?.addEventListener('click', async () => {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      const btn = document.getElementById('artistSubmitVerificationBtn');
+      btn.disabled = true;
+      btn.innerText = 'SUBMITTING...';
+
+      try {
+        const idImageFront = await readArtistVerificationImage('artistVerificationIdFront', true);
+        const idImageBack = await readArtistVerificationImage('artistVerificationIdBack', false);
+        const selfieImage = await readArtistVerificationImage('artistVerificationSelfie', true);
+        const res = await fetch(`/api/artist/${userId}/verification-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            verificationPath: 'PhilippineIdAndFace',
+            evidenceSummary: document.getElementById('artistVerificationSummary')?.value,
+            portfolioLinks: document.getElementById('artistVerificationLinks')?.value,
+            referenceName: document.getElementById('artistVerificationReference')?.value,
+            referenceContact: document.getElementById('artistVerificationReference')?.value,
+            idType: document.getElementById('artistIdType')?.value,
+            idNumberLast4: document.getElementById('artistIdLast4')?.value,
+            idImageFront,
+            idImageBack,
+            selfieImage,
+            consentConfirmed: document.getElementById('artistVerificationConsent')?.checked === true,
+            faceVerificationConsent: document.getElementById('artistFaceVerificationConsent')?.checked === true
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to submit verification request.');
+        document.getElementById('artistVerificationStatusText').innerText = 'Pending - Identity Review';
+        ['artistVerificationIdFront', 'artistVerificationIdBack', 'artistVerificationSelfie'].forEach((inputId) => {
+          if (!artistVerificationUploads[inputId]) return;
+          artistVerificationUploads[inputId].persisted = true;
+          renderArtistVerificationUploadCard(inputId, artistVerificationUploads[inputId]);
+          const input = document.getElementById(inputId);
+          if (input) input.value = '';
+        });
+        updateArtistVerificationUploadSummary(new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }));
+        alert(data.message || 'Verification request submitted.');
+      } catch (error) {
+        alert(error.message || 'Failed to submit verification request.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'SUBMIT VERIFICATION REQUEST';
+      }
+    });
+
     ['genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
       document.getElementById(inputId)?.addEventListener('input', renderArtistProfilePreview);
+    });
+    ['artistVerificationIdFront', 'artistVerificationIdBack', 'artistVerificationSelfie'].forEach((inputId) => {
+      document.getElementById(inputId)?.addEventListener('change', handleArtistVerificationFileChange);
+      renderArtistVerificationUploadCard(inputId, null);
     });
   </script>
 </body>

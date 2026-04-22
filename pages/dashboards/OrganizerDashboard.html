@@ -584,9 +584,92 @@
                   <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Bio</label>
                   <textarea id="settingsBio" rows="5" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-red-500 resize-none"></textarea>
                 </div>
+                <div id="organizerVerificationPanel" class="space-y-4 rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-5">
+                  <div>
+                    <h3 class="block text-xs font-semibold text-emerald-100 uppercase tracking-[0.14em]">Organizer Identity Verification</h3>
+                    <p id="organizerVerificationStatusText" class="text-sm font-semibold text-white mt-2">Not submitted yet.</p>
+                    <p id="organizerVerificationHelperText" class="text-xs text-white/55 mt-2">Submit one Philippine government ID and a selfie so admin can verify your organizer profile before publishing high-trust events.</p>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                      <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Philippine ID Type</label>
+                      <select id="organizerIdType" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-emerald-500">
+                        <option value="PhilSys National ID">PhilSys National ID</option>
+                        <option value="UMID">UMID</option>
+                        <option value="Passport">Passport</option>
+                        <option value="Driver's License">Driver's License</option>
+                        <option value="PRC ID">PRC ID</option>
+                        <option value="Postal ID">Postal ID</option>
+                        <option value="Voter's ID">Voter's ID</option>
+                      </select>
+                    </div>
+                    <div class="space-y-2">
+                      <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">ID Last 4 Digits</label>
+                      <input id="organizerIdLast4" type="text" maxlength="4" inputmode="numeric" placeholder="1234" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-emerald-500">
+                    </div>
+                  </div>
+                  <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Evidence Summary</label>
+                    <textarea id="organizerVerificationSummary" rows="4" placeholder="State your organizer or production name and anything admin should know while reviewing your ID and selfie." class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-emerald-500 resize-none"></textarea>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input id="organizerVerificationLinks" type="text" placeholder="Business or portfolio links (optional)" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-emerald-500">
+                    <input id="organizerVerificationReference" type="text" placeholder="Reference name / contact (optional)" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-emerald-500">
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-white/60">
+                    <label id="organizerVerificationIdFrontCard" class="rounded-2xl border border-white/10 bg-black/25 p-4 cursor-pointer hover:bg-black/35 transition-colors">
+                      <span class="block font-semibold uppercase tracking-[0.14em] text-white/80">ID Front</span>
+                      <span id="organizerVerificationIdFrontState" class="block mt-2">Required image upload</span>
+                      <span id="organizerVerificationIdFrontName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                      <img id="organizerVerificationIdFrontPreview" src="" alt="Organizer ID front preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                      <input id="organizerVerificationIdFront" type="file" accept="image/*" class="hidden">
+                    </label>
+                    <label id="organizerVerificationIdBackCard" class="rounded-2xl border border-white/10 bg-black/25 p-4 cursor-pointer hover:bg-black/35 transition-colors">
+                      <span class="block font-semibold uppercase tracking-[0.14em] text-white/80">ID Back</span>
+                      <span id="organizerVerificationIdBackState" class="block mt-2">Optional if your ID has back details</span>
+                      <span id="organizerVerificationIdBackName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                      <img id="organizerVerificationIdBackPreview" src="" alt="Organizer ID back preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                      <input id="organizerVerificationIdBack" type="file" accept="image/*" class="hidden">
+                    </label>
+                    <label id="organizerVerificationSelfieCard" class="rounded-2xl border border-white/10 bg-black/25 p-4 cursor-pointer hover:bg-black/35 transition-colors">
+                      <span class="block font-semibold uppercase tracking-[0.14em] text-white/80">Selfie Verification</span>
+                      <span id="organizerVerificationSelfieState" class="block mt-2">Required clear face photo</span>
+                      <span id="organizerVerificationSelfieName" class="hidden mt-2 text-[11px] text-emerald-200/90 break-all"></span>
+                      <img id="organizerVerificationSelfiePreview" src="" alt="Organizer selfie verification preview" class="hidden mt-3 w-full h-28 object-cover rounded-xl border border-emerald-400/20 bg-black/50">
+                      <input id="organizerVerificationSelfie" type="file" accept="image/*" class="hidden">
+                    </label>
+                  </div>
+                  <div id="organizerVerificationUploadSummary" class="hidden rounded-2xl border border-emerald-400/20 bg-black/25 px-4 py-3 text-xs text-emerald-100/90"></div>
+                  <div class="space-y-3 text-xs text-white/65">
+                    <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                      <input id="organizerVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
+                      <span>I confirm this Philippine ID belongs to me and I allow IMAJINATION admins to review the document for organizer verification.</span>
+                    </label>
+                    <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                      <input id="organizerFaceVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
+                      <span>I consent to manual facial comparison between my uploaded selfie and my submitted ID photo for this verification request.</span>
+                    </label>
+                  </div>
+                  <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button id="organizerSubmitVerificationBtn" type="button" class="px-5 py-3 bg-emerald-500/20 text-emerald-100 text-sm font-semibold rounded-xl border border-emerald-400/20 hover:bg-emerald-500/30 transition-colors">Submit Verification Request</button>
+                    <p class="text-xs text-white/45">Admin reviews the document and selfie together before approval.</p>
+                  </div>
+                </div>
                 <div class="space-y-3">
                   <h3 class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] border-b border-white/10 pb-3">Multi-Factor Authentication</h3>
                   <div id="organizerMfaSettings"></div>
+                </div>
+                <div class="space-y-3">
+                  <h3 class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] border-b border-white/10 pb-3">Password Recovery</h3>
+                  <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
+                      <p class="text-sm text-white/65 mt-2">Open the account recovery flow to receive a reset code at your organizer email address.</p>
+                    </div>
+                    <a id="organizerForgotPasswordLink" href="/pages/auth/forgotpassword.html" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-neutral-950 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-neutral-200 transition-colors">
+                      <i data-lucide="key-round" class="w-4 h-4"></i> Forgot Password
+                    </a>
+                  </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button id="saveSettingsBtn" type="submit" class="px-5 py-3 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-500 transition-colors">Save changes</button>
@@ -754,6 +837,11 @@
                 <input type="number" id="eventSlots" required class="w-full px-4 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white outline-none focus:border-red-500">
               </div>
             </div>
+            <div class="space-y-2">
+              <label class="block text-[10px] font-semibold text-white/50 uppercase">Max Tickets Per Customer</label>
+              <input type="number" id="eventMaxTicketsPerCustomer" min="3" max="10" value="5" class="w-full px-4 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white outline-none focus:border-red-500">
+              <p class="text-[10px] text-white/40 italic">Choose any limit from 3 to 10 to reduce scalping on this event.</p>
+            </div>
             <p class="text-[10px] text-white/40 italic">Note: Earlybird (+10%) and Walk-in (+20%) pricing is calculated automatically by the system based on the event date.</p>
             <div id="dynamicTiersContainer" class="space-y-2"></div>
           </div>
@@ -845,6 +933,11 @@
         <div class="bg-white rounded-2xl p-4 shadow-xl">
           <img id="attendeeQrImage" src="" alt="Ticket QR Code" class="w-52 h-52 object-contain">
         </div>
+        <div id="attendeeQrNavigator" class="mt-4 hidden items-center gap-3">
+          <button id="attendeeQrPrevBtn" type="button" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold hover:bg-white/10 transition-colors">Prev</button>
+          <p id="attendeeQrUnitLabel" class="text-xs uppercase tracking-widest text-white/60"></p>
+          <button id="attendeeQrNextBtn" type="button" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-semibold hover:bg-white/10 transition-colors">Next</button>
+        </div>
         <p id="attendeeQrTicketId" class="mt-4 text-xs text-white/50 break-all"></p>
       </div>
     </div>
@@ -886,6 +979,7 @@
 
   <script>
     let attendeesCache = [];
+    let attendeeQrModalState = { ticketId: '', attendeeName: 'Guest buyer', quantity: 1, usedTicketUnits: [], activeUnit: 1 };
     let artistLineupOptions = [];
     let sessionistLineupOptions = [];
     let organizerNotifications = [];
@@ -897,9 +991,15 @@
     let organizerCommunityPosts = [];
     let organizerCommunityImageData = '';
     let organizerProfileData = null;
+    let organizerVerificationApproved = false;
     let activeEventAnalyticsId = '';
     let eventSalesChart = null;
     let eventCapacityChart = null;
+    const organizerVerificationUploads = {
+      organizerVerificationIdFront: null,
+      organizerVerificationIdBack: null,
+      organizerVerificationSelfie: null
+    };
 
     // --- NEW: Safe DOM Utilities to prevent Null Reference Crashes ---
       const dom = {
@@ -1066,6 +1166,13 @@
           loadOrganizerCommunityPosts(userId)
         ]);
         window.initDashboardMfaSettings?.({ containerId: 'organizerMfaSettings', title: 'Organizer MFA' });
+        const organizerForgotPasswordLink = document.getElementById('organizerForgotPasswordLink');
+        if (organizerForgotPasswordLink) {
+          const savedEmail = (localStorage.getItem('userEmail') || '').trim();
+          organizerForgotPasswordLink.href = savedEmail
+            ? `/pages/auth/forgotpassword.html?email=${encodeURIComponent(savedEmail)}`
+            : '/pages/auth/forgotpassword.html';
+        }
         if (initialView === 'event-analytics' && requestedEventId) {
           await openEventAnalytics(requestedEventId, { skipViewChange: true });
         }
@@ -1252,10 +1359,15 @@
         dom.setVal('settingsContactNumber', organizer.contactNumber || '');
         dom.setVal('settingsAddress', organizer.address || '');
         dom.setVal('settingsBio', organizer.bio || '');
+        dom.setText('organizerVerificationStatusText', organizer.verificationStatus
+          ? `${organizer.verificationStatus}${organizer.verificationLevel ? ` - ${organizer.verificationLevel}` : ''}`
+          : 'Not submitted yet.');
         dom.setText('settingsStatus', organizer.isVerified
           ? `Verified profile • ${organizer.profileCompletionPercent || 100}% complete`
           : `${organizer.profileCompletionLabel || 'Profile incomplete'} • ${organizer.profileCompletionPercent || 0}% complete`);
 
+        applyPersistedOrganizerVerificationUploads(organizer.verificationUploads || null);
+        applyOrganizerVerificationUiState(organizer);
         organizerProfileData = organizer;
         dom.setText('organizerCommunityRating', Number(organizer.averageRating || 0).toFixed(1));
         dom.setText('organizerCommunityReviewCount', organizer.reviewCount || 0);
@@ -1265,6 +1377,15 @@
         if (organizerPublicProfileLink && userId) organizerPublicProfileLink.href = `/pages/details/OrganizerDetails.html?id=${userId}`;
 
         localStorage.setItem('userFirstName', organizer.firstName || localStorage.getItem('userFirstName') || '');
+        if (organizer.email) {
+          localStorage.setItem('userEmail', organizer.email);
+        }
+        const organizerForgotPasswordLink = document.getElementById('organizerForgotPasswordLink');
+        if (organizerForgotPasswordLink) {
+          organizerForgotPasswordLink.href = organizer.email
+            ? `/pages/auth/forgotpassword.html?email=${encodeURIComponent(organizer.email)}`
+            : '/pages/auth/forgotpassword.html';
+        }
 
         if (organizer.profilePicture) {
           dom.setSrc('navProfilePic', organizer.profilePicture);
@@ -1609,7 +1730,7 @@
                     <p class="text-sm font-semibold text-white">${escapeHtml(item.attendeeName || 'Guest buyer')}</p>
                     <p class="text-xs text-white/45 mt-1">${escapeHtml(item.email || 'No email recorded')}</p>
                   </div>
-                  <span class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest ${item.isUsed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}">${item.isUsed ? 'Scanned' : 'Not Scanned'}</span>
+                  <span class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-widest ${(Number(item.usedQuantity || 0) > 0 || item.isUsed) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}">${Number(item.usedQuantity || 0) > 0 && !item.isUsed ? `${item.usedQuantity}/${item.quantity || 0} Scanned` : (item.isUsed ? 'Scanned' : 'Not Scanned')}</span>
                 </div>
                 <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-4 text-xs">
                   <div><span class="block text-white/40 mb-1">Tier</span>${escapeHtml(item.tierName || 'General Admission')}</div>
@@ -1645,7 +1766,7 @@
       try {
         dom.setText('attendeeTransactionCount', attendeesCache.length);
         dom.setText('attendeePeopleCount', attendeesCache.reduce((sum, attendee) => sum + (attendee.quantity || 0), 0));
-        dom.setText('attendeeUsedCount', attendeesCache.filter(attendee => attendee.isUsed).length);
+        dom.setText('attendeeUsedCount', attendeesCache.reduce((sum, attendee) => sum + Number(attendee.usedQuantity || (attendee.isUsed ? attendee.quantity || 0 : 0)), 0));
         renderFilteredAttendees();
       } catch (error) {
         console.warn("Attendees render error:", error);
@@ -1774,9 +1895,9 @@
       }
 
       if (statusValue === 'used') {
-        filteredAttendees = filteredAttendees.filter(attendee => attendee.isUsed);
+        filteredAttendees = filteredAttendees.filter(attendee => Number(attendee.usedQuantity || 0) > 0 || attendee.isUsed);
       } else if (statusValue === 'unused') {
-        filteredAttendees = filteredAttendees.filter(attendee => !attendee.isUsed);
+        filteredAttendees = filteredAttendees.filter(attendee => !(Number(attendee.usedQuantity || 0) > 0 || attendee.isUsed));
       }
 
       if (filteredAttendees.length === 0) {
@@ -1793,7 +1914,7 @@
                   <p class="text-sm font-semibold text-white">${attendee.attendeeName || 'Guest buyer'}</p>
                   <p class="text-xs text-white/50 mt-1">${attendee.email || 'No email provided'}</p>
                 </div>
-                <span class="w-fit text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${attendee.isUsed ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-300'}">${attendee.isUsed ? 'Used' : 'Unused'}</span>
+                <span class="w-fit text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${(Number(attendee.usedQuantity || 0) > 0 || attendee.isUsed) ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-300'}">${Number(attendee.usedQuantity || 0) > 0 && !attendee.isUsed ? `${attendee.usedQuantity}/${attendee.quantity || 0} Used` : (attendee.isUsed ? 'Used' : 'Unused')}</span>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-4 text-xs text-white/70">
                 <div><span class="text-white/40 block mb-1">Event</span>${attendee.eventTitle || 'N/A'}</div>
@@ -1804,7 +1925,7 @@
               </div>
             </div>
             <div class="flex flex-col sm:flex-row gap-2 lg:min-w-[170px]">
-              <button type="button" onclick="openAttendeeQrModal('${attendee.ticketId || ''}', ${JSON.stringify((attendee.attendeeName || 'Guest buyer')).replace(/"/g, '&quot;')})" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-xl hover:bg-white/10 transition-colors">
+              <button type="button" onclick="openAttendeeQrModal('${attendee.ticketId || ''}', ${JSON.stringify((attendee.attendeeName || 'Guest buyer')).replace(/"/g, '&quot;')}, ${Number(attendee.quantity || 1)}, ${JSON.stringify(Array.isArray(attendee.usedTicketUnits) ? attendee.usedTicketUnits : [])})" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-xl hover:bg-white/10 transition-colors">
                 View Ticket QR
               </button>
               <span class="px-3 py-2 bg-black/40 border border-white/10 text-[10px] text-white/50 rounded-xl break-all">${attendee.ticketId || 'Missing ID'}</span>
@@ -1814,17 +1935,78 @@
       `).join('');
     }
 
-    function openAttendeeQrModal(ticketId, attendeeName) {
+    function buildTicketQrPayload(ticketId, unitNumber) {
+      return `${window.location.origin}/ticket-pass?ticketId=${encodeURIComponent(ticketId)}&unit=${unitNumber}`;
+    }
+
+    function syncAttendeeQrModal() {
+      const { ticketId, attendeeName, quantity, usedTicketUnits, activeUnit } = attendeeQrModalState;
+      const nav = document.getElementById('attendeeQrNavigator');
+      const label = document.getElementById('attendeeQrUnitLabel');
+      const prevBtn = document.getElementById('attendeeQrPrevBtn');
+      const nextBtn = document.getElementById('attendeeQrNextBtn');
+      const currentUnitUsed = usedTicketUnits.includes(activeUnit);
+
+      dom.setSrc('attendeeQrImage', `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(buildTicketQrPayload(ticketId, activeUnit))}`);
+      dom.setText('attendeeQrSubtitle', quantity > 1
+        ? `${attendeeName}'s ticket ${activeUnit} of ${quantity}${currentUnitUsed ? ' (already used)' : ''}`
+        : `${attendeeName}'s ticket`);
+      dom.setText('attendeeQrTicketId', quantity > 1 ? `${ticketId} | unit ${activeUnit}` : ticketId);
+
+      if (quantity > 1) {
+        nav?.classList.remove('hidden');
+        nav?.classList.add('flex');
+        if (label) label.innerText = `Ticket ${activeUnit} of ${quantity}`;
+        if (prevBtn) {
+          prevBtn.disabled = activeUnit <= 1;
+          prevBtn.classList.toggle('opacity-40', prevBtn.disabled);
+        }
+        if (nextBtn) {
+          nextBtn.disabled = activeUnit >= quantity;
+          nextBtn.classList.toggle('opacity-40', nextBtn.disabled);
+        }
+      } else {
+        nav?.classList.add('hidden');
+        nav?.classList.remove('flex');
+      }
+    }
+
+    function openAttendeeQrModal(ticketId, attendeeName, quantity = 1, usedTicketUnits = []) {
       if(!ticketId) return alert('Invalid ticket ID');
       const modal = document.getElementById('attendeeQrModal');
       if(modal) {
-        dom.setSrc('attendeeQrImage', `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(ticketId)}`);
-        dom.setText('attendeeQrSubtitle', `${attendeeName}'s ticket`);
-        dom.setText('attendeeQrTicketId', ticketId);
+        const normalizedQuantity = Math.max(1, Number(quantity || 1));
+        const normalizedUsedUnits = Array.isArray(usedTicketUnits)
+          ? usedTicketUnits.map(value => Number(value)).filter(value => Number.isInteger(value) && value > 0)
+          : [];
+        const nextUnusedUnit = Array.from({ length: normalizedQuantity }, (_, index) => index + 1)
+          .find(unit => !normalizedUsedUnits.includes(unit)) || 1;
+
+        attendeeQrModalState = {
+          ticketId,
+          attendeeName: attendeeName || 'Guest buyer',
+          quantity: normalizedQuantity,
+          usedTicketUnits: normalizedUsedUnits,
+          activeUnit: nextUnusedUnit
+        };
+
+        syncAttendeeQrModal();
         modal.classList.remove('hidden');
         modal.classList.add('flex');
       }
     }
+
+    document.getElementById('attendeeQrPrevBtn')?.addEventListener('click', () => {
+      if (attendeeQrModalState.activeUnit <= 1) return;
+      attendeeQrModalState.activeUnit -= 1;
+      syncAttendeeQrModal();
+    });
+
+    document.getElementById('attendeeQrNextBtn')?.addEventListener('click', () => {
+      if (attendeeQrModalState.activeUnit >= attendeeQrModalState.quantity) return;
+      attendeeQrModalState.activeUnit += 1;
+      syncAttendeeQrModal();
+    });
 
     function closeAttendeeQrModal() {
       const modal = document.getElementById('attendeeQrModal');
@@ -1858,6 +2040,251 @@
         reader.onerror = () => reject(new Error('Failed to read image.'));
         reader.readAsDataURL(file);
       });
+    }
+
+    async function readOrganizerVerificationImage(inputId, required = false) {
+      const cached = organizerVerificationUploads[inputId];
+      if (cached?.dataUrl) return cached.dataUrl;
+
+      const file = document.getElementById(inputId)?.files?.[0];
+      if (!file) {
+        if (required) throw new Error('Please upload all required verification images.');
+        return '';
+      }
+      return resizeImageFile(file, 1600, 1600, 0.84);
+    }
+
+    function getOrganizerVerificationUploadMeta(inputId) {
+      const map = {
+        organizerVerificationIdFront: {
+          cardId: 'organizerVerificationIdFrontCard',
+          stateId: 'organizerVerificationIdFrontState',
+          nameId: 'organizerVerificationIdFrontName',
+          previewId: 'organizerVerificationIdFrontPreview',
+          emptyText: 'Required image upload',
+          selectedText: 'Image selected and ready to submit',
+          submittedText: 'Image already submitted for review',
+          verifiedText: 'Approved document on file'
+        },
+        organizerVerificationIdBack: {
+          cardId: 'organizerVerificationIdBackCard',
+          stateId: 'organizerVerificationIdBackState',
+          nameId: 'organizerVerificationIdBackName',
+          previewId: 'organizerVerificationIdBackPreview',
+          emptyText: 'Optional if your ID has back details',
+          selectedText: 'Image selected and ready to submit',
+          submittedText: 'Image already submitted for review',
+          verifiedText: 'Approved document on file'
+        },
+        organizerVerificationSelfie: {
+          cardId: 'organizerVerificationSelfieCard',
+          stateId: 'organizerVerificationSelfieState',
+          nameId: 'organizerVerificationSelfieName',
+          previewId: 'organizerVerificationSelfiePreview',
+          emptyText: 'Required clear face photo',
+          selectedText: 'Selfie selected and ready to submit',
+          submittedText: 'Selfie already submitted for review',
+          verifiedText: 'Approved selfie on file'
+        }
+      };
+      return map[inputId];
+    }
+
+    function renderOrganizerVerificationUploadCard(inputId, uploadState = null) {
+      const meta = getOrganizerVerificationUploadMeta(inputId);
+      if (!meta) return;
+
+      const card = document.getElementById(meta.cardId);
+      const state = document.getElementById(meta.stateId);
+      const name = document.getElementById(meta.nameId);
+      const preview = document.getElementById(meta.previewId);
+      if (!card || !state || !name || !preview) return;
+
+      card.classList.remove('border-emerald-400/40', 'bg-emerald-500/10');
+      state.classList.remove('text-emerald-200/90');
+
+      if (!uploadState) {
+        state.innerText = meta.emptyText;
+        name.innerText = '';
+        name.classList.add('hidden');
+        preview.src = '';
+        preview.classList.add('hidden');
+        return;
+      }
+
+      card.classList.add('border-emerald-400/40', 'bg-emerald-500/10');
+      state.classList.add('text-emerald-200/90');
+      state.innerText = uploadState.persisted
+        ? (organizerVerificationApproved ? meta.verifiedText : meta.submittedText)
+        : meta.selectedText;
+
+      if (uploadState.name) {
+        name.innerText = uploadState.name;
+        name.classList.remove('hidden');
+      } else if (uploadState.persisted) {
+        name.innerText = organizerVerificationApproved
+          ? 'Locked after admin approval'
+          : 'Saved with your latest verification request';
+        name.classList.remove('hidden');
+      } else {
+        name.innerText = '';
+        name.classList.add('hidden');
+      }
+
+      if (uploadState.previewUrl) {
+        preview.src = uploadState.previewUrl;
+        preview.classList.remove('hidden');
+      } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+      }
+    }
+
+    function updateOrganizerVerificationUploadSummary(submittedAt = '') {
+      const summary = document.getElementById('organizerVerificationUploadSummary');
+      if (!summary) return;
+
+      const selectedItems = [];
+      if (organizerVerificationUploads.organizerVerificationIdFront) selectedItems.push('ID front');
+      if (organizerVerificationUploads.organizerVerificationIdBack) selectedItems.push('ID back');
+      if (organizerVerificationUploads.organizerVerificationSelfie) selectedItems.push('selfie');
+
+      if (!selectedItems.length) {
+        summary.innerHTML = '';
+        summary.classList.add('hidden');
+        return;
+      }
+
+      const suffix = submittedAt ? ` Submitted ${submittedAt}.` : '';
+      summary.innerHTML = `Verification files ready: <strong>${selectedItems.join(', ')}</strong>. Required uploads must be present before sending.${suffix}`;
+      summary.classList.remove('hidden');
+    }
+
+    async function handleOrganizerVerificationFileChange(event) {
+      const input = event.target;
+      const inputId = input?.id;
+      if (!inputId) return;
+
+      const file = input.files?.[0];
+      if (!file) {
+        organizerVerificationUploads[inputId] = null;
+        renderOrganizerVerificationUploadCard(inputId, null);
+        updateOrganizerVerificationUploadSummary();
+        return;
+      }
+
+      try {
+        const dataUrl = await resizeImageFile(file, 1600, 1600, 0.84);
+        organizerVerificationUploads[inputId] = {
+          name: file.name,
+          dataUrl,
+          previewUrl: dataUrl,
+          persisted: false
+        };
+        renderOrganizerVerificationUploadCard(inputId, organizerVerificationUploads[inputId]);
+        updateOrganizerVerificationUploadSummary();
+      } catch (error) {
+        organizerVerificationUploads[inputId] = null;
+        renderOrganizerVerificationUploadCard(inputId, null);
+        updateOrganizerVerificationUploadSummary();
+        alert(error.message || 'Could not process that verification image.');
+      }
+    }
+
+    function applyPersistedOrganizerVerificationUploads(verificationUploads) {
+      const submittedAt = verificationUploads?.submittedAt
+        ? new Date(verificationUploads.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
+
+      const persistedMap = {
+        organizerVerificationIdFront: !!verificationUploads?.idFrontSubmitted,
+        organizerVerificationIdBack: !!verificationUploads?.idBackSubmitted,
+        organizerVerificationSelfie: !!verificationUploads?.selfieSubmitted
+      };
+
+      Object.entries(persistedMap).forEach(([inputId, submitted]) => {
+        if (organizerVerificationUploads[inputId]?.dataUrl) return;
+
+        organizerVerificationUploads[inputId] = submitted
+          ? { name: '', dataUrl: '', previewUrl: '', persisted: true }
+          : null;
+        renderOrganizerVerificationUploadCard(inputId, organizerVerificationUploads[inputId]);
+      });
+
+      updateOrganizerVerificationUploadSummary(submittedAt);
+    }
+
+    function applyOrganizerVerificationUiState(profile = {}) {
+      organizerVerificationApproved = String(profile.verificationStatus || '').toLowerCase() === 'approved' || profile.isVerified === true;
+
+      const panel = document.getElementById('organizerVerificationPanel');
+      const statusText = document.getElementById('organizerVerificationStatusText');
+      const helperText = document.getElementById('organizerVerificationHelperText');
+      const summary = document.getElementById('organizerVerificationUploadSummary');
+      const submitBtn = document.getElementById('organizerSubmitVerificationBtn');
+      const reviewedAt = profile.verificationReviewedAt
+        ? new Date(profile.verificationReviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+        : '';
+
+      ['organizerIdLast4', 'organizerVerificationSummary', 'organizerVerificationLinks', 'organizerVerificationReference'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) return;
+        field.readOnly = organizerVerificationApproved;
+        field.classList.toggle('text-white/65', organizerVerificationApproved);
+      });
+
+      if (organizerVerificationApproved) {
+        const summaryField = document.getElementById('organizerVerificationSummary');
+        const linksField = document.getElementById('organizerVerificationLinks');
+        const referenceField = document.getElementById('organizerVerificationReference');
+        if (summaryField && !summaryField.value.trim()) summaryField.value = 'Approved by admin. Your verification evidence is already on file.';
+        if (linksField && !linksField.value.trim()) linksField.value = 'No additional links were attached.';
+        if (referenceField && !referenceField.value.trim()) referenceField.value = 'No reference contact was attached.';
+      }
+
+      ['organizerIdType', 'organizerVerificationIdFront', 'organizerVerificationIdBack', 'organizerVerificationSelfie'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (field) field.disabled = organizerVerificationApproved;
+      });
+
+      ['organizerVerificationConsent', 'organizerFaceVerificationConsent'].forEach((id) => {
+        const field = document.getElementById(id);
+        if (!field) return;
+        field.disabled = organizerVerificationApproved;
+        if (organizerVerificationApproved) field.checked = true;
+      });
+
+      ['organizerVerificationIdFrontCard', 'organizerVerificationIdBackCard', 'organizerVerificationSelfieCard'].forEach((id) => {
+        const card = document.getElementById(id);
+        if (!card) return;
+        card.classList.toggle('cursor-pointer', !organizerVerificationApproved);
+        card.classList.toggle('cursor-default', organizerVerificationApproved);
+        card.classList.toggle('hover:bg-black/35', !organizerVerificationApproved);
+        card.classList.toggle('opacity-90', organizerVerificationApproved);
+      });
+
+      Object.entries(organizerVerificationUploads).forEach(([inputId, uploadState]) => {
+        renderOrganizerVerificationUploadCard(inputId, uploadState);
+      });
+
+      if (panel) {
+        panel.classList.toggle('border-emerald-300/30', organizerVerificationApproved);
+        panel.classList.toggle('bg-emerald-500/15', organizerVerificationApproved);
+      }
+
+      if (!organizerVerificationApproved) return;
+
+      if (statusText) statusText.innerText = 'Approved - Identity Verified';
+      if (helperText) helperText.innerText = 'Your Philippine ID and selfie were approved by admin. This verification record is now locked for protection.';
+      if (summary) {
+        summary.innerHTML = `Identity verified. Approved ID front, ID back, and selfie are now on file.${reviewedAt ? ` Reviewed ${reviewedAt}.` : ''}`;
+        summary.classList.remove('hidden');
+      }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Verified By Admin';
+        submitBtn.className = 'px-5 py-3 bg-emerald-500/15 text-emerald-100 text-sm font-semibold rounded-xl border border-emerald-300/30 cursor-default';
+      }
     }
 
     async function loadPayouts(orgId) {
@@ -1982,6 +2409,64 @@
           }
         });
       }
+
+      document.getElementById('organizerSubmitVerificationBtn')?.addEventListener('click', async () => {
+        const userId = localStorage.getItem('userId');
+        if (!userId) return;
+
+        const button = document.getElementById('organizerSubmitVerificationBtn');
+        if (button) {
+          button.disabled = true;
+          button.innerText = 'Submitting...';
+        }
+
+        try {
+          const idImageFront = await readOrganizerVerificationImage('organizerVerificationIdFront', true);
+          const idImageBack = await readOrganizerVerificationImage('organizerVerificationIdBack', false);
+          const selfieImage = await readOrganizerVerificationImage('organizerVerificationSelfie', true);
+
+          const response = await fetch(`/api/organizer/${userId}/verification-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              verificationPath: 'PhilippineIdAndFace',
+              evidenceSummary: document.getElementById('organizerVerificationSummary')?.value,
+              portfolioLinks: document.getElementById('organizerVerificationLinks')?.value,
+              referenceName: document.getElementById('organizerVerificationReference')?.value,
+              referenceContact: document.getElementById('organizerVerificationReference')?.value,
+              idType: document.getElementById('organizerIdType')?.value,
+              idNumberLast4: document.getElementById('organizerIdLast4')?.value,
+              idImageFront,
+              idImageBack,
+              selfieImage,
+              consentConfirmed: document.getElementById('organizerVerificationConsent')?.checked === true,
+              faceVerificationConsent: document.getElementById('organizerFaceVerificationConsent')?.checked === true
+            })
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.message || 'Failed to submit verification request.');
+
+          dom.setText('organizerVerificationStatusText', 'Pending - Identity Review');
+          ['organizerVerificationIdFront', 'organizerVerificationIdBack', 'organizerVerificationSelfie'].forEach((inputId) => {
+            if (!organizerVerificationUploads[inputId]) return;
+            organizerVerificationUploads[inputId].persisted = true;
+            renderOrganizerVerificationUploadCard(inputId, organizerVerificationUploads[inputId]);
+            const input = document.getElementById(inputId);
+            if (input) input.value = '';
+          });
+          updateOrganizerVerificationUploadSummary(new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }));
+          await loadOrganizerProfile(userId);
+          alert(payload.message || 'Verification request submitted.');
+        } catch (error) {
+          alert(error.message || 'Failed to submit verification request.');
+        } finally {
+          if (button) {
+            button.disabled = false;
+            button.innerText = 'Submit Verification Request';
+          }
+        }
+      });
     }
 
     function renderOrganizerCommunityPosts() {
@@ -2246,7 +2731,14 @@
 
     const openBtn = document.getElementById('openCreateModalBtn');
     const closeBtn = document.getElementById('closeCreateModalBtn');
-    if(openBtn) openBtn.addEventListener('click', () => { resetModal(); if(modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); } });
+    if(openBtn) openBtn.addEventListener('click', () => {
+      if (!organizerVerificationApproved) {
+        alert('Organizer identity verification must be approved by admin before you can create events.');
+        return;
+      }
+      resetModal();
+      if(modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+    });
     if(closeBtn) closeBtn.addEventListener('click', () => { if(modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); } });
 
     const fileInput = document.getElementById('eventPoster');
@@ -2603,6 +3095,7 @@
         dom.setVal('eventLocation', ev.location || '');
         dom.setVal('eventPrice', ev.price || 0);
         dom.setVal('eventSlots', ev.totalSlots || 0); 
+        dom.setVal('eventMaxTicketsPerCustomer', ev.maxTicketsPerCustomer || 5);
         dom.setVal('eventSaleName', ev.saleName || '');
         dom.setVal('eventSaleType', ev.saleType || '');
         dom.setVal('eventSaleValue', ev.saleValue || '');
@@ -2661,6 +3154,7 @@
             city: document.getElementById('eventCity')?.value, location: document.getElementById('eventLocation')?.value,
             posterUrl: base64ImageString, price: parseFloat(document.getElementById('eventPrice')?.value) || 0,
             slots: parseInt(document.getElementById('eventSlots')?.value) || 0,
+            maxTicketsPerCustomer: parseInt(document.getElementById('eventMaxTicketsPerCustomer')?.value, 10) || 5,
             tierName: tName, tierPrice: tPrice, tierSlots: tSlots, bundles: packedBundles,
             saleName: document.getElementById('eventSaleName')?.value || null,
             saleType: document.getElementById('eventSaleType')?.value || null,
@@ -2687,6 +3181,10 @@
           } finally { if(submitBtn) { submitBtn.disabled = false; syncDraftToggleLabel(); } }
         });
       }
+      ['organizerVerificationIdFront', 'organizerVerificationIdBack', 'organizerVerificationSelfie'].forEach((inputId) => {
+        document.getElementById(inputId)?.addEventListener('change', handleOrganizerVerificationFileChange);
+        renderOrganizerVerificationUploadCard(inputId, null);
+      });
   </script>
 </body>
 </html>

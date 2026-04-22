@@ -97,7 +97,10 @@ namespace ImajinationAPI.Controllers
                         userId = reader.GetGuid(1),
                         role = postRole,
                         content = reader.IsDBNull(3) ? "" : reader.GetString(3),
-                        imageUrl = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                        imageUrl = CommunitySupport.NormalizeListImage(
+                            reader.IsDBNull(4) ? "" : reader.GetString(4),
+                            string.Empty,
+                            2_500_000),
                         createdAt = reader.IsDBNull(5) ? DateTime.UtcNow : reader.GetDateTime(5),
                         authorName = CommunitySupport.BuildDisplayName(
                             reader.IsDBNull(6) ? "" : reader.GetString(6),
@@ -105,7 +108,9 @@ namespace ImajinationAPI.Controllers
                             reader.IsDBNull(8) ? "" : reader.GetString(8),
                             reader.IsDBNull(9) ? "" : reader.GetString(9),
                             postRole),
-                        authorProfilePicture = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                        authorProfilePicture = CommunitySupport.NormalizeListImage(
+                            reader.IsDBNull(10) ? "" : reader.GetString(10),
+                            string.Empty),
                         authorVerified = !reader.IsDBNull(11) && reader.GetBoolean(11),
                         likesCount = reader.IsDBNull(12) ? 0 : Convert.ToInt32(reader.GetInt64(12)),
                         isLiked = !reader.IsDBNull(13) && reader.GetBoolean(13)
@@ -159,7 +164,10 @@ namespace ImajinationAPI.Controllers
                     {
                         id = reader.GetGuid(0),
                         content = reader.IsDBNull(1) ? "" : reader.GetString(1),
-                        imageUrl = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                        imageUrl = CommunitySupport.NormalizeListImage(
+                            reader.IsDBNull(2) ? "" : reader.GetString(2),
+                            string.Empty,
+                            2_500_000),
                         createdAt = reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3),
                         authorName = CommunitySupport.BuildDisplayName(
                             reader.IsDBNull(4) ? "" : reader.GetString(4),
@@ -167,7 +175,9 @@ namespace ImajinationAPI.Controllers
                             reader.IsDBNull(6) ? "" : reader.GetString(6),
                             reader.IsDBNull(7) ? "" : reader.GetString(7),
                             role),
-                        authorProfilePicture = reader.IsDBNull(8) ? "" : reader.GetString(8),
+                        authorProfilePicture = CommunitySupport.NormalizeListImage(
+                            reader.IsDBNull(8) ? "" : reader.GetString(8),
+                            string.Empty),
                         authorVerified = !reader.IsDBNull(9) && reader.GetBoolean(9)
                     });
                 }

@@ -2389,12 +2389,14 @@ namespace ImajinationAPI.Controllers
                 await linkCmd.ExecuteNonQueryAsync();
             }
 
-            var columnName = string.Equals(targetRole, "Sessionist", StringComparison.OrdinalIgnoreCase) ? "sessionist_lineup" : "artist_lineup";
-            var roleName = string.Equals(targetRole, "Sessionist", StringComparison.OrdinalIgnoreCase) ? "Sessionist" : "Artist";
+            var isSessionist = string.Equals(targetRole, "Sessionist", StringComparison.OrdinalIgnoreCase);
+            var roleName = isSessionist ? "Sessionist" : "Artist";
 
             string existingJson = "[]";
             string eventTitle = "This event";
-            using (var lineupCmd = new NpgsqlCommand($"SELECT COALESCE({columnName}, '[]'), COALESCE(title, 'This event') FROM events WHERE id = @id;", connection))
+            const string sessionistLineupSql = "SELECT COALESCE(sessionist_lineup, '[]'), COALESCE(title, 'This event') FROM events WHERE id = @id;";
+            const string artistLineupSql = "SELECT COALESCE(artist_lineup, '[]'), COALESCE(title, 'This event') FROM events WHERE id = @id;";
+            using (var lineupCmd = new NpgsqlCommand(isSessionist ? sessionistLineupSql : artistLineupSql, connection))
             {
                 lineupCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = eventId;
                 using var reader = await lineupCmd.ExecuteReaderAsync();
@@ -2431,7 +2433,9 @@ namespace ImajinationAPI.Controllers
                 profilePicture = string.IsNullOrWhiteSpace(profilePicture) ? null : profilePicture
             });
 
-            using var updateCmd = new NpgsqlCommand($"UPDATE events SET {columnName} = @json WHERE id = @eventId;", connection);
+            const string updateSessionistLineupSql = "UPDATE events SET sessionist_lineup = @json WHERE id = @eventId;";
+            const string updateArtistLineupSql = "UPDATE events SET artist_lineup = @json WHERE id = @eventId;";
+            using var updateCmd = new NpgsqlCommand(isSessionist ? updateSessionistLineupSql : updateArtistLineupSql, connection);
             updateCmd.Parameters.Add("@json", NpgsqlDbType.Text).Value = JsonSerializer.Serialize(lineup);
             updateCmd.Parameters.Add("@eventId", NpgsqlDbType.Uuid).Value = eventId;
             await updateCmd.ExecuteNonQueryAsync();

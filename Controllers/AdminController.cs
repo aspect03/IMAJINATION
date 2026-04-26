@@ -566,11 +566,26 @@ namespace ImajinationAPI.Controllers
             {
                 ApplySensitiveResponseHeaders();
                 var normalizedAssetType = (assetType ?? string.Empty).Trim().ToLowerInvariant();
-                var allowedAssets = new Dictionary<string, (string Column, string Label)>(StringComparer.OrdinalIgnoreCase)
+                var allowedAssets = new Dictionary<string, (string Query, string Label)>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["front"] = ("id_image_front", "ID Front"),
-                    ["back"] = ("id_image_back", "ID Back"),
-                    ["selfie"] = ("selfie_image", "Selfie Verification")
+                    ["front"] = ("""
+                        SELECT COALESCE(id_image_front, '')
+                        FROM talent_verification_requests
+                        WHERE id = @id
+                        LIMIT 1;
+                        """, "ID Front"),
+                    ["back"] = ("""
+                        SELECT COALESCE(id_image_back, '')
+                        FROM talent_verification_requests
+                        WHERE id = @id
+                        LIMIT 1;
+                        """, "ID Back"),
+                    ["selfie"] = ("""
+                        SELECT COALESCE(selfie_image, '')
+                        FROM talent_verification_requests
+                        WHERE id = @id
+                        LIMIT 1;
+                        """, "Selfie Verification")
                 };
 
                 if (!allowedAssets.TryGetValue(normalizedAssetType, out var assetMeta))
@@ -583,13 +598,7 @@ namespace ImajinationAPI.Controllers
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
-                var sql = $@"
-                    SELECT COALESCE({assetMeta.Column}, '')
-                    FROM talent_verification_requests
-                    WHERE id = @id
-                    LIMIT 1;";
-
-                await using var cmd = new NpgsqlCommand(sql, connection);
+                await using var cmd = new NpgsqlCommand(assetMeta.Query, connection);
                 cmd.Parameters.AddWithValue("@id", requestId);
                 var rawValue = Convert.ToString(await cmd.ExecuteScalarAsync() ?? string.Empty) ?? string.Empty;
                 var imageDataUrl = SecuritySupport.RevealSensitiveData(rawValue, _connectionString);

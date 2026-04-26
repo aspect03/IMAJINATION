@@ -14,8 +14,8 @@
     const configured = [
       window.__IMAJINATION_API_BASE__,
       localStorage.getItem('imajinationApiBase'),
-      'https://imajination-api.onrender.com',
-      'https://imajination.onrender.com'
+      'https://imajination.onrender.com',
+      'https://imajination-api.onrender.com'
     ];
 
     const normalized = [];

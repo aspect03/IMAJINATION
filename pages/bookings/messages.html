@@ -112,6 +112,9 @@
                 <button id="completeBookingBtn" type="button" class="hidden px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-colors">
                   Mark Completed
                 </button>
+                <button id="refundBookingBtn" type="button" class="hidden px-4 py-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-sky-500/20 transition-colors">
+                  Request Refund
+                </button>
                 <button id="payBookingBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
                   Pay Now
                 </button>
@@ -242,6 +245,7 @@
       document.getElementById('messageForm').addEventListener('submit', sendMessage);
       document.getElementById('payBookingBtn').addEventListener('click', startBookingPayment);
       document.getElementById('completeBookingBtn').addEventListener('click', markBookingCompleted);
+      document.getElementById('refundBookingBtn').addEventListener('click', requestBookingRefund);
       document.getElementById('saveContractBtn').addEventListener('click', saveContractDraft);
       document.getElementById('sendContractBtn').addEventListener('click', sendContractForApproval);
       document.getElementById('createContractBtn').addEventListener('click', createContractDraft);
@@ -321,6 +325,8 @@
     function getPaymentStatusClasses(status) {
       if (status === 'Paid') return 'text-emerald-400';
       if (status === 'ServiceFeePaid') return 'text-blue-300';
+      if (status === 'Refunded') return 'text-sky-300';
+      if (status === 'Refund Failed') return 'text-red-300';
       if (status === 'AwaitingPayment' || status === 'AwaitingTalentFeePayment' || status === 'Refund Pending') return 'text-amber-300';
       return 'text-white/50';
     }
@@ -504,6 +510,7 @@
       const paymentStatusText = document.getElementById('paymentStatusText');
       const payButton = document.getElementById('payBookingBtn');
       const completeButton = document.getElementById('completeBookingBtn');
+      const refundButton = document.getElementById('refundBookingBtn');
       const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
       const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
       const platformFeeStatus = normalizeTalentFeeStatus(booking.talentPlatformFeeStatus);
@@ -519,10 +526,22 @@
         && Number(booking.talentPlatformFee || 0) > 0
         && platformFeeStatus !== 'Paid'
         && !(booking.status || '').startsWith('Cancelled');
+      const bookingEnded = booking.eventDate ? new Date(booking.eventDate).getTime() <= Date.now() : false;
+      const canRequestCustomerRefund = (userRole === 'Customer' || userRole === 'Organizer')
+        && bookingEnded
+        && booking.status === 'Confirmed'
+        && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || talentFeeStatus === 'Paid' || talentFeeStatus === 'Refund Failed');
+      const canRequestTalentRefund = (userRole === 'Artist' || userRole === 'Sessionist')
+        && bookingEnded
+        && booking.status === 'Confirmed'
+        && (platformFeeStatus === 'Paid' || platformFeeStatus === 'Refund Failed');
 
       paymentStatusText.innerText = `Service fee: ${serviceFeeStatus}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee: ${platformFeeStatus}` : ''}`;
       paymentStatusText.className = `text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(canPayTalentFee ? talentFeeStatus : canPayPlatformFee ? platformFeeStatus : serviceFeeStatus)}`;
       completeButton.classList.toggle('hidden', !canMarkBookingCompleted(booking));
+      refundButton.classList.toggle('hidden', !(canRequestCustomerRefund || canRequestTalentRefund));
+      refundButton.dataset.reasonCode = canRequestTalentRefund ? 'CustomerNoShow' : 'TalentNoShow';
+      refundButton.innerText = canRequestTalentRefund ? 'Report Customer No-Show' : 'Request Refund';
 
       if (canPayServiceFee) {
         payButton.dataset.paymentType = 'service';
@@ -539,7 +558,7 @@
       } else {
         payButton.dataset.paymentType = 'service';
         payButton.classList.add('hidden');
-        paymentRow.classList.toggle('hidden', completeButton.classList.contains('hidden'));
+        paymentRow.classList.toggle('hidden', completeButton.classList.contains('hidden') && refundButton.classList.contains('hidden'));
         return;
       }
 
@@ -765,6 +784,32 @@
       } finally {
         button.disabled = false;
         button.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function requestBookingRefund() {
+      if (!activeBookingId) return;
+
+      const reasonCode = document.getElementById('refundBookingBtn').dataset.reasonCode || 'TalentNoShow';
+      const notes = window.prompt('Add a short note for this refund request (optional):', '');
+      if (notes === null) return;
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/refunds/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reasonCode, notes })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to submit refund request.');
+        }
+
+        await showSystemAlert(data.message || 'Refund request submitted.', 'Refund Request');
+        await loadConversations();
+        await openConversation(activeBookingId);
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to submit refund request.', 'Refund Error');
       }
     }
 

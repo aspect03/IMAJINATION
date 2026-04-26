@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using ImajinationAPI.Services;
@@ -23,6 +25,12 @@ namespace ImajinationAPI.Controllers
     public class ScanTicketRequest
     {
         public string? ticketValue { get; set; }
+    }
+
+    public class CreateTicketRefundRequest
+    {
+        public string? reasonCode { get; set; }
+        public string? notes { get; set; }
     }
 
     internal sealed record ParsedTicketScan(Guid TicketId, int? UnitNumber);
@@ -595,7 +603,9 @@ namespace ImajinationAPI.Controllers
                            COALESCE(t.ticket_unit_price, 0), COALESCE(t.ticket_subtotal, t.total_price), COALESCE(t.ticket_service_fee, 0),
                            COALESCE(t.ticket_service_fee_rate, 0), COALESCE(t.pricing_phase_name, 'Pre-Sale'), COALESCE(t.pricing_phase_percentage, 0),
                            COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END),
-                           COALESCE(t.used_ticket_units, '')
+                           COALESCE(t.used_ticket_units, ''),
+                           COALESCE(t.refund_status, ''),
+                           COALESCE(t.refund_amount, 0)
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id
                     WHERE t.customer_id = @cId
@@ -635,7 +645,9 @@ namespace ImajinationAPI.Controllers
                         serviceFee = reader.IsDBNull(16) ? 0 : reader.GetDecimal(16),
                         serviceFeeRate = reader.IsDBNull(17) ? 0 : reader.GetDecimal(17),
                         pricingPhase = reader.IsDBNull(18) ? "Pre-Sale" : reader.GetString(18),
-                        pricingPhasePercentage = reader.IsDBNull(19) ? 0 : reader.GetInt32(19)
+                        pricingPhasePercentage = reader.IsDBNull(19) ? 0 : reader.GetInt32(19),
+                        refundStatus = reader.IsDBNull(22) ? "" : reader.GetString(22),
+                        refundAmount = reader.IsDBNull(23) ? 0 : reader.GetDecimal(23)
                     });
                 }
                 return Ok(tickets);
@@ -718,8 +730,14 @@ namespace ImajinationAPI.Controllers
 
                 string confirmedMethod = "PayMongo";
                 string paymentReference = "";
+                string paymentId = "";
 
                 var firstPayment = payments[0];
+                if (firstPayment.TryGetProperty("id", out var paymentIdProp))
+                {
+                    paymentId = paymentIdProp.GetString() ?? "";
+                }
+
                 if (firstPayment.TryGetProperty("attributes", out var paymentAttributes))
                 {
                     if (paymentAttributes.TryGetProperty("reference_number", out var paymentReferenceProp))
@@ -738,12 +756,14 @@ namespace ImajinationAPI.Controllers
                 const string updateSql = @"
                     UPDATE tickets
                     SET payment_method = @paymentMethod,
+                        paymongo_payment_id = @paymentId,
                         paymongo_payment_reference = @paymentReference,
                         paymongo_checkout_reference = @checkoutReference
                     WHERE id = @ticketId";
 
                 using var updateCmd = new NpgsqlCommand(updateSql, connection);
                 updateCmd.Parameters.AddWithValue("@paymentMethod", confirmedMethod);
+                updateCmd.Parameters.AddWithValue("@paymentId", (object?)paymentId ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@paymentReference", (object?)paymentReference ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@checkoutReference", (object?)checkoutReference ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@ticketId", ticketId);
@@ -800,6 +820,196 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize]
+        [HttpPost("{ticketId}/refunds/request")]
+        public async Task<IActionResult> RequestTicketRefund(Guid ticketId, [FromBody] CreateTicketRefundRequest? req)
+        {
+            try
+            {
+                var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+                    ? parsedUserId
+                    : Guid.Empty;
+                if (actorUserId == Guid.Empty)
+                {
+                    return Unauthorized(new { message = "Sign in again before requesting a ticket refund." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureTicketPaymentColumnsExist(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
+
+                const string sql = @"
+                    SELECT t.customer_id,
+                           COALESCE(t.event_id, '00000000-0000-0000-0000-000000000000'::uuid),
+                           COALESCE(t.total_price, 0),
+                           COALESCE(t.payment_method, ''),
+                           COALESCE(t.paymongo_payment_id, ''),
+                           COALESCE(t.paymongo_checkout_id, ''),
+                           COALESCE(t.quantity, 1),
+                           COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END),
+                           COALESCE(t.refund_status, ''),
+                           COALESCE(e.title, 'Event Ticket'),
+                           e.event_time,
+                           COALESCE(e.status, 'Upcoming')
+                    FROM tickets t
+                    LEFT JOIN events e ON e.id = t.event_id
+                    WHERE t.id = @id;";
+
+                Guid customerId;
+                Guid eventId;
+                decimal totalPrice;
+                string paymentMethod;
+                string paymentId;
+                string checkoutId;
+                int quantity;
+                int usedQuantity;
+                string refundStatus;
+                string eventTitle;
+                DateTime? eventTime;
+                string eventStatus;
+
+                await using (var cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.AddWithValue("@id", ticketId);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Ticket not found." });
+                    }
+
+                    customerId = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0);
+                    eventId = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1);
+                    totalPrice = reader.IsDBNull(2) ? 0 : reader.GetDecimal(2);
+                    paymentMethod = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    paymentId = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                    checkoutId = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                    quantity = reader.IsDBNull(6) ? 1 : reader.GetInt32(6);
+                    usedQuantity = reader.IsDBNull(7) ? 0 : reader.GetInt32(7);
+                    refundStatus = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                    eventTitle = reader.IsDBNull(9) ? "Event Ticket" : reader.GetString(9);
+                    eventTime = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10);
+                    eventStatus = reader.IsDBNull(11) ? "Upcoming" : reader.GetString(11);
+                }
+
+                if (customerId != actorUserId)
+                {
+                    return Forbid();
+                }
+
+                if (string.Equals(refundStatus, "Refunded", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(refundStatus, "Refund Pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Conflict(new { message = "This ticket already has an active refund state." });
+                }
+
+                if (string.IsNullOrWhiteSpace(paymentMethod) || string.Equals(paymentMethod, "AwaitingPayment", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "Only paid tickets can be refunded." });
+                }
+
+                if (usedQuantity > 0 || quantity <= 0)
+                {
+                    return BadRequest(new { message = "Used tickets can no longer be refunded." });
+                }
+
+                if (string.Equals(eventStatus, "Finished", StringComparison.OrdinalIgnoreCase) ||
+                    (eventTime.HasValue && eventTime.Value.ToUniversalTime() <= DateTime.UtcNow))
+                {
+                    return BadRequest(new { message = "Ticket refunds are only available before the event starts." });
+                }
+
+                if (string.IsNullOrWhiteSpace(paymentId))
+                {
+                    paymentId = await PaymentRefundService.ResolveCheckoutPaymentIdAsync(_paymongoSecretKey, checkoutId) ?? string.Empty;
+                }
+
+                await using (var markPendingCmd = new NpgsqlCommand(
+                    "UPDATE tickets SET refund_status = 'Refund Pending', refund_amount = @amount, refund_reason = @reason WHERE id = @id;",
+                    connection))
+                {
+                    markPendingCmd.Parameters.AddWithValue("@id", ticketId);
+                    markPendingCmd.Parameters.AddWithValue("@amount", totalPrice);
+                    markPendingCmd.Parameters.AddWithValue("@reason", (object?)(req?.notes ?? req?.reasonCode ?? "Ticket refund requested") ?? DBNull.Value);
+                    await markPendingCmd.ExecuteNonQueryAsync();
+                }
+
+                var refundRequestId = await PaymentRefundService.CreateRefundRequestAsync(
+                    connection,
+                    refundScope: "ticket",
+                    paymentScope: "ticket_purchase",
+                    bookingId: null,
+                    ticketId: ticketId,
+                    requesterUserId: actorUserId,
+                    beneficiaryUserId: customerId,
+                    requesterRole: User.FindFirstValue(ClaimTypes.Role),
+                    reasonCode: string.IsNullOrWhiteSpace(req?.reasonCode) ? "Other" : req!.reasonCode!,
+                    reasonDetails: req?.notes,
+                    amount: totalPrice,
+                    providerPaymentId: paymentId,
+                    metadata: new { eventId, eventTitle });
+
+                var refundResult = await PaymentRefundService.CreatePayMongoRefundAsync(
+                    _paymongoSecretKey,
+                    paymentId,
+                    totalPrice,
+                    req?.reasonCode ?? "Other",
+                    req?.notes);
+
+                var localRefundStatus = refundResult.Status == "Refunded"
+                    ? "Refunded"
+                    : refundResult.Status == "Refund Pending"
+                        ? "Refund Pending"
+                        : "Refund Failed";
+
+                await using (var updateCmd = new NpgsqlCommand(
+                    "UPDATE tickets SET refund_status = @status, refund_amount = @amount, refund_reason = @reason, refund_processed_at = CASE WHEN @status = 'Refunded' THEN NOW() ELSE refund_processed_at END WHERE id = @id;",
+                    connection))
+                {
+                    updateCmd.Parameters.AddWithValue("@id", ticketId);
+                    updateCmd.Parameters.AddWithValue("@status", localRefundStatus);
+                    updateCmd.Parameters.AddWithValue("@amount", totalPrice);
+                    updateCmd.Parameters.AddWithValue("@reason", (object?)(req?.notes ?? req?.reasonCode ?? "Ticket refund requested") ?? DBNull.Value);
+                    await updateCmd.ExecuteNonQueryAsync();
+                }
+
+                await PaymentRefundService.UpdateRefundRequestAsync(
+                    connection,
+                    refundRequestId,
+                    status: localRefundStatus == "Refunded" ? "Refunded" : localRefundStatus == "Refund Pending" ? "ManualReview" : "Failed",
+                    providerRefundId: refundResult.RefundId,
+                    providerStatus: refundResult.ProviderStatus,
+                    errorCode: refundResult.ErrorCode,
+                    errorMessage: refundResult.ErrorMessage);
+
+                if (localRefundStatus == "Refunded")
+                {
+                    await PaymentLedgerService.MarkRefundedAsync(connection, "ticket_purchase", ticketId, null, "Refunded");
+                }
+
+                return Ok(new
+                {
+                    message = localRefundStatus == "Refunded"
+                        ? "Ticket refund processed."
+                        : localRefundStatus == "Refund Pending"
+                            ? "Ticket refund was submitted and needs PayMongo/manual review."
+                            : "Ticket refund request failed. Please verify the payment details.",
+                    refundStatus = localRefundStatus
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _configuration,
+                        "Failed to process ticket refund.",
+                        ex)
+                });
+            }
+        }
+
         [HttpPost("scan")]
         public async Task<IActionResult> ScanTicket([FromBody] ScanTicketRequest? req, [FromQuery] Guid? eventId = null)
         {
@@ -833,7 +1043,8 @@ namespace ImajinationAPI.Controllers
                            e.status,
                            e.id,
                            COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END),
-                           COALESCE(t.used_ticket_units, '')
+                           COALESCE(t.used_ticket_units, ''),
+                           COALESCE(t.refund_status, '')
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id 
                     WHERE t.id = @id";
@@ -856,8 +1067,15 @@ namespace ImajinationAPI.Controllers
                 Guid ticketEventId = reader.IsDBNull(6) ? Guid.Empty : reader.GetGuid(6);
                 int usedQuantity = reader.IsDBNull(7) ? (isUsed ? qty : 0) : reader.GetInt32(7);
                 var usedUnits = ParseUsedTicketUnits(reader.IsDBNull(8) ? "" : reader.GetString(8));
+                var refundStatus = reader.IsDBNull(9) ? "" : reader.GetString(9);
                 
                 await reader.CloseAsync();
+
+                if (string.Equals(refundStatus, "Refunded", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(refundStatus, "Refund Pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { message = "REFUND LOCK", details = "This ticket is under refund handling and can no longer be scanned." });
+                }
 
                 if (ticketEventId != eventId.Value)
                 {
@@ -1008,7 +1226,12 @@ namespace ImajinationAPI.Controllers
             const string alterSql = @"
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_checkout_id text NULL;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_checkout_reference text NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_payment_id text NULL;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS paymongo_payment_reference text NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_status varchar(30) NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_amount numeric(12,2) NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_reason text NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_processed_at timestamptz NULL;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_unit_price numeric(12,2) NOT NULL DEFAULT 0;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_subtotal numeric(12,2) NOT NULL DEFAULT 0;
                 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_service_fee numeric(12,2) NOT NULL DEFAULT 0;

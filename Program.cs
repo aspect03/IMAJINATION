@@ -34,6 +34,7 @@ var allowedOrigins = builder.Configuration
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray()
     ?? Array.Empty<string>();
+ValidateSecurityConfiguration(builder.Configuration, builder.Environment, allowedOrigins);
 var jwtBootstrapService = new JwtTokenService(builder.Configuration);
 
 // Add Controllers
@@ -197,15 +198,30 @@ var legacyStaticPaths = new Dictionary<string, string>(StringComparer.OrdinalIgn
 
 app.Use(async (context, next) =>
 {
+    var scriptSources = new[]
+    {
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        "https://cdn.tailwindcss.com",
+        "https://unpkg.com",
+        "https://accounts.google.com",
+        "https://cdn.jsdelivr.net"
+    };
+
     context.Response.Headers["Content-Security-Policy"] =
         "default-src 'self' data: blob: https:; " +
         "img-src 'self' data: blob: https:; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://accounts.google.com; " +
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://accounts.google.com; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://accounts.google.com https://cdn.jsdelivr.net; " +
+        $"script-src {string.Join(' ', scriptSources)}; " +
         "frame-src 'self' https://accounts.google.com; " +
-        "connect-src 'self' https:;";
+        "connect-src 'self' https:; " +
+        "object-src 'none'; " +
+        "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-ancestors 'self';";
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
@@ -295,6 +311,22 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static void ValidateSecurityConfiguration(IConfiguration configuration, IWebHostEnvironment environment, string[] allowedOrigins)
+{
+    var jwtSecret = Environment.GetEnvironmentVariable("Auth__JwtSecret") ?? configuration["Auth:JwtSecret"];
+    if (!environment.IsDevelopment() && string.IsNullOrWhiteSpace(jwtSecret))
+    {
+        throw new InvalidOperationException(
+            "Auth__JwtSecret must be configured outside Development so JWT signing does not fall back to insecure defaults.");
+    }
+
+    if (!environment.IsDevelopment() && allowedOrigins.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "At least one AppSecurity:AllowedOrigins entry is required outside Development.");
+    }
+}
 
 static Dictionary<string, string?> LoadDotEnv(string filePath)
 {

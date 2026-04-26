@@ -2,12 +2,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ImajinationAPI.Services
 {
     public sealed class JwtTokenService
     {
+        private const int MinimumJwtSecretLength = 32;
         private readonly IConfiguration _configuration;
         private readonly byte[] _secretKeyBytes;
         private readonly string _issuer;
@@ -23,11 +25,25 @@ namespace ImajinationAPI.Services
                 ? Math.Clamp(configuredExpiry, 5, 1440)
                 : 120;
 
+            var environmentName = configuration["ASPNETCORE_ENVIRONMENT"] ?? Environments.Production;
+            var isDevelopment = string.Equals(environmentName, Environments.Development, StringComparison.OrdinalIgnoreCase);
             var configuredSecret = Environment.GetEnvironmentVariable("Auth__JwtSecret") ?? configuration["Auth:JwtSecret"];
             if (!string.IsNullOrWhiteSpace(configuredSecret))
             {
+                if (configuredSecret.Length < MinimumJwtSecretLength)
+                {
+                    throw new InvalidOperationException(
+                        $"Auth__JwtSecret must be at least {MinimumJwtSecretLength} characters long.");
+                }
+
                 _secretKeyBytes = Encoding.UTF8.GetBytes(configuredSecret);
                 return;
+            }
+
+            if (!isDevelopment)
+            {
+                throw new InvalidOperationException(
+                    "Auth__JwtSecret is required outside Development. Set a strong JWT secret before starting the server.");
             }
 
             var fallbackMaterial = configuration.GetConnectionString("DefaultConnection")

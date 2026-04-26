@@ -5,6 +5,7 @@ using ImajinationAPI.Services;
 using Npgsql;
 using NpgsqlTypes;
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
@@ -52,6 +53,12 @@ namespace ImajinationAPI.Controllers
         public string? terms { get; set; }
         public decimal? agreedFee { get; set; }
         public string? contractStatus { get; set; }
+    }
+
+    public class CreateBookingRefundRequest
+    {
+        public string? reasonCode { get; set; }
+        public string? notes { get; set; }
     }
 
     [Route("api/[controller]")]
@@ -131,6 +138,19 @@ namespace ImajinationAPI.Controllers
             }
 
             return talentStatus;
+        }
+
+        private static Guid? GetActorUserId(ClaimsPrincipal user)
+        {
+            return Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+                ? parsedUserId
+                : null;
+        }
+
+        private static string GetActorRole(ClaimsPrincipal user)
+        {
+            var role = user.FindFirstValue(ClaimTypes.Role);
+            return string.IsNullOrWhiteSpace(role) ? "User" : role.Trim();
         }
 
         private static async Task<int> CountActiveBookingsForCustomerAsync(NpgsqlConnection connection, Guid customerId, string targetRole)
@@ -635,6 +655,7 @@ namespace ImajinationAPI.Controllers
                 await EnsureBookingsTableExists(connection);
                 await EnsureNotificationsTableExists(connection);
                 await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
                 await EnsureEventBookingSupportExists(connection);
 
                 string targetRole;
@@ -803,6 +824,33 @@ namespace ImajinationAPI.Controllers
                     await PlatformFeatureSupport.EnsureBookingContractAsync(connection, bookingId, eventTitle, budget, eventDate, location, targetRole);
                 }
 
+                if (normalizedStatus.Equals($"Cancelled by {targetRole}", StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessAutomaticBookingRefundsAsync(
+                        connection,
+                        bookingId,
+                        reasonCode: "TalentCancelled",
+                        notes: $"{targetRole} cancelled the booking before fulfillment.",
+                        requesterUserId: targetUserId,
+                        requesterRole: targetRole,
+                        refundServiceFee: true,
+                        refundTalentFee: true,
+                        refundPlatformFee: false);
+                }
+                else if (normalizedStatus.Equals("Cancelled by Customer", StringComparison.OrdinalIgnoreCase))
+                {
+                    await ProcessAutomaticBookingRefundsAsync(
+                        connection,
+                        bookingId,
+                        reasonCode: "CustomerCancelled",
+                        notes: "Customer cancelled the booking.",
+                        requesterUserId: customerId,
+                        requesterRole: "Customer",
+                        refundServiceFee: false,
+                        refundTalentFee: false,
+                        refundPlatformFee: true);
+                }
+
                 if (customerId != Guid.Empty)
                 {
                     var customerMessage = normalizedStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase)
@@ -885,6 +933,9 @@ namespace ImajinationAPI.Controllers
                         COALESCE(b.talent_platform_fee_checkout_reference, ''),
                         COALESCE(b.paymongo_payment_reference, ''),
                         COALESCE(b.paymongo_checkout_reference, ''),
+                        COALESCE(b.paymongo_payment_id, ''),
+                        COALESCE(b.talent_fee_payment_id, ''),
+                        COALESCE(b.talent_platform_fee_payment_id, ''),
                         b.booking_group_id,
                         COALESCE(b.booking_sequence, 1)
                     FROM bookings b
@@ -945,8 +996,11 @@ namespace ImajinationAPI.Controllers
                     talentPlatformFeeCheckoutReference = reader.IsDBNull(36) ? "" : reader.GetString(36),
                     paymentReference = reader.IsDBNull(37) ? "" : reader.GetString(37),
                     checkoutReference = reader.IsDBNull(38) ? "" : reader.GetString(38),
-                    bookingGroupId = reader.IsDBNull(39) ? (Guid?)null : reader.GetGuid(39),
-                    bookingSequence = reader.IsDBNull(40) ? 1 : reader.GetInt32(40)
+                    paymentId = reader.IsDBNull(39) ? "" : reader.GetString(39),
+                    talentFeePaymentId = reader.IsDBNull(40) ? "" : reader.GetString(40),
+                    talentPlatformFeePaymentId = reader.IsDBNull(41) ? "" : reader.GetString(41),
+                    bookingGroupId = reader.IsDBNull(42) ? (Guid?)null : reader.GetGuid(42),
+                    bookingSequence = reader.IsDBNull(43) ? 1 : reader.GetInt32(43)
                 });
             }
             catch (Exception ex)
@@ -1499,9 +1553,15 @@ namespace ImajinationAPI.Controllers
 
                 string paymentReference = "";
                 string paymentMethod = "";
+                string paymentId = "";
                 DateTime? paidAt = null;
 
                 var firstPayment = payments[0];
+                if (firstPayment.TryGetProperty("id", out var paymentIdProp))
+                {
+                    paymentId = paymentIdProp.GetString() ?? "";
+                }
+
                 if (firstPayment.TryGetProperty("attributes", out var paymentAttributes))
                 {
                     if (paymentAttributes.TryGetProperty("reference_number", out var referenceProp))
@@ -1532,6 +1592,7 @@ namespace ImajinationAPI.Controllers
                         SET payment_status = 'Paid',
                             talent_fee_status = 'Paid',
                             talent_fee_paid_at = COALESCE(@paidAt, NOW()),
+                            talent_fee_payment_id = @paymentId,
                             talent_fee_payment_reference = @paymentReference,
                             talent_fee_payment_method = @paymentMethod,
                             talent_fee_checkout_reference = @checkoutReference
@@ -1541,6 +1602,7 @@ namespace ImajinationAPI.Controllers
                         UPDATE bookings
                         SET talent_platform_fee_status = 'Paid',
                             talent_platform_fee_paid_at = COALESCE(@paidAt, NOW()),
+                            talent_platform_fee_payment_id = @paymentId,
                             talent_platform_fee_payment_reference = @paymentReference,
                             talent_platform_fee_payment_method = @paymentMethod,
                             talent_platform_fee_checkout_reference = @checkoutReference
@@ -1555,6 +1617,7 @@ namespace ImajinationAPI.Controllers
                             status = @status,
                             paid_at = COALESCE(@paidAt, NOW()),
                             service_fee_paid_at = COALESCE(@paidAt, NOW()),
+                            paymongo_payment_id = @paymentId,
                             paymongo_payment_reference = @paymentReference,
                             payment_method = @paymentMethod,
                             service_fee_payment_method = @paymentMethod,
@@ -1564,6 +1627,7 @@ namespace ImajinationAPI.Controllers
                 using var updateCmd = new NpgsqlCommand(updateSql, connection);
                 updateCmd.Parameters.Add("@status", NpgsqlDbType.Text).Value = nextStatus;
                 updateCmd.Parameters.Add("@paidAt", NpgsqlDbType.TimestampTz).Value = (object?)paidAt ?? DBNull.Value;
+                updateCmd.Parameters.Add("@paymentId", NpgsqlDbType.Text).Value = (object?)paymentId ?? DBNull.Value;
                 updateCmd.Parameters.Add("@paymentReference", NpgsqlDbType.Text).Value = (object?)paymentReference ?? DBNull.Value;
                 updateCmd.Parameters.Add("@paymentMethod", NpgsqlDbType.Text).Value = (object?)paymentMethod ?? DBNull.Value;
                 updateCmd.Parameters.Add("@checkoutReference", NpgsqlDbType.Text).Value = (object?)checkoutReference ?? DBNull.Value;
@@ -1621,6 +1685,474 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [HttpPost("{bookingId}/refunds/request")]
+        public async Task<IActionResult> RequestBookingRefund(Guid bookingId, [FromBody] CreateBookingRefundRequest? req)
+        {
+            try
+            {
+                var actorUserId = GetActorUserId(User);
+                var actorRole = GetActorRole(User);
+                if (!actorUserId.HasValue)
+                {
+                    return Unauthorized(new { message = "Sign in again before requesting a refund." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureBookingsTableExists(connection);
+                await EnsureNotificationsTableExists(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
+
+                const string sql = @"
+                    SELECT customer_id,
+                           target_user_id,
+                           event_id,
+                           COALESCE(target_role, 'Artist'),
+                           COALESCE(status, 'Pending'),
+                           event_date,
+                           event_end_time,
+                           COALESCE(event_title, 'Booking Request'),
+                           COALESCE(service_fee_status, COALESCE(payment_status, 'Unpaid')),
+                           COALESCE(talent_fee_status, 'Unpaid'),
+                           COALESCE(talent_platform_fee_status, 'Unpaid')
+                    FROM bookings
+                    WHERE id = @id;";
+
+                Guid customerId;
+                Guid targetUserId;
+                Guid? eventId;
+                string targetRole;
+                string status;
+                DateTime? eventDate;
+                DateTime? eventEndTime;
+                string eventTitle;
+                string serviceFeeStatus;
+                string talentFeeStatus;
+                string platformFeeStatus;
+
+                await using (var cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Booking request not found." });
+                    }
+
+                    customerId = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0);
+                    targetUserId = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1);
+                    eventId = reader.IsDBNull(2) ? (Guid?)null : reader.GetGuid(2);
+                    targetRole = reader.IsDBNull(3) ? "Artist" : reader.GetString(3);
+                    status = reader.IsDBNull(4) ? "Pending" : reader.GetString(4);
+                    eventDate = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5);
+                    eventEndTime = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+                    eventTitle = reader.IsDBNull(7) ? "Booking Request" : reader.GetString(7);
+                    serviceFeeStatus = reader.IsDBNull(8) ? "Unpaid" : reader.GetString(8);
+                    talentFeeStatus = reader.IsDBNull(9) ? "Unpaid" : reader.GetString(9);
+                    platformFeeStatus = reader.IsDBNull(10) ? "Unpaid" : reader.GetString(10);
+                }
+
+                var isCustomerSide = actorUserId.Value == customerId || actorRole.Equals("Organizer", StringComparison.OrdinalIgnoreCase);
+                var isTargetSide = actorUserId.Value == targetUserId || actorRole.Equals(targetRole, StringComparison.OrdinalIgnoreCase);
+                if (!isCustomerSide && !isTargetSide && !actorRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid();
+                }
+
+                var reasonCode = string.IsNullOrWhiteSpace(req?.reasonCode) ? "Other" : req!.reasonCode!.Trim();
+                var notes = req?.notes?.Trim();
+                var bookingEnded = (eventEndTime ?? eventDate)?.ToUniversalTime() <= DateTime.UtcNow;
+
+                if (reasonCode.Equals("TalentNoShow", StringComparison.OrdinalIgnoreCase) && !isCustomerSide)
+                {
+                    return BadRequest(new { message = "Only the customer or organizer can report a talent no-show." });
+                }
+
+                if (reasonCode.Equals("CustomerNoShow", StringComparison.OrdinalIgnoreCase) && !isTargetSide)
+                {
+                    return BadRequest(new { message = "Only the assigned artist or sessionist can report a customer no-show." });
+                }
+
+                if ((reasonCode.Equals("TalentNoShow", StringComparison.OrdinalIgnoreCase) ||
+                     reasonCode.Equals("CustomerNoShow", StringComparison.OrdinalIgnoreCase)) &&
+                    bookingEnded != true)
+                {
+                    return BadRequest(new { message = "No-show refunds can only be requested after the booked schedule has passed." });
+                }
+
+                var result = await ProcessAutomaticBookingRefundsAsync(
+                    connection,
+                    bookingId,
+                    reasonCode,
+                    notes,
+                    actorUserId,
+                    actorRole,
+                    refundServiceFee: isCustomerSide && (reasonCode.Equals("TalentNoShow", StringComparison.OrdinalIgnoreCase) || reasonCode.Equals("TalentCancelled", StringComparison.OrdinalIgnoreCase) || reasonCode.Equals("Other", StringComparison.OrdinalIgnoreCase)),
+                    refundTalentFee: isCustomerSide && (reasonCode.Equals("TalentNoShow", StringComparison.OrdinalIgnoreCase) || reasonCode.Equals("TalentCancelled", StringComparison.OrdinalIgnoreCase) || reasonCode.Equals("Other", StringComparison.OrdinalIgnoreCase)),
+                    refundPlatformFee: isTargetSide && (reasonCode.Equals("CustomerNoShow", StringComparison.OrdinalIgnoreCase) || reasonCode.Equals("CustomerCancelled", StringComparison.OrdinalIgnoreCase)));
+
+                if (!result.AnyProcessed)
+                {
+                    return BadRequest(new
+                    {
+                        message = isCustomerSide
+                            ? $"No refundable customer payment was found for {eventTitle}. Current statuses: service fee {serviceFeeStatus}, talent fee {talentFeeStatus}."
+                            : $"No refundable platform fee was found for {eventTitle}. Current platform fee status: {platformFeeStatus}."
+                    });
+                }
+
+                if (customerId != Guid.Empty && isTargetSide)
+                {
+                    await InsertNotification(connection, customerId, "booking_refund", "Booking refund requested", $"{targetRole} requested a refund review for {eventTitle}.", bookingId, "booking");
+                }
+
+                if (targetUserId != Guid.Empty && isCustomerSide)
+                {
+                    await InsertNotification(connection, targetUserId, "booking_refund", "Booking refund requested", $"A refund review was requested for {eventTitle}.", bookingId, "booking");
+                }
+
+                return Ok(new
+                {
+                    message = result.HasManualReview
+                        ? "Refund request recorded. Some items need manual review because PayMongo could not complete them automatically."
+                        : "Refund request processed.",
+                    refundStatus = result.OverallStatus
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _configuration,
+                        "Failed to process booking refund.",
+                        ex)
+                });
+            }
+        }
+
+        private sealed record BookingRefundBatchResult(bool AnyProcessed, bool HasManualReview, string OverallStatus);
+
+        private async Task<BookingRefundBatchResult> ProcessAutomaticBookingRefundsAsync(
+            NpgsqlConnection connection,
+            Guid bookingId,
+            string reasonCode,
+            string? notes,
+            Guid? requesterUserId,
+            string? requesterRole,
+            bool refundServiceFee,
+            bool refundTalentFee,
+            bool refundPlatformFee)
+        {
+            const string sql = @"
+                SELECT customer_id,
+                       target_user_id,
+                       COALESCE(event_title, 'Booking Request'),
+                       COALESCE(service_fee_status, COALESCE(payment_status, 'Unpaid')),
+                       COALESCE(talent_fee_status, 'Unpaid'),
+                       COALESCE(talent_platform_fee_status, 'Unpaid'),
+                       COALESCE(booking_fee, 0),
+                       COALESCE(budget, 0),
+                       COALESCE(talent_platform_fee, 0),
+                       COALESCE(paymongo_payment_id, ''),
+                       COALESCE(talent_fee_payment_id, ''),
+                       COALESCE(talent_platform_fee_payment_id, ''),
+                       COALESCE(paymongo_checkout_id, ''),
+                       COALESCE(talent_fee_checkout_id, ''),
+                       COALESCE(talent_platform_fee_checkout_id, '')
+                FROM bookings
+                WHERE id = @id;";
+
+            Guid customerId;
+            Guid targetUserId;
+            string eventTitle;
+            string serviceFeeStatus;
+            string talentFeeStatus;
+            string platformFeeStatus;
+            decimal bookingFee;
+            decimal budget;
+            decimal platformFee;
+            string servicePaymentId;
+            string talentPaymentId;
+            string platformPaymentId;
+            string serviceCheckoutId;
+            string talentCheckoutId;
+            string platformCheckoutId;
+
+            await using (var cmd = new NpgsqlCommand(sql, connection))
+            {
+                cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    return new BookingRefundBatchResult(false, false, "Unpaid");
+                }
+
+                customerId = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0);
+                targetUserId = reader.IsDBNull(1) ? Guid.Empty : reader.GetGuid(1);
+                eventTitle = reader.IsDBNull(2) ? "Booking Request" : reader.GetString(2);
+                serviceFeeStatus = reader.IsDBNull(3) ? "Unpaid" : reader.GetString(3);
+                talentFeeStatus = reader.IsDBNull(4) ? "Unpaid" : reader.GetString(4);
+                platformFeeStatus = reader.IsDBNull(5) ? "Unpaid" : reader.GetString(5);
+                bookingFee = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6);
+                budget = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7);
+                platformFee = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8);
+                servicePaymentId = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                talentPaymentId = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                platformPaymentId = reader.IsDBNull(11) ? "" : reader.GetString(11);
+                serviceCheckoutId = reader.IsDBNull(12) ? "" : reader.GetString(12);
+                talentCheckoutId = reader.IsDBNull(13) ? "" : reader.GetString(13);
+                platformCheckoutId = reader.IsDBNull(14) ? "" : reader.GetString(14);
+            }
+
+            var anyProcessed = false;
+            var hasManualReview = false;
+
+            if (refundServiceFee && serviceFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) && bookingFee > 0)
+            {
+                var result = await RefundBookingComponentAsync(
+                    connection,
+                    bookingId,
+                    "booking_service_fee",
+                    "service",
+                    bookingFee,
+                    string.IsNullOrWhiteSpace(servicePaymentId)
+                        ? await PaymentRefundService.ResolveCheckoutPaymentIdAsync(_paymongoSecretKey, serviceCheckoutId)
+                        : servicePaymentId,
+                    requesterUserId,
+                    customerId == Guid.Empty ? requesterUserId : customerId,
+                    requesterRole,
+                    reasonCode,
+                    notes);
+
+                anyProcessed |= result is not null;
+                hasManualReview |= string.Equals(result, "Refund Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(result, "Refund Failed", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (refundTalentFee && talentFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) && budget > 0)
+            {
+                var result = await RefundBookingComponentAsync(
+                    connection,
+                    bookingId,
+                    "booking_talent_fee",
+                    "talent",
+                    budget,
+                    string.IsNullOrWhiteSpace(talentPaymentId)
+                        ? await PaymentRefundService.ResolveCheckoutPaymentIdAsync(_paymongoSecretKey, talentCheckoutId)
+                        : talentPaymentId,
+                    requesterUserId,
+                    customerId == Guid.Empty ? requesterUserId : customerId,
+                    requesterRole,
+                    reasonCode,
+                    notes);
+
+                anyProcessed |= result is not null;
+                hasManualReview |= string.Equals(result, "Refund Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(result, "Refund Failed", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (refundPlatformFee && platformFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) && platformFee > 0)
+            {
+                var result = await RefundBookingComponentAsync(
+                    connection,
+                    bookingId,
+                    "booking_talent_platform_fee",
+                    "platform",
+                    platformFee,
+                    string.IsNullOrWhiteSpace(platformPaymentId)
+                        ? await PaymentRefundService.ResolveCheckoutPaymentIdAsync(_paymongoSecretKey, platformCheckoutId)
+                        : platformPaymentId,
+                    requesterUserId,
+                    targetUserId == Guid.Empty ? requesterUserId : targetUserId,
+                    requesterRole,
+                    reasonCode,
+                    notes);
+
+                anyProcessed |= result is not null;
+                hasManualReview |= string.Equals(result, "Refund Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(result, "Refund Failed", StringComparison.OrdinalIgnoreCase);
+            }
+
+            var overallStatus = await RecomputeBookingPaymentStatusAsync(connection, bookingId);
+
+            if (anyProcessed)
+            {
+                if (customerId != Guid.Empty && (refundServiceFee || refundTalentFee))
+                {
+                    await InsertNotification(connection, customerId, "booking_refund", "Booking refund updated", $"Your refund status for {eventTitle} is now {overallStatus}.", bookingId, "booking");
+                }
+
+                if (targetUserId != Guid.Empty && refundPlatformFee)
+                {
+                    await InsertNotification(connection, targetUserId, "booking_refund", "Platform fee refund updated", $"Your platform-fee refund status for {eventTitle} is now {overallStatus}.", bookingId, "booking");
+                }
+            }
+
+            return new BookingRefundBatchResult(anyProcessed, hasManualReview, overallStatus);
+        }
+
+        private async Task<string?> RefundBookingComponentAsync(
+            NpgsqlConnection connection,
+            Guid bookingId,
+            string paymentScope,
+            string componentType,
+            decimal amount,
+            string? paymentId,
+            Guid? requesterUserId,
+            Guid? beneficiaryUserId,
+            string? requesterRole,
+            string reasonCode,
+            string? notes)
+        {
+            if (amount <= 0)
+            {
+                return null;
+            }
+
+            var pendingStatusSql = componentType == "talent"
+                ? "UPDATE bookings SET talent_fee_status = 'Refund Pending', payment_status = 'Refund Pending' WHERE id = @id;"
+                : componentType == "platform"
+                    ? "UPDATE bookings SET talent_platform_fee_status = 'Refund Pending', payment_status = 'Refund Pending' WHERE id = @id;"
+                    : "UPDATE bookings SET service_fee_status = 'Refund Pending', payment_status = 'Refund Pending' WHERE id = @id;";
+
+            await using (var pendingCmd = new NpgsqlCommand(pendingStatusSql, connection))
+            {
+                pendingCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                await pendingCmd.ExecuteNonQueryAsync();
+            }
+
+            var refundRequestId = await PaymentRefundService.CreateRefundRequestAsync(
+                connection,
+                refundScope: "booking",
+                paymentScope: paymentScope,
+                bookingId: bookingId,
+                ticketId: null,
+                requesterUserId: requesterUserId,
+                beneficiaryUserId: beneficiaryUserId,
+                requesterRole: requesterRole,
+                reasonCode: reasonCode,
+                reasonDetails: notes,
+                amount: amount,
+                providerPaymentId: paymentId,
+                metadata: new { componentType });
+
+            var refundResult = await PaymentRefundService.CreatePayMongoRefundAsync(
+                _paymongoSecretKey,
+                paymentId ?? string.Empty,
+                amount,
+                reasonCode,
+                notes);
+
+            var targetStatus = refundResult.Status == "Refunded"
+                ? "Refunded"
+                : refundResult.Status == "Refund Pending"
+                    ? "Refund Pending"
+                    : "Refund Failed";
+            var bookingUpdateSql = componentType == "talent"
+                ? @"
+                    UPDATE bookings
+                    SET talent_fee_status = @componentStatus
+                    WHERE id = @id;"
+                : componentType == "platform"
+                    ? @"
+                    UPDATE bookings
+                    SET talent_platform_fee_status = @componentStatus
+                    WHERE id = @id;"
+                    : @"
+                    UPDATE bookings
+                    SET service_fee_status = @componentStatus
+                    WHERE id = @id;";
+
+            await using (var updateCmd = new NpgsqlCommand(bookingUpdateSql, connection))
+            {
+                updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                updateCmd.Parameters.Add("@componentStatus", NpgsqlDbType.Text).Value = targetStatus;
+                await updateCmd.ExecuteNonQueryAsync();
+            }
+
+            await PaymentRefundService.UpdateRefundRequestAsync(
+                connection,
+                refundRequestId,
+                status: targetStatus == "Refunded" ? "Refunded" : targetStatus == "Refund Pending" ? "ManualReview" : "Failed",
+                providerRefundId: refundResult.RefundId,
+                providerStatus: refundResult.ProviderStatus,
+                errorCode: refundResult.ErrorCode,
+                errorMessage: refundResult.ErrorMessage);
+
+            if (targetStatus == "Refunded")
+            {
+                await PaymentLedgerService.MarkRefundedAsync(connection, paymentScope, null, bookingId, "Refunded");
+                return "Refunded";
+            }
+
+            return targetStatus == "Failed" ? "Refund Failed" : "Refund Pending";
+        }
+
+        private static async Task<string> RecomputeBookingPaymentStatusAsync(NpgsqlConnection connection, Guid bookingId)
+        {
+            const string sql = @"
+                SELECT COALESCE(service_fee_status, COALESCE(payment_status, 'Unpaid')),
+                       COALESCE(talent_fee_status, 'Unpaid'),
+                       COALESCE(talent_platform_fee_status, 'Unpaid')
+                FROM bookings
+                WHERE id = @id;";
+
+            string serviceFeeStatus;
+            string talentFeeStatus;
+            string platformFeeStatus;
+
+            await using (var cmd = new NpgsqlCommand(sql, connection))
+            {
+                cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync())
+                {
+                    return "Unpaid";
+                }
+
+                serviceFeeStatus = reader.IsDBNull(0) ? "Unpaid" : reader.GetString(0);
+                talentFeeStatus = reader.IsDBNull(1) ? "Unpaid" : reader.GetString(1);
+                platformFeeStatus = reader.IsDBNull(2) ? "Unpaid" : reader.GetString(2);
+            }
+
+            string nextStatus;
+            if (serviceFeeStatus.Contains("Refund", StringComparison.OrdinalIgnoreCase) ||
+                talentFeeStatus.Contains("Refund", StringComparison.OrdinalIgnoreCase) ||
+                platformFeeStatus.Contains("Refund", StringComparison.OrdinalIgnoreCase))
+            {
+                if (serviceFeeStatus.Equals("Refund Pending", StringComparison.OrdinalIgnoreCase) ||
+                    talentFeeStatus.Equals("Refund Pending", StringComparison.OrdinalIgnoreCase) ||
+                    platformFeeStatus.Equals("Refund Pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    nextStatus = "Refund Pending";
+                }
+                else if (serviceFeeStatus.Equals("Refund Failed", StringComparison.OrdinalIgnoreCase) ||
+                         talentFeeStatus.Equals("Refund Failed", StringComparison.OrdinalIgnoreCase) ||
+                         platformFeeStatus.Equals("Refund Failed", StringComparison.OrdinalIgnoreCase))
+                {
+                    nextStatus = "Refund Failed";
+                }
+                else
+                {
+                    nextStatus = "Refunded";
+                }
+            }
+            else if (serviceFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) &&
+                     (talentFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) || talentFeeStatus.Equals("Unpaid", StringComparison.OrdinalIgnoreCase) || talentFeeStatus.Equals("NotRequired", StringComparison.OrdinalIgnoreCase)))
+            {
+                nextStatus = "Paid";
+            }
+            else
+            {
+                nextStatus = "Unpaid";
+            }
+
+            await using var updateCmd = new NpgsqlCommand("UPDATE bookings SET payment_status = @paymentStatus WHERE id = @id;", connection);
+            updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+            updateCmd.Parameters.Add("@paymentStatus", NpgsqlDbType.Text).Value = nextStatus;
+            await updateCmd.ExecuteNonQueryAsync();
+            return nextStatus;
+        }
+
         private static async Task EnsureBookingsTableExists(NpgsqlConnection connection)
         {
             const string sql = @"
@@ -1653,14 +2185,17 @@ namespace ImajinationAPI.Controllers
                     paymongo_checkout_id text NULL,
                     paymongo_checkout_url text NULL,
                     paymongo_checkout_reference text NULL,
+                    paymongo_payment_id text NULL,
                     paymongo_payment_reference text NULL,
                     talent_fee_checkout_id text NULL,
                     talent_fee_checkout_url text NULL,
                     talent_fee_checkout_reference text NULL,
+                    talent_fee_payment_id text NULL,
                     talent_fee_payment_reference text NULL,
                     talent_platform_fee_checkout_id text NULL,
                     talent_platform_fee_checkout_url text NULL,
                     talent_platform_fee_checkout_reference text NULL,
+                    talent_platform_fee_payment_id text NULL,
                     talent_platform_fee_payment_reference text NULL,
                     paid_at timestamptz NULL,
                     service_fee_paid_at timestamptz NULL,
@@ -1691,14 +2226,17 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paymongo_checkout_id text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paymongo_checkout_url text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paymongo_checkout_reference text NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paymongo_payment_id text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paymongo_payment_reference text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_fee_checkout_id text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_fee_checkout_url text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_fee_checkout_reference text NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_fee_payment_id text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_fee_payment_reference text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee_checkout_id text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee_checkout_url text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee_checkout_reference text NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee_payment_id text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS talent_platform_fee_payment_reference text NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS paid_at timestamptz NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_fee_paid_at timestamptz NULL;

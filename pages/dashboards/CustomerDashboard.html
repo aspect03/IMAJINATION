@@ -1132,6 +1132,8 @@
     function getPaymentStatusClasses(status) {
       if (status === 'Paid') return 'text-emerald-400';
       if (status === 'ServiceFeePaid') return 'text-blue-300';
+      if (status === 'Refunded') return 'text-sky-300';
+      if (status === 'Refund Failed') return 'text-red-300';
       if (status === 'AwaitingPayment' || status === 'AwaitingTalentFeePayment' || status === 'Refund Pending') return 'text-amber-300';
       return 'text-white/35';
     }
@@ -1153,6 +1155,46 @@
       const rawStatus = (talentFeeStatus || '').trim();
       if (rawStatus === 'AwaitingTalentFeePayment') return 'AwaitingPayment';
       return rawStatus || 'Unpaid';
+    }
+
+    async function requestBookingRefund(bookingId, reasonCode) {
+      const notes = window.prompt('Add a short refund note for the team (optional):', '');
+      if (notes === null) return;
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/refunds/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reasonCode, notes })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to submit refund request.');
+        await showSystemAlert(data.message || 'Refund request submitted.', 'Refund Request');
+        await loadCustomerBookings();
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to submit refund request.', 'Refund Error');
+      }
+    }
+
+    async function requestTicketRefund(ticketId) {
+      const notes = window.prompt('Why are you refunding this ticket? (optional)', '');
+      if (notes === null) return;
+
+      try {
+        const res = await fetch(`/api/ticket/${ticketId}/refunds/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reasonCode: 'Other', notes })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to request ticket refund.');
+        await showSystemAlert(data.message || 'Ticket refund submitted.', 'Ticket Refund');
+        const response = await fetch(`/api/ticket/customer/${localStorage.getItem('userId')}`);
+        globalTickets = response.ok ? await response.json() : globalTickets;
+        renderTickets();
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to request ticket refund.', 'Refund Error');
+      }
     }
 
     async function startBookingPayment(bookingId, paymentType = 'service') {
@@ -1253,6 +1295,7 @@
           const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
           const isCancelled = (booking.status || '').startsWith('Cancelled');
           const isCompleted = (booking.status || '') === 'Completed';
+          const ended = booking.eventDate ? new Date(booking.eventDate).getTime() <= Date.now() : false;
           const canPayServiceFee = serviceFeeStatus !== 'Paid'
             && serviceFeeStatus !== 'NotRequired'
             && !isCancelled;
@@ -1262,6 +1305,9 @@
             && talentFeeStatus !== 'Paid'
             && !isCancelled;
           const canStopBooking = !isCancelled && !isCompleted;
+          const canRequestNoShowRefund = ended
+            && booking.status === 'Confirmed'
+            && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || talentFeeStatus === 'Paid' || talentFeeStatus === 'Refund Failed');
 
           return `
           <div class="p-4 bg-black/40 border border-white/10 rounded-2xl space-y-3">
@@ -1294,9 +1340,12 @@
               ${canStopBooking
                 ? `<button onclick="cancelCustomerBooking('${booking.id}')" class="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500/15 transition-colors whitespace-nowrap">Stop Booking</button>`
                 : ''}
+              ${canRequestNoShowRefund
+                ? `<button onclick="requestBookingRefund('${booking.id}', 'TalentNoShow')" class="px-4 py-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-sky-500/15 transition-colors whitespace-nowrap">Request No-Show Refund</button>`
+                : ''}
             </div>
             <p class="text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(serviceFeeStatus)}">
-              Service fee: ${serviceFeeStatus}${booking.serviceFeePaymentMethod || booking.paymentMethod ? ` • ${formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod)}` : ''}
+              Service fee: ${serviceFeeStatus}${booking.serviceFeePaymentMethod || booking.paymentMethod ? ` • ${formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod)}` : ''}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}
             </p>
           </div>
         `;});
@@ -1453,8 +1502,17 @@
         
         let statusBadge = '';
         let opacityClass = '';
+        const refundStatus = String(t.refundStatus || '');
+        const canRefundTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending' && !t.isUsed && !t.hasScannedUnits && !t.isExpired;
 
-        if (t.isUsed) {
+        if (refundStatus === 'Refunded') {
+            statusBadge = `<span class="px-2 py-0.5 bg-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded">Refunded</span>`;
+            opacityClass = 'opacity-60 grayscale';
+        } else if (refundStatus === 'Refund Pending') {
+            statusBadge = `<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">Refund Pending</span>`;
+        } else if (refundStatus === 'Refund Failed') {
+            statusBadge = `<span class="px-2 py-0.5 bg-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded">Refund Failed</span>`;
+        } else if (t.isUsed) {
             statusBadge = `<span class="px-2 py-0.5 bg-neutral-600/30 text-neutral-400 text-[10px] font-bold uppercase tracking-widest rounded">Scanned / Used</span>`;
             opacityClass = 'opacity-50 grayscale';
         } else if (t.hasScannedUnits) {
@@ -1488,6 +1546,9 @@
               <button onclick="event.stopPropagation(); showReceipt(${t.originalIndex}, ${t.isExpired})" class="text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl transition-colors border border-white/10 whitespace-nowrap">
                 ${t.isUsed || t.isExpired ? 'View Stub' : 'View QR Ticket'}
               </button>
+              ${canRefundTicket
+                ? `<button onclick="event.stopPropagation(); requestTicketRefund('${t.ticketId}')" class="text-[10px] font-bold uppercase tracking-widest text-sky-300 hover:text-white bg-sky-500/10 hover:bg-sky-500/20 px-4 py-2.5 rounded-xl transition-colors border border-sky-500/20 whitespace-nowrap">Refund Ticket</button>`
+                : ''}
               </div>
             </div>
           </div>

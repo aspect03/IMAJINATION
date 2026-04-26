@@ -92,6 +92,7 @@ Your backend host needs these values:
 - `EmailSettings__Username`
 - `EmailSettings__Password`
 - `PayMongo__SecretKey`
+- `Auth__JwtSecret` with at least 32 random characters
 - `AppSecurity__AllowedOrigins__0..n`
 
 ## Important limitation

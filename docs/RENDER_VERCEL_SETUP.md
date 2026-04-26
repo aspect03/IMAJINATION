@@ -48,6 +48,7 @@ Add these variables:
 - `EmailSettings__Username`
 - `EmailSettings__Password`
 - `PayMongo__SecretKey`
+- `Auth__JwtSecret`
 - `GoogleAuth__ClientId`
 
 Also add your allowed origins:

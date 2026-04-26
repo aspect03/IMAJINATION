@@ -20,6 +20,8 @@
 <body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col h-screen overflow-hidden" style="font-family: 'Montserrat', sans-serif;">
   
   <div class="bg-dashboard-backdrop"></div>
+  <div class="dashboard-ambient-orb dashboard-ambient-orb--primary"></div>
+  <div class="dashboard-ambient-orb dashboard-ambient-orb--secondary"></div>
 
   <nav class="relative z-50 w-full flex-shrink-0">
     <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
@@ -115,14 +117,14 @@
   <main class="mobile-dashboard-main flex-1 overflow-y-auto relative z-10">
     <div class="max-w-7xl mx-auto px-8 py-10 space-y-6">
       
-      <header class="mobile-stack-header flex items-end justify-between border-b border-white/10 pb-6">
+      <header class="mobile-stack-header flex items-end justify-between border-b border-white/10 pb-6" data-reveal>
         <div>
           <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Sessionist Portal</p>
           <h1 class="text-3xl font-extrabold text-white">Welcome back, <span id="userNameDisplay" class="text-red-500">Guest</span></h1>
         </div>
       </header>
 
-      <div id="view-dashboard" class="space-y-6 block">
+      <div id="view-dashboard" class="tab-panel tab-panel-active space-y-6 block">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
             <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Upcoming gigs</p>
@@ -242,7 +244,7 @@
         </div>
       </div>
 
-      <div id="view-profile-page" class="hidden">
+      <div id="view-profile-page" class="tab-panel hidden">
         <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_320px] gap-6 items-start">
           <section class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl space-y-8">
             <header class="border-b border-white/10 pb-6">
@@ -317,7 +319,7 @@
         </div>
       </div>
 
-      <div id="view-edit-profile" class="hidden">
+      <div id="view-edit-profile" class="tab-panel hidden">
         <div class="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
           <aside class="bg-[#1a1515] border border-white/5 rounded-[24px] p-5 backdrop-blur-md shadow-2xl">
             <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-4">Edit Modules</p>
@@ -517,7 +519,7 @@
         </div>
       </div>
 
-      <div id="view-community" class="hidden">
+      <div id="view-community" class="tab-panel hidden">
         <div class="max-w-5xl space-y-6">
           <header class="mb-4 border-b border-white/10 pb-6">
             <p class="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] mb-2">Sessionist Community</p>
@@ -596,6 +598,120 @@
         img.onerror = () => reject(new Error('Failed to load image preview.'));
         img.src = src;
       });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/`/g, '&#96;');
+    }
+
+    function safeUrl(value) {
+      const raw = String(value ?? '').trim();
+      if (!raw) return '';
+
+      if (raw.startsWith('data:image/')) {
+        return raw;
+      }
+
+      try {
+        const parsed = new URL(raw, window.location.origin);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+      } catch {
+        return '';
+      }
+    }
+
+    function safeText(value, fallback = '') {
+      const text = String(value ?? '').trim();
+      return text || fallback;
+    }
+
+    function setAnimatedCounter(elementId, nextValue) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      const target = Number(nextValue);
+      if (!Number.isFinite(target)) {
+        element.textContent = String(nextValue ?? '');
+        return;
+      }
+
+      const previous = Number(element.dataset.countValue ?? element.textContent ?? 0);
+      const start = Number.isFinite(previous) ? previous : 0;
+      const end = Math.max(0, Math.round(target));
+
+      if (start === end) {
+        element.textContent = String(end);
+        element.dataset.countValue = String(end);
+        return;
+      }
+
+      const startedAt = performance.now();
+      const duration = 450;
+
+      const tick = (timestamp) => {
+        const progress = Math.min((timestamp - startedAt) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const value = Math.round(start + (end - start) * eased);
+        element.textContent = String(value);
+        if (progress < 1) {
+          window.requestAnimationFrame(tick);
+          return;
+        }
+        element.dataset.countValue = String(end);
+      };
+
+      window.requestAnimationFrame(tick);
+    }
+
+    function activateTabPanel(activeView) {
+      document.querySelectorAll('.tab-panel').forEach((panel) => {
+        panel.classList.remove('tab-panel-active');
+      });
+
+      if (!activeView) return;
+      window.requestAnimationFrame(() => {
+        activeView.classList.add('tab-panel-active');
+      });
+    }
+
+    function initSessionistMotion() {
+      const revealTargets = Array.from(document.querySelectorAll(
+        'main header, main section, main aside, main .shadow-xl, main .shadow-2xl, main #sessionistBookingsContainer, main #sessionistNotificationsContainer, main #sessionistTodayScheduleContainer, main #sessionistUpcomingScheduleContainer, main #sessionistAllScheduleContainer, main #sessionistCalendarBlockList, main #sessionistPostsManagerList'
+      ));
+
+      revealTargets.forEach((element, index) => {
+        element.classList.add('dashboard-surface');
+        if (!element.hasAttribute('data-reveal')) {
+          element.setAttribute('data-reveal', '');
+        }
+        if (!element.style.getPropertyValue('--reveal-delay')) {
+          element.style.setProperty('--reveal-delay', `${Math.min(index * 40, 240)}ms`);
+        }
+      });
+
+      if (!('IntersectionObserver' in window)) {
+        revealTargets.forEach((element) => element.classList.add('is-visible'));
+        return;
+      }
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+
+      revealTargets.forEach((element) => observer.observe(element));
     }
 
     function renderSessionistProfilePreview() {
@@ -949,6 +1065,14 @@
       editProfileView.classList.toggle('hidden', tabName !== 'edit-profile');
       cmView.classList.toggle('hidden', tabName !== 'community');
 
+      const activeView = {
+        dashboard: dbView,
+        'profile-page': profilePageView,
+        'edit-profile': editProfileView,
+        community: cmView
+      }[tabName];
+      activateTabPanel(activeView);
+
       [
         [dbBtn, tabName === 'dashboard'],
         [profilePageBtn, tabName === 'profile-page'],
@@ -1008,7 +1132,7 @@
       document.getElementById('sessionistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
       const verificationStatusText = document.getElementById('sessionistVerificationStatusText');
       if (verificationStatusText) {
-        const level = artist.verificationLevel ? ` • ${artist.verificationLevel}` : '';
+        const level = artist.verificationLevel ? ` | ${artist.verificationLevel}` : '';
         verificationStatusText.innerText = `${artist.verificationStatus || 'Not Submitted'}${level}`;
       }
       applyPersistedSessionistVerificationUploads(artist.verificationUploads || null);
@@ -1032,6 +1156,7 @@
       document.getElementById('userNameDisplay').innerText = fName;
       document.getElementById('dropdownName').innerText = fName;
       renderSessionistProfilePreview();
+      initSessionistMotion();
 
       const params = new URLSearchParams(window.location.search);
       const requestedTab = params.get('tab');
@@ -1126,8 +1251,8 @@
       const visible = notifications.slice(0, 8);
       list.innerHTML = visible.map((notification, index) => `
         <button type="button" data-index="${index}" class="sessionist-bell-item w-full text-left p-3 bg-black/30 border ${notification.isRead ? 'border-white/5' : 'border-red-500/20'} rounded-xl hover:border-white/20 transition-colors">
-          <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${notification.title || 'Notification'}</p>
-          <p class="text-xs text-white/55 mt-1">${notification.message || ''}</p>
+          <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${escapeHtml(safeText(notification.title, 'Notification'))}</p>
+          <p class="text-xs text-white/55 mt-1">${escapeHtml(notification.message || '')}</p>
           <p class="text-[10px] text-white/35 mt-3 uppercase tracking-widest">${formatNotificationTime(notification.createdAt)}</p>
         </button>
       `).join('');
@@ -1137,6 +1262,7 @@
           openSessionistNotification(visible[Number(button.dataset.index)]);
         });
       });
+      initSessionistMotion();
     }
 
     async function loadSessionistNotifications(userId) {
@@ -1167,8 +1293,8 @@
           <button type="button" class="sessionist-notification-item w-full text-left p-4 bg-black/40 border ${notification.isRead ? 'border-white/5' : 'border-blue-500/20'} rounded-xl hover:border-white/20 transition-colors">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${notification.title || 'Notification'}</p>
-                <p class="text-xs text-white/55 mt-1">${notification.message || ''}</p>
+                <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${escapeHtml(safeText(notification.title, 'Notification'))}</p>
+                <p class="text-xs text-white/55 mt-1">${escapeHtml(notification.message || '')}</p>
               </div>
               <span class="text-[10px] uppercase tracking-widest ${notification.isRead ? 'text-white/35' : 'text-blue-300'}">${notification.isRead ? 'Read' : 'New'}</span>
             </div>
@@ -1179,9 +1305,10 @@
         container.querySelectorAll('.sessionist-notification-item').forEach((button, index) => {
           button.addEventListener('click', () => openSessionistNotification(visibleNotifications[index]));
         });
+        initSessionistMotion();
       } catch (error) {
         renderSessionistNotificationBell([]);
-        container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">${error.message || 'Failed to load notifications.'}</p>`;
+        container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">${escapeHtml(error.message || 'Failed to load notifications.')}</p>`;
       }
     }
 
@@ -1319,12 +1446,12 @@
       container.innerHTML = items.map(item => `
         <div class="p-4 bg-black/40 border border-white/10 rounded-xl">
           <div class="flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-white">${item.title}</p>
+            <p class="text-sm font-semibold text-white">${escapeHtml(item.title)}</p>
             <span class="text-[10px] uppercase tracking-widest ${item.type === 'Booking' ? 'text-blue-300' : 'text-emerald-300'}">${item.type}</span>
           </div>
           <p class="text-xs text-white/55 mt-2">${item.date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
-          <p class="text-xs text-white/45 mt-1">${item.location}</p>
-          <p class="text-[10px] uppercase tracking-widest text-white/35 mt-2">${item.meta}</p>
+          <p class="text-xs text-white/45 mt-1">${escapeHtml(item.location)}</p>
+          <p class="text-[10px] uppercase tracking-widest text-white/35 mt-2">${escapeHtml(item.meta)}</p>
         </div>
       `).join('');
     }
@@ -1335,12 +1462,13 @@
       const todaySchedules = allSchedules.filter(item => isSameLocalDay(item.date, now));
       const upcomingSchedules = allSchedules.filter(item => item.date >= now && !isSameLocalDay(item.date, now)).slice(0, 6);
 
-      document.getElementById('sessionistTodayScheduleCount').innerText = todaySchedules.length;
-      document.getElementById('sessionistUpcomingScheduleCount').innerText = allSchedules.filter(item => item.date >= now).length;
+      setAnimatedCounter('sessionistTodayScheduleCount', todaySchedules.length);
+      setAnimatedCounter('sessionistUpcomingScheduleCount', allSchedules.filter(item => item.date >= now).length);
 
       renderSessionistScheduleList('sessionistTodayScheduleContainer', todaySchedules, 'No schedules for today.');
       renderSessionistScheduleList('sessionistUpcomingScheduleContainer', upcomingSchedules, 'No upcoming schedules.');
       renderSessionistScheduleList('sessionistAllScheduleContainer', allSchedules, 'No schedules yet.');
+      initSessionistMotion();
     }
 
     function renderSessionistCalendarBlocks() {
@@ -1355,15 +1483,16 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-black/50 border border-white/10 rounded-2xl">
           <div>
             <p class="text-sm font-semibold text-white">${new Date(block.blockedDate || block.blockDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-            <p class="text-xs text-white/50 mt-1">${block.reason || 'Blocked manually by sessionist.'}</p>
+            <p class="text-xs text-white/50 mt-1">${escapeHtml(safeText(block.reason, 'Blocked manually by sessionist.'))}</p>
           </div>
-          <button type="button" data-block-id="${block.id}" class="sessionist-remove-block px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Remove</button>
+          <button type="button" data-block-id="${escapeAttribute(block.id)}" class="sessionist-remove-block px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Remove</button>
         </div>
       `).join('');
 
       container.querySelectorAll('.sessionist-remove-block').forEach((button) => {
         button.addEventListener('click', () => removeSessionistCalendarBlock(button.dataset.blockId));
       });
+      initSessionistMotion();
     }
 
     async function loadSessionistCalendarBlocks() {
@@ -1405,9 +1534,9 @@
       const upcomingEl = document.getElementById('sessionistUpcomingGigCount');
       const availabilityEl = document.getElementById('sessionistAvailabilityStatText');
 
-      if (pendingEl) pendingEl.innerText = pendingCount;
-      if (confirmedEl) confirmedEl.innerText = confirmedCount;
-      if (upcomingEl) upcomingEl.innerText = upcomingCount;
+      if (pendingEl) setAnimatedCounter('sessionistPendingStatCount', pendingCount);
+      if (confirmedEl) setAnimatedCounter('sessionistConfirmedStatCount', confirmedCount);
+      if (upcomingEl) setAnimatedCounter('sessionistUpcomingGigCount', upcomingCount);
       if (availabilityEl) {
         availabilityEl.innerText = sessionistIsAvailable ? 'Live' : 'Paused';
         availabilityEl.className = `text-3xl font-extrabold ${sessionistIsAvailable ? 'text-emerald-400' : 'text-white/55'}`;
@@ -1418,7 +1547,9 @@
 
     function formatBookingDate(value) {
       if (!value) return 'Schedule to be confirmed';
-      return new Date(value).toLocaleString('en-US', {
+      const parsed = new Date(value);
+      if (isNaN(parsed)) return 'Schedule to be confirmed';
+      return parsed.toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -1445,7 +1576,8 @@
         const res = await fetch(`/api/booking/target/${userId}`);
         if (!res.ok) throw new Error();
 
-        sessionistBookings = await res.json();
+        const payload = await res.json().catch(() => ([]));
+        sessionistBookings = Array.isArray(payload) ? payload : [];
         renderSessionistSchedules();
         updateSessionistDashboardStats();
 
@@ -1458,32 +1590,49 @@
           <div class="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/20 transition-colors">
             <div class="flex-1">
               <div class="flex items-center gap-3 mb-3 flex-wrap">
-                <span class="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold tracking-widest uppercase text-white/70">${booking.eventTitle || 'Booking Request'}</span>
-                <span class="px-3 py-1 ${getSessionistBookingStatusClasses(booking.status)} border text-[10px] font-bold tracking-widest uppercase rounded-lg">${booking.status}</span>
-                <span class="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] font-bold tracking-widest uppercase rounded-lg">${booking.serviceType || 'Booking'}</span>
+                <span class="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold tracking-widest uppercase text-white/70">${escapeHtml(safeText(booking.eventTitle, 'Booking Request'))}</span>
+                <span class="px-3 py-1 ${getSessionistBookingStatusClasses(booking.status)} border text-[10px] font-bold tracking-widest uppercase rounded-lg">${escapeHtml(safeText(booking.status, 'Pending'))}</span>
+                <span class="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[10px] font-bold tracking-widest uppercase rounded-lg">${escapeHtml(safeText(booking.serviceType, 'Booking'))}</span>
               </div>
-              <p class="text-base font-semibold text-white mb-2">Customer: ${booking.customerName || 'Customer'}</p>
-              <p class="text-xs text-white/50 mb-3">${booking.customerEmail || 'No email provided'}</p>
+              <p class="text-base font-semibold text-white mb-2">Customer: ${escapeHtml(safeText(booking.customerName, 'Customer'))}</p>
+              <p class="text-xs text-white/50 mb-3">${escapeHtml(safeText(booking.customerEmail, 'No email provided'))}</p>
               <div class="flex flex-wrap items-center gap-4 text-xs text-white/50 mb-3">
                 <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${formatBookingDate(booking.eventDate)}</p>
-                <p class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${booking.location || 'Location to be confirmed'}</p>
+                <p class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${escapeHtml(safeText(booking.location, 'Location to be confirmed'))}</p>
               </div>
-              <p class="text-[10px] uppercase tracking-widest ${getSessionistPaymentStatusClasses(booking.paymentStatus)} mb-3">Service fee: ${booking.paymentStatus || 'Unpaid'}</p>
-              <p class="text-xs text-white/55 mb-3">PHP ${(booking.bookingFee || 20).toFixed(2)} fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
-              <p class="text-sm text-white/70">${booking.notes || booking.message || 'No notes provided.'}</p>
+              <p class="text-[10px] uppercase tracking-widest ${getSessionistPaymentStatusClasses(booking.paymentStatus)} mb-3">Service fee: ${escapeHtml(safeText(booking.paymentStatus, 'Unpaid'))}</p>
+              <p class="text-xs text-white/55 mb-3">PHP ${(booking.bookingFee || 20).toFixed(2)} fee${booking.budget ? ` | Offer ${formatPeso(booking.budget)}` : ''}</p>
+              <p class="text-sm text-white/70">${escapeHtml(safeText(booking.notes || booking.message, 'No notes provided.'))}</p>
             </div>
             <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto">
-              <button onclick="openSessionistBookingMessages('${booking.id}')" class="flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-white/10 transition-colors">
+              <button type="button" data-action="message" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-white/10 transition-colors">
                 Message
               </button>
-              <button onclick="${booking.hasMessages ? `updateSessionistBookingStatus('${booking.id}', 'Confirmed')` : `openSessionistBookingMessages('${booking.id}')`}" class="flex-1 px-6 py-3 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_20px_-5px_rgba(239,68,68,0.5)]' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} font-bold rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-colors">
+              <button type="button" data-action="${booking.hasMessages ? 'confirm' : 'message'}" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_20px_-5px_rgba(239,68,68,0.5)]' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} font-bold rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-colors">
                 <i data-lucide="check-circle-2" class="w-4 h-4"></i> ${booking.hasMessages ? 'Confirm' : 'Message First'}
               </button>
-              <button onclick="updateSessionistBookingStatus('${booking.id}', 'Cancelled by Sessionist')" class="flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white/70 font-semibold rounded-xl text-[10px] uppercase tracking-widest hover:text-white hover:bg-white/10 transition-colors">Cancel</button>
+              <button type="button" data-action="cancel" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white/70 font-semibold rounded-xl text-[10px] uppercase tracking-widest hover:text-white hover:bg-white/10 transition-colors">Cancel</button>
             </div>
           </div>
         `).join('');
+        container.querySelectorAll('.sessionist-booking-action').forEach((button) => {
+          button.addEventListener('click', () => {
+            const bookingId = button.dataset.bookingId;
+            const action = button.dataset.action;
+            if (!bookingId) return;
+            if (action === 'confirm') {
+              updateSessionistBookingStatus(bookingId, 'Confirmed');
+              return;
+            }
+            if (action === 'cancel') {
+              updateSessionistBookingStatus(bookingId, 'Cancelled by Sessionist');
+              return;
+            }
+            openSessionistBookingMessages(bookingId);
+          });
+        });
         lucide.createIcons();
+        initSessionistMotion();
       } catch (error) {
         container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load booking requests.</p>`;
       }
@@ -1560,13 +1709,17 @@
           container.innerHTML = `<p class="text-sm text-white/50">No posts published yet.</p>`;
           return;
         }
-        container.innerHTML = posts.map(post => `
-          <article class="rounded-2xl border border-white/10 bg-black/30 p-4">
-            <p class="text-[10px] uppercase tracking-widest text-white/35">${new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-            ${post.content ? `<p class="text-sm text-white/75 leading-relaxed mt-3 whitespace-pre-line">${post.content}</p>` : ''}
-            ${post.imageUrl ? `<img src="${post.imageUrl}" class="mt-4 w-full max-h-[280px] rounded-2xl border border-white/10 object-cover bg-black/40">` : ''}
-          </article>
-        `).join('');
+        container.innerHTML = posts.map(post => {
+          const safeImageUrl = safeUrl(post.imageUrl);
+          return `
+            <article class="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/35">${new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              ${post.content ? `<p class="text-sm text-white/75 leading-relaxed mt-3 whitespace-pre-line">${escapeHtml(post.content)}</p>` : ''}
+              ${safeImageUrl ? `<img src="${escapeAttribute(safeImageUrl)}" alt="Community post image" class="mt-4 w-full max-h-[280px] rounded-2xl border border-white/10 object-cover bg-black/40">` : ''}
+            </article>
+          `;
+        }).join('');
+        initSessionistMotion();
       } catch {
         container.innerHTML = `<p class="text-sm text-red-400">Failed to load your posts.</p>`;
       }
@@ -1752,3 +1905,4 @@
   </script>
 </body>
 </html>
+

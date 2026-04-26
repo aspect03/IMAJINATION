@@ -237,5 +237,34 @@ namespace ImajinationAPI.Services
             cmd.Parameters.Add("@paidAt", NpgsqlDbType.TimestampTz).Value = (object?)paidAt ?? DBNull.Value;
             await cmd.ExecuteNonQueryAsync();
         }
+
+        public static async Task MarkRefundedAsync(
+            NpgsqlConnection connection,
+            string paymentScope,
+            Guid? ticketId,
+            Guid? bookingId,
+            string featureUnlockState)
+        {
+            await EnsureSchemaAsync(connection);
+
+            const string sql = @"
+                UPDATE payment_records
+                SET status = 'Refunded',
+                    receipt_status = 'Refunded',
+                    feature_unlock_state = @featureUnlockState,
+                    updated_at = NOW()
+                WHERE payment_scope = @paymentScope
+                  AND (
+                    (@ticketId IS NOT NULL AND ticket_id = @ticketId)
+                    OR (@bookingId IS NOT NULL AND booking_id = @bookingId)
+                  );";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.Add("@paymentScope", NpgsqlDbType.Text).Value = paymentScope;
+            cmd.Parameters.Add("@ticketId", NpgsqlDbType.Uuid).Value = (object?)ticketId ?? DBNull.Value;
+            cmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = (object?)bookingId ?? DBNull.Value;
+            cmd.Parameters.Add("@featureUnlockState", NpgsqlDbType.Text).Value = featureUnlockState;
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 }

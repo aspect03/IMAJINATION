@@ -179,3 +179,132 @@ body {
     padding: 1rem !important;
   }
 }
+
+/* =========================================================
+   DASHBOARD MOTION SYSTEM
+   ========================================================= */
+
+:root {
+  --imajination-motion-duration: 560ms;
+  --imajination-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.dashboard-ambient-orb {
+  position: fixed;
+  border-radius: 9999px;
+  pointer-events: none;
+  filter: blur(22px);
+  opacity: 0.28;
+  z-index: 1;
+  animation: dashboardOrbFloat 14s ease-in-out infinite;
+}
+
+.dashboard-ambient-orb--primary {
+  top: 6rem;
+  right: 4rem;
+  width: 18rem;
+  height: 18rem;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(248, 113, 113, 0.45), rgba(239, 68, 68, 0.08) 58%, transparent 76%);
+}
+
+.dashboard-ambient-orb--secondary {
+  bottom: 5rem;
+  left: -3rem;
+  width: 16rem;
+  height: 16rem;
+  background:
+    radial-gradient(circle at 45% 45%, rgba(96, 165, 250, 0.28), rgba(59, 130, 246, 0.06) 58%, transparent 76%);
+  animation-delay: -7s;
+}
+
+.dashboard-surface {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease;
+}
+
+.dashboard-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%),
+    radial-gradient(circle at top right, rgba(239, 68, 68, 0.12), transparent 42%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+
+.dashboard-surface:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+}
+
+.dashboard-surface:hover::before {
+  opacity: 1;
+}
+
+.tab-panel {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 260ms ease,
+    transform 260ms var(--imajination-motion-ease);
+}
+
+.tab-panel.tab-panel-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(22px) scale(0.985);
+  transition:
+    opacity var(--imajination-motion-duration) var(--imajination-motion-ease),
+    transform var(--imajination-motion-duration) var(--imajination-motion-ease);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@keyframes dashboardOrbFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .dashboard-ambient-orb,
+  [data-reveal],
+  .tab-panel,
+  .dashboard-surface,
+  .dashboard-surface::before {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}

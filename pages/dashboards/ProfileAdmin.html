@@ -51,6 +51,9 @@
           <button type="button" data-section="overview" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 bg-white/10 text-white rounded-xl text-sm font-medium transition-colors">
             <span class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview</span>
           </button>
+          <button type="button" data-section="verification" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
+            <span class="flex items-center gap-3"><i data-lucide="badge-check" class="w-4 h-4"></i> Verification</span>
+          </button>
           <button type="button" data-section="moderation" class="admin-section-btn w-full flex items-center justify-between px-3 py-3 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
             <span class="flex items-center gap-3"><i data-lucide="shield" class="w-4 h-4"></i> Moderation</span>
           </button>
@@ -137,12 +140,16 @@
         </div>
       </div>
 
-      <div class="md:col-span-2 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
+        <div class="md:col-span-2 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm flex flex-col">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold text-white">Quick Access</h3>
           <i data-lucide="zap" class="text-white/30 w-5 h-5"></i>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 flex-1">
+          <button type="button" data-section-target="verification" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
+            <p class="text-sm font-semibold text-white">Open Verification Center</p>
+            <p class="mt-2 text-xs text-white/45">Review identity requests, open protected ID assets, and approve with audit notes.</p>
+          </button>
           <button type="button" data-section-target="moderation" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
             <p class="text-sm font-semibold text-white">Open Moderation</p>
             <p class="mt-2 text-xs text-white/45">Review flagged events and manage account access without hunting through the full page.</p>
@@ -154,6 +161,14 @@
           <button type="button" data-section-target="payments" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
             <p class="text-sm font-semibold text-white">Open Payments</p>
             <p class="mt-2 text-xs text-white/45">Track service fees, talent fees, refunds, and the payment watchlist in one place.</p>
+          </button>
+          <button type="button" data-section-target="security" class="admin-jump-btn rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
+            <p class="text-sm font-semibold text-white">Open Security</p>
+            <p class="mt-2 text-xs text-white/45">Check lockouts, failed logins, audit activity, and identity-protection visibility.</p>
+          </button>
+          <button type="button" id="adminRefreshDashboardBtn" class="rounded-2xl border border-white/10 bg-black/25 p-5 text-left hover:border-red-400/40 hover:bg-black/35 transition-colors">
+            <p class="text-sm font-semibold text-white">Refresh Snapshot</p>
+            <p class="mt-2 text-xs text-white/45">Reload the current dashboard modules and update pending review counts.</p>
           </button>
           <div id="overviewTopEvent" class="rounded-2xl border border-white/10 bg-black/25 p-5">
             <p class="text-sm font-semibold text-white">Top Event</p>
@@ -180,17 +195,68 @@
       <div class="md:col-span-2 lg:col-span-4 bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
         <div class="flex items-center justify-between gap-4 mb-4">
           <div>
-            <h3 class="text-xl font-bold text-white">Verification Queue</h3>
-            <p class="text-sm text-white/50 mt-1">Talent accounts waiting for review before they can earn trust at scale.</p>
+            <h3 class="text-xl font-bold text-white">Verification Triage</h3>
+            <p class="text-sm text-white/50 mt-1">A compact queue for urgent pending reviews, with full details moved into the dedicated verification module.</p>
           </div>
-          <span class="px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-widest text-white/55">Admin Review Load</span>
+          <button type="button" data-section-target="verification" class="admin-jump-btn px-3 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-widest text-white/70 hover:text-white hover:border-white/20 transition-colors">Open Verification Center</button>
         </div>
-        <div id="overviewVerificationQueue" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div id="overviewVerificationQueue" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
             <p class="text-sm text-white/55">Loading verification queue...</p>
           </div>
         </div>
       </div>
+          </div>
+        </section>
+
+        <section id="adminSection-verification" class="admin-section hidden space-y-6 min-h-0 overflow-y-auto pr-1">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6" id="verificationSummaryGrid">
+            <div class="bg-white/5 border border-white/10 rounded-3xl p-6"><p class="text-sm text-white/50">Loading verification summary...</p></div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-6 min-h-0">
+            <div class="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm flex flex-col min-h-0">
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 class="text-xl font-bold text-white">Review Queue</h3>
+                  <p class="text-sm text-white/50 mt-1">Select a request to inspect the profile context and protected identity assets.</p>
+                </div>
+                <button type="button" id="adminRefreshVerificationBtn" class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 hover:text-white hover:border-white/20 transition-colors">Refresh</button>
+              </div>
+
+              <div id="verificationRoleFilters" class="flex flex-wrap gap-2 mb-4">
+                <button type="button" data-verification-filter="All" class="admin-verification-filter px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold uppercase tracking-wider">All Roles</button>
+                <button type="button" data-verification-filter="Organizer" class="admin-verification-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Organizer</button>
+                <button type="button" data-verification-filter="Artist" class="admin-verification-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Artist</button>
+                <button type="button" data-verification-filter="Sessionist" class="admin-verification-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors">Sessionist</button>
+              </div>
+
+              <div id="verificationQueueList" class="space-y-3 overflow-y-auto pr-2 min-h-0">
+                <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <p class="text-sm text-white/55">Loading verification queue...</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm flex flex-col min-h-0">
+              <div class="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <p class="text-[10px] uppercase tracking-[0.22em] text-red-300/80">Protected Review Workspace</p>
+                  <h3 class="text-2xl font-bold text-white mt-2">Verification Inspector</h3>
+                  <p class="text-sm text-white/50 mt-2">Sensitive images stay out of the dashboard payload and are requested only when an admin deliberately opens them.</p>
+                </div>
+                <div class="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 max-w-xs">
+                  <p class="text-[10px] uppercase tracking-widest text-cyan-200/80">Cybersecurity Controls</p>
+                  <p class="mt-2 text-xs text-cyan-100/85">Encrypted at rest, admin-only retrieval, no-cache responses, and audit log entries for protected asset access.</p>
+                </div>
+              </div>
+
+              <div id="verificationDetailPanel" class="flex-1 min-h-0">
+                <div class="rounded-3xl border border-white/10 bg-black/25 p-6">
+                  <p class="text-sm text-white/55">Choose a verification request from the queue to begin reviewing.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -393,8 +459,11 @@
     let activeAdminSection = 'overview';
     let adminEventModerationData = [];
     let adminAccountModerationData = [];
+    let adminVerificationQueueData = [];
     let activeEventModerationFilter = 'All';
     let activeAccountModerationFilter = 'All';
+    let activeVerificationFilter = 'All';
+    let selectedVerificationRequestId = null;
     document.addEventListener('DOMContentLoaded', () => {
       const firstName = localStorage.getItem('userFirstName');
       const role = localStorage.getItem('userRole');
@@ -421,7 +490,9 @@
       bindAdminSectionButtons();
       bindAdminJumpButtons();
       bindModerationFilters();
+      bindVerificationFilters();
       updateModerationFilterStyles();
+      updateVerificationFilterStyles();
       switchAdminSection('overview');
       loadAdminDashboard();
       if (userId) {
@@ -429,6 +500,9 @@
         adminNotificationInterval = window.setInterval(() => loadAdminNotifications(userId), 30000);
       }
     });
+
+    document.getElementById('adminRefreshDashboardBtn')?.addEventListener('click', () => loadAdminDashboard());
+    document.getElementById('adminRefreshVerificationBtn')?.addEventListener('click', () => loadAdminDashboard());
 
     function handleLogout() {
       if (adminNotificationInterval) window.clearInterval(adminNotificationInterval);
@@ -646,6 +720,15 @@
       });
     }
 
+    function updateVerificationFilterStyles() {
+      document.querySelectorAll('.admin-verification-filter').forEach((button) => {
+        const isActive = (button.dataset.verificationFilter || 'All') === activeVerificationFilter;
+        button.className = isActive
+          ? 'admin-verification-filter px-3 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold uppercase tracking-wider'
+          : 'admin-verification-filter px-3 py-2 rounded-xl bg-white/5 text-white/60 hover:text-white text-xs font-semibold uppercase tracking-wider transition-colors';
+      });
+    }
+
     function applyModerationFilters() {
       const filteredEvents = activeEventModerationFilter === 'All'
         ? adminEventModerationData
@@ -669,6 +752,11 @@
       renderAccountModeration(filteredAccounts);
     }
 
+    function getFilteredVerificationRequests() {
+      if (activeVerificationFilter === 'All') return adminVerificationQueueData;
+      return adminVerificationQueueData.filter((item) => String(item.role || '').toLowerCase() === activeVerificationFilter.toLowerCase());
+    }
+
     function switchAdminSection(sectionName) {
       activeAdminSection = sectionName;
 
@@ -686,7 +774,9 @@
       if (!adminDashboardData) return;
 
       window.requestAnimationFrame(() => {
-        if (sectionName === 'analytics') {
+        if (sectionName === 'verification') {
+          renderVerificationCenter();
+        } else if (sectionName === 'analytics') {
           renderBookingStatus(Array.isArray(adminDashboardData.bookingStatusCounts) ? adminDashboardData.bookingStatusCounts : []);
           renderTopEvents(Array.isArray(adminDashboardData.topEvents) ? adminDashboardData.topEvents : []);
           renderTopTalent(Array.isArray(adminDashboardData.topTalent) ? adminDashboardData.topTalent : []);
@@ -725,6 +815,10 @@
 
         adminEventModerationData = Array.isArray(dashboard.eventModeration) ? dashboard.eventModeration : [];
         adminAccountModerationData = Array.isArray(dashboard.accountModeration) ? dashboard.accountModeration : [];
+        adminVerificationQueueData = Array.isArray(dashboard.verificationQueue) ? dashboard.verificationQueue : [];
+        if (!adminVerificationQueueData.some((item) => item.requestId === selectedVerificationRequestId)) {
+          selectedVerificationRequestId = adminVerificationQueueData.length ? adminVerificationQueueData[0].requestId : null;
+        }
         applyModerationFilters();
         renderOverviewSnapshot(dashboard);
         switchAdminSection(activeAdminSection);
@@ -744,6 +838,9 @@
         document.getElementById('paymentWatchlist').innerHTML = '<p class="text-sm text-red-400">Failed to load payment watchlist.</p>';
         document.getElementById('securitySummaryGrid').innerHTML = '<p class="text-sm text-red-400">Failed to load security summary.</p>';
         document.getElementById('securityActivityList').innerHTML = '<p class="text-sm text-red-400">Failed to load security activity.</p>';
+        document.getElementById('verificationSummaryGrid').innerHTML = '<p class="text-sm text-red-400">Failed to load verification summary.</p>';
+        document.getElementById('verificationQueueList').innerHTML = '<div class="rounded-2xl border border-red-500/20 bg-red-500/5 p-4"><p class="text-sm text-red-300">Failed to load verification queue.</p></div>';
+        document.getElementById('verificationDetailPanel').innerHTML = '<div class="rounded-2xl border border-red-500/20 bg-red-500/5 p-4"><p class="text-sm text-red-300">Failed to load the verification inspector.</p></div>';
         document.getElementById('overviewBookingSummary').innerHTML = '<div class="rounded-2xl border border-red-500/20 bg-red-500/5 p-4"><p class="text-sm text-red-300">Failed to load overview snapshot.</p></div>';
         document.getElementById('overviewTopEvent').innerHTML = '<p class="text-sm text-red-300">Failed to load event sales highlight.</p>';
       }
@@ -1482,6 +1579,16 @@
       });
     }
 
+    function bindVerificationFilters() {
+      document.querySelectorAll('.admin-verification-filter').forEach((button) => {
+        button.addEventListener('click', () => {
+          activeVerificationFilter = button.dataset.verificationFilter || 'All';
+          updateVerificationFilterStyles();
+          renderVerificationCenter();
+        });
+      });
+    }
+
     function bindVerificationActions() {
       document.querySelectorAll('.admin-verification-action').forEach(button => {
         button.addEventListener('click', async () => {
@@ -1507,6 +1614,316 @@
             console.warn('Verification review failed:', error);
             button.disabled = false;
             button.innerText = originalText;
+          }
+        });
+      });
+    }
+
+    async function submitVerificationReview(requestId, action, notes = '', button = null) {
+      if (!requestId || !action) return;
+
+      const originalText = button?.innerText || '';
+      if (button) {
+        button.disabled = true;
+        button.innerText = 'Saving...';
+      }
+
+      try {
+        const response = await fetch(`/api/admin/verification/${requestId}/review`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, notes })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.message || 'Failed to review verification request.');
+        await loadAdminDashboard();
+      } catch (error) {
+        console.warn('Verification review failed:', error);
+        window.alert(error.message || 'Failed to review verification request.');
+        if (button) {
+          button.disabled = false;
+          button.innerText = originalText;
+        }
+      }
+    }
+
+    function bindVerificationActions() {
+      document.querySelectorAll('.admin-verification-action').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const requestId = button.dataset.requestId;
+          const action = button.dataset.action;
+          const notesTarget = button.dataset.notesTarget;
+          const notes = notesTarget ? (document.getElementById(notesTarget)?.value || '') : '';
+          await submitVerificationReview(requestId, action, notes, button);
+        });
+      });
+    }
+
+    function renderOverviewSnapshot(dashboard) {
+      const container = document.getElementById('overviewBookingSummary');
+      const statusItems = Array.isArray(dashboard.bookingStatusCounts) ? dashboard.bookingStatusCounts.slice(0, 4) : [];
+      if (!statusItems.length) {
+        container.innerHTML = '<div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-sm text-white/55">No booking activity yet.</p></div>';
+      } else {
+        container.innerHTML = statusItems.map((item) => `
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+            <p class="text-xs uppercase tracking-widest text-white/40">${escapeHtml(item.status || 'Unknown')}</p>
+            <p class="mt-3 text-3xl font-bold text-white">${Number(item.count || 0)}</p>
+            <p class="mt-2 text-xs text-white/40">Current booking count in this state.</p>
+          </div>
+        `).join('');
+      }
+
+      const topEventTarget = document.getElementById('overviewTopEvent');
+      const topEvent = Array.isArray(dashboard.topEvents) && dashboard.topEvents.length ? dashboard.topEvents[0] : null;
+      topEventTarget.innerHTML = topEvent ? `
+        <p class="text-sm font-semibold text-white">Top Event</p>
+        <p class="mt-3 text-lg font-bold text-white">${escapeHtml(topEvent.title || 'Untitled Event')}</p>
+        <p class="mt-2 text-sm text-emerald-300">${escapeHtml(formatPeso(topEvent.grossRevenue || 0))}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/45">
+          <span>${Number(topEvent.ticketsSold || 0)} tickets sold</span>
+          <span class="text-white/25">|</span>
+          <span class="px-2 py-1 text-[10px] uppercase rounded-full ${getStatusClass(topEvent.status || 'Upcoming')}">${escapeHtml(topEvent.status || 'Upcoming')}</span>
+        </div>
+      ` : `
+        <p class="text-sm font-semibold text-white">Top Event</p>
+        <p class="mt-2 text-xs text-white/45">No event sales data yet.</p>
+      `;
+
+      const verificationTarget = document.getElementById('overviewVerificationQueue');
+      const verificationItems = Array.isArray(dashboard.verificationQueue) ? dashboard.verificationQueue : [];
+      if (!verificationItems.length) {
+        verificationTarget.innerHTML = '<div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-sm text-white/55">No pending verification requests right now.</p></div>';
+        return;
+      }
+
+      verificationTarget.innerHTML = verificationItems.slice(0, 4).map((item) => `
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-white">${escapeHtml(item.displayName || 'Unknown talent')}</p>
+              <p class="mt-1 text-[11px] uppercase tracking-widest text-white/40">${escapeHtml(item.role || 'Talent')} | ${escapeHtml(item.verificationPath || 'Manual review')}</p>
+            </div>
+            <span class="px-2 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-[10px] uppercase tracking-widest text-amber-300">${escapeHtml(item.status || 'Pending')}</span>
+          </div>
+          <div class="mt-4 grid grid-cols-2 gap-3 text-xs">
+            <div class="rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+              <p class="text-white/35 uppercase tracking-widest">Identity</p>
+              <p class="mt-1 text-white">${escapeHtml(item.idType || 'Not specified')}</p>
+              <p class="mt-1 text-white/55">Ending in ${escapeHtml(item.idNumberLast4 || 'N/A')}</p>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+              <p class="text-white/35 uppercase tracking-widest">Protected Assets</p>
+              <p class="mt-1 text-white">${item.hasIdImageFront ? 'Front' : 'No front'} | ${item.hasIdImageBack ? 'Back' : 'No back'}</p>
+              <p class="mt-1 text-white/55">${item.hasSelfieImage ? 'Selfie ready' : 'No selfie uploaded'}</p>
+            </div>
+          </div>
+          <p class="mt-4 text-xs text-white/45 line-clamp-3">${escapeHtml(item.evidenceSummary || 'No evidence summary provided.')}</p>
+          <div class="mt-4 flex items-center justify-between gap-3 text-xs text-white/40">
+            <span>Submitted ${escapeHtml(formatDateTime(item.createdAt))}</span>
+            <button type="button" data-queue-open="${escapeHtml(item.requestId)}" class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 hover:text-white hover:border-white/20 transition-colors">Review in Center</button>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('[data-queue-open]').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedVerificationRequestId = button.dataset.queueOpen || null;
+          switchAdminSection('verification');
+        });
+      });
+    }
+
+    function renderVerificationCenter() {
+      const requests = getFilteredVerificationRequests();
+      const summaryGrid = document.getElementById('verificationSummaryGrid');
+      const queueList = document.getElementById('verificationQueueList');
+      const detailPanel = document.getElementById('verificationDetailPanel');
+      if (!summaryGrid || !queueList || !detailPanel) return;
+
+      const organizerCount = adminVerificationQueueData.filter((item) => /organizer/i.test(item.role || '')).length;
+      const artistCount = adminVerificationQueueData.filter((item) => /artist/i.test(item.role || '')).length;
+      const sessionistCount = adminVerificationQueueData.filter((item) => /sessionist/i.test(item.role || '')).length;
+      const protectedAssetCount = adminVerificationQueueData.reduce((total, item) => total
+        + (item.hasIdImageFront ? 1 : 0)
+        + (item.hasIdImageBack ? 1 : 0)
+        + (item.hasSelfieImage ? 1 : 0), 0);
+
+      summaryGrid.innerHTML = [
+        { label: 'Pending Requests', value: adminVerificationQueueData.length, helper: `${requests.length} visible in current filter`, tone: 'text-amber-300' },
+        { label: 'Organizers', value: organizerCount, helper: 'Production-side identities waiting for approval', tone: 'text-cyan-300' },
+        { label: 'Artists + Sessionists', value: artistCount + sessionistCount, helper: 'Performer-side identity reviews in queue', tone: 'text-emerald-300' },
+        { label: 'Protected Assets', value: protectedAssetCount, helper: 'Sensitive files kept out of the initial dashboard payload', tone: 'text-white' }
+      ].map((card) => `
+        <div class="bg-white/5 border border-white/10 rounded-3xl p-6">
+          <p class="text-xs font-semibold uppercase tracking-widest text-white/45">${escapeHtml(card.label)}</p>
+          <p class="mt-3 text-4xl font-extrabold ${card.tone}">${card.value}</p>
+          <p class="mt-2 text-xs text-white/40">${escapeHtml(card.helper)}</p>
+        </div>
+      `).join('');
+
+      if (!requests.length) {
+        queueList.innerHTML = '<div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-sm text-white/55">No verification requests match this filter.</p></div>';
+        detailPanel.innerHTML = '<div class="rounded-3xl border border-white/10 bg-black/25 p-6"><p class="text-sm text-white/55">Adjust the filter or refresh the queue to continue reviewing requests.</p></div>';
+        return;
+      }
+
+      if (!requests.some((item) => item.requestId === selectedVerificationRequestId)) {
+        selectedVerificationRequestId = requests[0].requestId;
+      }
+
+      queueList.innerHTML = requests.map((item) => {
+        const isActive = item.requestId === selectedVerificationRequestId;
+        return `
+          <button type="button" data-select-verification="${escapeHtml(item.requestId)}" class="w-full rounded-2xl border ${isActive ? 'border-red-400/30 bg-red-500/10' : 'border-white/10 bg-black/25'} p-4 text-left transition-colors hover:border-white/20">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-white">${escapeHtml(item.displayName || 'Unknown talent')}</p>
+                <p class="mt-1 text-[11px] uppercase tracking-widest text-white/40">${escapeHtml(item.role || 'Talent')}</p>
+              </div>
+              <span class="px-2 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-[10px] uppercase tracking-widest text-amber-300">${escapeHtml(item.status || 'Pending')}</span>
+            </div>
+            <p class="mt-3 text-xs text-white/55">${escapeHtml(item.email || 'No email')}</p>
+            <div class="mt-4 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <span class="rounded-full border border-white/10 px-2 py-1">${item.hasIdImageFront ? 'ID Front' : 'No Front'}</span>
+              <span class="rounded-full border border-white/10 px-2 py-1">${item.hasIdImageBack ? 'ID Back' : 'No Back'}</span>
+              <span class="rounded-full border border-white/10 px-2 py-1">${item.hasSelfieImage ? 'Selfie' : 'No Selfie'}</span>
+            </div>
+            <p class="mt-4 text-xs text-white/40">Submitted ${escapeHtml(formatDateTime(item.createdAt))}</p>
+          </button>
+        `;
+      }).join('');
+
+      document.querySelectorAll('[data-select-verification]').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedVerificationRequestId = button.dataset.selectVerification || null;
+          renderVerificationCenter();
+        });
+      });
+
+      renderVerificationDetail(requests.find((item) => item.requestId === selectedVerificationRequestId) || requests[0]);
+    }
+
+    function renderVerificationDetail(item) {
+      const detailPanel = document.getElementById('verificationDetailPanel');
+      if (!detailPanel || !item) return;
+
+      detailPanel.innerHTML = `
+        <div class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Role</p>
+              <p class="mt-2 text-sm font-semibold text-white">${escapeHtml(item.role || 'Talent')}</p>
+              <p class="mt-2 text-xs text-white/45">${escapeHtml(item.verificationPath || 'Manual review')}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Applicant</p>
+              <p class="mt-2 text-sm font-semibold text-white">${escapeHtml(item.displayName || 'Unknown talent')}</p>
+              <p class="mt-2 text-xs text-white/45">${escapeHtml(item.email || 'No email')}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Identity Document</p>
+              <p class="mt-2 text-sm font-semibold text-white">${escapeHtml(item.idType || 'Not specified')}</p>
+              <p class="mt-2 text-xs text-white/45">Ending in ${escapeHtml(item.idNumberLast4 || 'N/A')}</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <p class="text-[10px] uppercase tracking-widest text-white/40">Review Status</p>
+              <p class="mt-2 text-sm font-semibold text-white">ID: ${escapeHtml(item.idReviewStatus || 'Pending')}</p>
+              <p class="mt-2 text-xs text-white/45">Selfie: ${escapeHtml(item.facialReviewStatus || 'Pending')}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+            <div class="space-y-6">
+              <div class="rounded-3xl border border-white/10 bg-black/25 p-6">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-[10px] uppercase tracking-[0.22em] text-white/40">Submitted Context</p>
+                    <h4 class="mt-2 text-lg font-bold text-white">Verification Notes</h4>
+                  </div>
+                  <span class="text-xs text-white/45">${escapeHtml(formatDateTime(item.createdAt))}</span>
+                </div>
+                <p class="mt-4 text-sm leading-6 text-white/75">${escapeHtml(item.evidenceSummary || 'No evidence summary provided.')}</p>
+              </div>
+
+              <div class="rounded-3xl border border-white/10 bg-black/25 p-6">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-[10px] uppercase tracking-[0.22em] text-white/40">Protected Evidence</p>
+                    <h4 class="mt-2 text-lg font-bold text-white">Identity Assets</h4>
+                  </div>
+                  <button type="button" data-section-target="security" class="admin-jump-btn rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 hover:text-white hover:border-white/20 transition-colors">Open Security Logs</button>
+                </div>
+                <div class="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <button type="button" data-preview-request="${escapeHtml(item.requestId)}" data-preview-asset="front" class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left hover:border-white/20 transition-colors ${item.hasIdImageFront ? '' : 'opacity-50 cursor-not-allowed'}" ${item.hasIdImageFront ? '' : 'disabled'}>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Document 1</p>
+                    <p class="mt-3 text-sm font-semibold text-white">View ID Front</p>
+                    <p class="mt-2 text-xs text-white/45">Fetch securely only when needed.</p>
+                  </button>
+                  <button type="button" data-preview-request="${escapeHtml(item.requestId)}" data-preview-asset="back" class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left hover:border-white/20 transition-colors ${item.hasIdImageBack ? '' : 'opacity-50 cursor-not-allowed'}" ${item.hasIdImageBack ? '' : 'disabled'}>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Document 2</p>
+                    <p class="mt-3 text-sm font-semibold text-white">View ID Back</p>
+                    <p class="mt-2 text-xs text-white/45">Stored protected for admin review only.</p>
+                  </button>
+                  <button type="button" data-preview-request="${escapeHtml(item.requestId)}" data-preview-asset="selfie" class="rounded-2xl border border-white/10 bg-black/30 p-4 text-left hover:border-white/20 transition-colors ${item.hasSelfieImage ? '' : 'opacity-50 cursor-not-allowed'}" ${item.hasSelfieImage ? '' : 'disabled'}>
+                    <p class="text-[10px] uppercase tracking-widest text-white/40">Face Match</p>
+                    <p class="mt-3 text-sm font-semibold text-white">View Selfie</p>
+                    <p class="mt-2 text-xs text-white/45">Requested on demand and logged.</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              <div class="rounded-3xl border border-white/10 bg-black/25 p-6">
+                <p class="text-[10px] uppercase tracking-[0.22em] text-white/40">Admin Actions</p>
+                <h4 class="mt-2 text-lg font-bold text-white">Review Decision</h4>
+                <label for="verificationAdminNotes" class="mt-5 block text-xs font-semibold uppercase tracking-widest text-white/50">Review Notes</label>
+                <textarea id="verificationAdminNotes" rows="6" class="mt-3 w-full rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:border-red-400/40 focus:outline-none" placeholder="Add an audit-friendly note explaining approval or rejection."></textarea>
+                <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button type="button" data-request-id="${escapeHtml(item.requestId)}" data-action="approve" data-notes-target="verificationAdminNotes" class="admin-verification-action rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-emerald-200 hover:bg-emerald-500/20 transition-colors">Approve Verification</button>
+                  <button type="button" data-request-id="${escapeHtml(item.requestId)}" data-action="reject" data-notes-target="verificationAdminNotes" class="admin-verification-action rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-red-200 hover:bg-red-500/20 transition-colors">Reject Verification</button>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-3">
+                  <button type="button" data-section-target="moderation" class="admin-jump-btn rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-white/70 hover:text-white hover:border-white/20 transition-colors">Open Moderation Module</button>
+                </div>
+              </div>
+
+              <div class="rounded-3xl border border-white/10 bg-black/25 p-6">
+                <p class="text-[10px] uppercase tracking-[0.22em] text-white/40">Privacy Handling</p>
+                <ul class="mt-4 space-y-3 text-sm text-white/70">
+                  <li>Assets are not rendered in the queue by default.</li>
+                  <li>Protected files are fetched only after explicit admin action.</li>
+                  <li>Responses are marked no-store to reduce browser retention risk.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      bindAdminJumpButtons();
+      bindVerificationActions();
+      document.querySelectorAll('[data-preview-request]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const requestId = button.dataset.previewRequest;
+          const assetType = button.dataset.previewAsset;
+          if (!requestId || !assetType) return;
+          const titleNode = button.querySelector('p:nth-child(2)');
+          const originalText = titleNode?.innerText || 'Preview';
+          button.disabled = true;
+          if (titleNode) titleNode.innerText = 'Loading preview...';
+          try {
+            const response = await fetch(`/api/admin/verification/${requestId}/asset/${assetType}`);
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || 'Failed to load protected asset.');
+            openAdminImageLightbox(payload.imageDataUrl, `${payload.label} | ${item.displayName || 'Verification review'}`);
+          } catch (error) {
+            window.alert(error.message || 'Failed to load verification asset.');
+          } finally {
+            button.disabled = false;
+            if (titleNode) titleNode.innerText = originalText;
           }
         });
       });

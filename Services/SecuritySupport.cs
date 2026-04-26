@@ -195,6 +195,75 @@ namespace ImajinationAPI.Services
             return dataUrl.Trim();
         }
 
+        public static string ProtectSensitiveData(string? plaintext, string secret)
+        {
+            if (string.IsNullOrWhiteSpace(plaintext))
+            {
+                return string.Empty;
+            }
+
+            if (plaintext.StartsWith("enc:", StringComparison.OrdinalIgnoreCase))
+            {
+                return plaintext;
+            }
+
+            var cleanSecret = string.IsNullOrWhiteSpace(secret) ? "imajination-fallback-secret" : secret.Trim();
+            using var aes = Aes.Create();
+            aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(cleanSecret));
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.GenerateIV();
+
+            var plainBytes = Encoding.UTF8.GetBytes(plaintext);
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
+
+            var payload = new byte[aes.IV.Length + cipherBytes.Length];
+            Buffer.BlockCopy(aes.IV, 0, payload, 0, aes.IV.Length);
+            Buffer.BlockCopy(cipherBytes, 0, payload, aes.IV.Length, cipherBytes.Length);
+            return "enc:" + Convert.ToBase64String(payload);
+        }
+
+        public static string RevealSensitiveData(string? ciphertext, string secret)
+        {
+            if (string.IsNullOrWhiteSpace(ciphertext))
+            {
+                return string.Empty;
+            }
+
+            if (!ciphertext.StartsWith("enc:", StringComparison.OrdinalIgnoreCase))
+            {
+                return ciphertext;
+            }
+
+            try
+            {
+                var cleanSecret = string.IsNullOrWhiteSpace(secret) ? "imajination-fallback-secret" : secret.Trim();
+                var payload = Convert.FromBase64String(ciphertext[4..]);
+                if (payload.Length <= 16)
+                {
+                    return string.Empty;
+                }
+
+                var iv = payload[..16];
+                var cipherBytes = payload[16..];
+
+                using var aes = Aes.Create();
+                aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(cleanSecret));
+                aes.IV = iv;
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.PKCS7;
+
+                using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+                var plainBytes = decryptor.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
+                return Encoding.UTF8.GetString(plainBytes);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
         public static async Task<(bool IsLocked, int RetryAfterSeconds, int FailedAttempts)> GetLockoutStateAsync(
             NpgsqlConnection connection,
             string email)

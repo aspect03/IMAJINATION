@@ -632,9 +632,11 @@ namespace ImajinationAPI.Controllers
                     insertCmd.Parameters.Add("@referenceContact", NpgsqlDbType.Text).Value = (object?)SecuritySupport.SanitizePlainText(req.referenceContact, 160, true) ?? DBNull.Value;
                     insertCmd.Parameters.Add("@idType", NpgsqlDbType.Text).Value = idType;
                     insertCmd.Parameters.Add("@idNumberLast4", NpgsqlDbType.Text).Value = idNumberLast4;
-                    insertCmd.Parameters.Add("@idImageFront", NpgsqlDbType.Text).Value = normalizedIdFront;
-                    insertCmd.Parameters.Add("@idImageBack", NpgsqlDbType.Text).Value = (object?)normalizedIdBack ?? DBNull.Value;
-                    insertCmd.Parameters.Add("@selfieImage", NpgsqlDbType.Text).Value = normalizedSelfie;
+                    insertCmd.Parameters.Add("@idImageFront", NpgsqlDbType.Text).Value = SecuritySupport.ProtectSensitiveData(normalizedIdFront, _connectionString);
+                    insertCmd.Parameters.Add("@idImageBack", NpgsqlDbType.Text).Value = string.IsNullOrWhiteSpace(normalizedIdBack)
+                        ? DBNull.Value
+                        : (object)SecuritySupport.ProtectSensitiveData(normalizedIdBack, _connectionString);
+                    insertCmd.Parameters.Add("@selfieImage", NpgsqlDbType.Text).Value = SecuritySupport.ProtectSensitiveData(normalizedSelfie, _connectionString);
                     insertCmd.Parameters.Add("@consentConfirmed", NpgsqlDbType.Boolean).Value = req.consentConfirmed;
                     insertCmd.Parameters.Add("@faceVerificationConsent", NpgsqlDbType.Boolean).Value = req.faceVerificationConsent;
                     await insertCmd.ExecuteNonQueryAsync();

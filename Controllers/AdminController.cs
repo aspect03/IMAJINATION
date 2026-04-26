@@ -42,14 +42,22 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
-                Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
-                Response.Headers["Pragma"] = "no-cache";
+                ApplySensitiveResponseHeaders();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureUserModerationColumnsAsync(connection);
                 await EnsureBookingMonitoringColumnsAsync(connection);
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    TryReadActorUserId(),
+                    TryReadActorRole() ?? "Admin",
+                    "admin_dashboard_viewed",
+                    "admin_dashboard",
+                    null,
+                    HttpContext,
+                    "Admin opened the control room dashboard.");
 
                 var now = DateTime.Now;
                 decimal grossTicketSales = 0;
@@ -332,7 +340,8 @@ namespace ImajinationAPI.Controllers
                         COALESCE(u.stagename, ''),
                         COALESCE(u.productionname, ''),
                         COALESCE(u.firstname, ''),
-                        COALESCE(u.lastname, '')
+                        COALESCE(u.lastname, ''),
+                        COALESCE(u.email, '')
                     FROM talent_verification_requests tvr
                     LEFT JOIN users u ON u.id = tvr.user_id
                     WHERE COALESCE(tvr.status, 'Pending') = 'Pending'
@@ -348,6 +357,7 @@ namespace ImajinationAPI.Controllers
                         var productionName = reader.IsDBNull(15) ? "" : reader.GetString(15);
                         var firstName = reader.IsDBNull(16) ? "" : reader.GetString(16);
                         var lastName = reader.IsDBNull(17) ? "" : reader.GetString(17);
+                        var email = reader.IsDBNull(18) ? "" : reader.GetString(18);
                         var displayName = !string.IsNullOrWhiteSpace(stageName)
                             ? stageName
                             : !string.IsNullOrWhiteSpace(productionName)
@@ -365,12 +375,13 @@ namespace ImajinationAPI.Controllers
                             createdAt = reader.IsDBNull(6) ? now : reader.GetDateTime(6),
                             idType = reader.IsDBNull(7) ? "" : reader.GetString(7),
                             idNumberLast4 = reader.IsDBNull(8) ? "" : reader.GetString(8),
-                            idImageFront = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                            idImageBack = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                            selfieImage = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                            hasIdImageFront = !reader.IsDBNull(9) && !string.IsNullOrWhiteSpace(reader.GetString(9)),
+                            hasIdImageBack = !reader.IsDBNull(10) && !string.IsNullOrWhiteSpace(reader.GetString(10)),
+                            hasSelfieImage = !reader.IsDBNull(11) && !string.IsNullOrWhiteSpace(reader.GetString(11)),
                             idReviewStatus = reader.IsDBNull(12) ? "Pending" : reader.GetString(12),
                             facialReviewStatus = reader.IsDBNull(13) ? "Pending" : reader.GetString(13),
-                            displayName = string.IsNullOrWhiteSpace(displayName) ? "Unnamed Talent" : displayName
+                            displayName = string.IsNullOrWhiteSpace(displayName) ? "Unnamed Talent" : displayName,
+                            email = email
                         });
                     }
                 }
@@ -545,6 +556,68 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to load admin dashboard: " + ex.Message });
+            }
+        }
+
+        [HttpGet("verification/{requestId}/asset/{assetType}")]
+        public async Task<IActionResult> GetVerificationAsset(Guid requestId, string assetType)
+        {
+            try
+            {
+                ApplySensitiveResponseHeaders();
+                var normalizedAssetType = (assetType ?? string.Empty).Trim().ToLowerInvariant();
+                var allowedAssets = new Dictionary<string, (string Column, string Label)>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["front"] = ("id_image_front", "ID Front"),
+                    ["back"] = ("id_image_back", "ID Back"),
+                    ["selfie"] = ("selfie_image", "Selfie Verification")
+                };
+
+                if (!allowedAssets.TryGetValue(normalizedAssetType, out var assetMeta))
+                {
+                    return BadRequest(new { message = "Invalid verification asset type." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                var sql = $@"
+                    SELECT COALESCE({assetMeta.Column}, '')
+                    FROM talent_verification_requests
+                    WHERE id = @id
+                    LIMIT 1;";
+
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@id", requestId);
+                var rawValue = Convert.ToString(await cmd.ExecuteScalarAsync() ?? string.Empty) ?? string.Empty;
+                var imageDataUrl = SecuritySupport.RevealSensitiveData(rawValue, _connectionString);
+                if (string.IsNullOrWhiteSpace(imageDataUrl))
+                {
+                    return NotFound(new { message = "Verification asset not found." });
+                }
+
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    TryReadActorUserId(),
+                    TryReadActorRole() ?? "Admin",
+                    "identity_verification_asset_viewed",
+                    "verification_request",
+                    requestId,
+                    HttpContext,
+                    $"Admin opened {assetMeta.Label} for verification request {requestId}.");
+
+                return Ok(new
+                {
+                    assetType = normalizedAssetType,
+                    label = assetMeta.Label,
+                    imageDataUrl
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load verification asset: " + ex.Message });
             }
         }
 
@@ -946,6 +1019,15 @@ namespace ImajinationAPI.Controllers
 
             await using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        private void ApplySensitiveResponseHeaders()
+        {
+            Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            Response.Headers["X-Frame-Options"] = "DENY";
+            Response.Headers["Referrer-Policy"] = "no-referrer";
         }
 
         private static async Task EnsureBookingMonitoringColumnsAsync(NpgsqlConnection connection)

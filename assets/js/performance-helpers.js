@@ -8,6 +8,87 @@
   let sessionMonitorHandle = null;
   const sessionIdleLimitMs = 30 * 60 * 1000;
   const sessionMonitorIntervalMs = 45 * 1000;
+  const apiFallbackBases = resolveApiFallbackBases();
+
+  function resolveApiFallbackBases() {
+    const configured = [
+      window.__IMAJINATION_API_BASE__,
+      localStorage.getItem('imajinationApiBase'),
+      'https://imajination-api.onrender.com',
+      'https://imajination.onrender.com'
+    ];
+
+    const normalized = [];
+    configured.forEach((value) => {
+      if (typeof value !== 'string') return;
+      const trimmed = value.trim().replace(/\/+$/, '');
+      if (!trimmed || normalized.includes(trimmed)) return;
+      normalized.push(trimmed);
+    });
+
+    return normalized;
+  }
+
+  function toApiFallbackUrl(url, baseUrl) {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (!parsed.pathname.startsWith('/api/')) return null;
+      return `${baseUrl}${parsed.pathname}${parsed.search}`;
+    } catch {
+      return null;
+    }
+  }
+
+  function shouldRetryWithFallback(response) {
+    if (!response) return true;
+    return response.status === 404
+      || response.status === 502
+      || response.status === 503
+      || response.status === 504;
+  }
+
+  async function fetchWithApiFallback(resource, options, primaryFetch) {
+    const requestUrl = typeof resource === 'string' ? resource : resource?.url || '';
+    if (!isSameOriginApiRequest(requestUrl)) {
+      return primaryFetch(resource, options);
+    }
+
+    let primaryResponse = null;
+    try {
+      primaryResponse = await primaryFetch(resource, options);
+      if (!shouldRetryWithFallback(primaryResponse)) {
+        return primaryResponse;
+      }
+    } catch {
+      primaryResponse = null;
+    }
+
+    for (const baseUrl of apiFallbackBases) {
+      const fallbackUrl = toApiFallbackUrl(requestUrl, baseUrl);
+      if (!fallbackUrl || fallbackUrl.startsWith(window.location.origin)) {
+        continue;
+      }
+
+      try {
+        const fallbackResource = resource instanceof Request
+          ? new Request(fallbackUrl, resource)
+          : fallbackUrl;
+        const fallbackResponse = await primaryFetch(fallbackResource, options);
+        if (!shouldRetryWithFallback(fallbackResponse)) {
+          return fallbackResponse;
+        }
+        primaryResponse = fallbackResponse;
+      } catch {
+        // Try the next backend candidate.
+      }
+    }
+
+    if (primaryResponse) {
+      return primaryResponse;
+    }
+
+    throw new Error('Unable to reach the API backend.');
+  }
 
   function isSameOriginApiRequest(url) {
     try {
@@ -84,13 +165,13 @@
       if (csrfToken) return csrfToken;
       if (csrfTokenPromise) return csrfTokenPromise;
 
-      csrfTokenPromise = nativeFetch('/api/security/csrf-token', {
+      csrfTokenPromise = fetchWithApiFallback('/api/security/csrf-token', {
         method: 'GET',
         credentials: 'same-origin',
         headers: {
           'X-Requested-With': 'fetch'
         }
-      })
+      }, nativeFetch)
         .then(async (response) => {
           if (!response.ok) {
             throw new Error('Failed to initialize request security.');
@@ -155,7 +236,7 @@
         ? new Request(resource, finalOptions)
         : resource;
 
-      const response = await nativeFetch(finalResource, finalOptions);
+      const response = await fetchWithApiFallback(finalResource, finalOptions, nativeFetch);
       return handleUnauthorizedApiResponse(response, originalUrl);
     };
   }

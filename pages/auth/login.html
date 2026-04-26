@@ -157,6 +157,22 @@
       return /origin|registered origin|not allowed|403/i.test(message || '');
     }
 
+    async function readResponsePayload(response) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          return await response.json();
+        } catch {
+          return {};
+        }
+      }
+
+      const text = await response.text();
+      return {
+        message: text || `Request failed with status ${response.status}.`
+      };
+    }
+
     // TOGGLE PASSWORD VISIBILITY FUNCTION
     function togglePassword(inputId, iconId) {
       const input = document.getElementById(inputId);
@@ -221,7 +237,7 @@
 
       try {
         const configResponse = await fetch('/api/auth/google-client-id');
-        configData = await configResponse.json();
+        configData = await readResponsePayload(configResponse);
 
         if (!configResponse.ok || !configData.clientId) {
           renderGoogleUnavailable(buttonHost, 'Google Sign-In Unavailable');
@@ -271,7 +287,7 @@
           body: JSON.stringify({ credential: response.credential })
         });
 
-        const data = await loginResponse.json();
+        const data = await readResponsePayload(loginResponse);
         if (!loginResponse.ok) {
           if (loginResponse.status === 409 && data?.signUpRequired) {
             storePendingGoogleSignup(data);
@@ -292,7 +308,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mfaTicket: data.mfaTicket, code })
           });
-          const mfaData = await mfaResponse.json();
+          const mfaData = await readResponsePayload(mfaResponse);
           if (!mfaResponse.ok) {
             throw new Error(mfaData?.message || 'Authenticator verification failed.');
           }
@@ -327,7 +343,7 @@
           body: JSON.stringify({ email, password })
         });
 
-        const data = await response.json();
+        const data = await readResponsePayload(response);
 
         if (response.ok) {
           if (data?.mfaRequired && data?.mfaTicket) {
@@ -345,7 +361,7 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ mfaTicket: data.mfaTicket, code })
             });
-            const mfaData = await mfaResponse.json();
+            const mfaData = await readResponsePayload(mfaResponse);
             if (!mfaResponse.ok) {
               await window.systemDialog.alert(mfaData?.message || 'Authenticator verification failed.', {
                 title: 'MFA Failed',

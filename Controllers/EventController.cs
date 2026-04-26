@@ -165,6 +165,23 @@ namespace ImajinationAPI.Controllers
             await cmd.ExecuteNonQueryAsync();
         }
 
+        private async Task EnsureTicketAttendanceColumnsExist(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS used_quantity integer NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS used_ticket_units text NOT NULL DEFAULT '';
+                UPDATE tickets
+                SET used_quantity = CASE
+                        WHEN COALESCE(is_used, FALSE) THEN COALESCE(quantity, 0)
+                        ELSE COALESCE(used_quantity, 0)
+                    END
+                WHERE COALESCE(is_used, FALSE)
+                  AND COALESCE(used_quantity, 0) = 0;";
+
+            using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         private async Task EnsureEventLineupColumnsOnce(NpgsqlConnection connection)
         {
             if (_eventLineupColumnsEnsured) return;
@@ -529,6 +546,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
+                await EnsureTicketAttendanceColumnsExist(connection);
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
                 await AutoFinishExpiredEvents(connection, orgId);
 
@@ -605,6 +623,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
+                await EnsureTicketAttendanceColumnsExist(connection);
                 await AutoFinishExpiredEvents(connection, orgId);
 
                 var now = DateTime.Now;
@@ -710,6 +729,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
+                await EnsureTicketAttendanceColumnsExist(connection);
                 await AutoFinishExpiredEvents(connection, orgId);
 
                 const string sql = @"
@@ -864,6 +884,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
+                await EnsureTicketAttendanceColumnsExist(connection);
                 await AutoFinishExpiredEvents(connection, orgId);
 
                 object? summary = null;

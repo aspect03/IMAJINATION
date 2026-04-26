@@ -408,9 +408,10 @@
 
   <div id="receiptModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
     <div class="w-full max-w-sm animate-pop-in relative">
-      <button onclick="closeReceipt()" class="absolute -top-12 right-0 text-white/50 hover:text-white"><i data-lucide="x" class="w-8 h-8"></i></button>
-      
       <div class="receipt-paper p-8 text-sm">
+        <button type="button" onclick="closeReceipt()" aria-label="Close ticket receipt" class="absolute top-3 right-3 inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
         <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
           <h2 class="font-extrabold text-2xl tracking-tight mb-1">IMAJINATION</h2>
           <p class="text-xs text-gray-500">Official E-Ticket</p>
@@ -464,9 +465,10 @@
 
   <div id="bookingReceiptModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
     <div class="w-full max-w-sm animate-pop-in relative">
-      <button onclick="closeBookingReceipt()" class="absolute -top-12 right-0 text-white/50 hover:text-white"><i data-lucide="x" class="w-8 h-8"></i></button>
-
       <div class="receipt-paper p-8 text-sm">
+        <button type="button" onclick="closeBookingReceipt()" aria-label="Close booking receipt" class="absolute top-3 right-3 inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
         <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
           <h2 class="font-extrabold text-2xl tracking-tight mb-1">IMAJINATION</h2>
           <p class="text-xs text-gray-500">Official Booking Receipt</p>
@@ -1444,6 +1446,33 @@
       modal.classList.add('hidden');
       modal.classList.remove('flex');
     }
+
+    document.getElementById('receiptModal')?.addEventListener('click', (event) => {
+      if (event.target?.id === 'receiptModal') {
+        closeReceipt();
+      }
+    });
+
+    document.getElementById('bookingReceiptModal')?.addEventListener('click', (event) => {
+      if (event.target?.id === 'bookingReceiptModal') {
+        closeBookingReceipt();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+
+      const receiptModal = document.getElementById('receiptModal');
+      const bookingReceiptModal = document.getElementById('bookingReceiptModal');
+
+      if (receiptModal && !receiptModal.classList.contains('hidden')) {
+        closeReceipt();
+      }
+
+      if (bookingReceiptModal && !bookingReceiptModal.classList.contains('hidden')) {
+        closeBookingReceipt();
+      }
+    });
 
     let activeReceiptTicketIndex = -1;
     let activeReceiptUnitNumber = 1;

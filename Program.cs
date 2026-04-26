@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -40,6 +41,12 @@ var jwtBootstrapService = new JwtTokenService(builder.Configuration);
 // Add Controllers
 builder.Services.AddControllers();
 builder.Services.AddDataProtection();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 builder.Services.AddSingleton(jwtBootstrapService);
 builder.Services.AddSingleton<TotpService>();
 builder.Services.AddSingleton<UploadScanningService>();
@@ -145,6 +152,8 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 app.UseExceptionHandler(exceptionApp =>
 {

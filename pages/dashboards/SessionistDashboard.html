@@ -1391,8 +1391,13 @@
     function getSessionistBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'bg-red-500/10 border-red-500/20 text-red-400';
       if (status === 'Completed') return 'bg-blue-500/10 border-blue-500/20 text-blue-300';
+      if ((status || '').startsWith('Completion Pending')) return 'bg-amber-500/10 border-amber-500/20 text-amber-300';
       if (status === 'Confirmed') return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
       return 'bg-amber-500/10 border-amber-500/20 text-amber-300';
+    }
+
+    function isCompletionPendingStatus(status) {
+      return String(status || '').startsWith('Completion Pending');
     }
 
     function getSessionistPaymentStatusClasses(status) {
@@ -1570,6 +1575,45 @@
       window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
     }
 
+    function openSessionistBookingContract(bookingId) {
+      window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}&openContract=1`;
+    }
+
+    function canSessionistMarkBookingCompleted(booking) {
+      if (!booking || (booking.status !== 'Confirmed' && !isCompletionPendingStatus(booking.status))) return false;
+      const completionValue = booking.eventEndTime || booking.eventDate;
+      if (!completionValue) return false;
+      const completionGate = new Date(completionValue);
+      if (Number.isNaN(completionGate.getTime())) return false;
+      if (booking.targetCompletedAt) return false;
+      return completionGate.getTime() <= Date.now();
+    }
+
+    function canSessionistConfirmBooking(booking) {
+      const status = String(booking?.status || '').trim().toLowerCase();
+      if (!status) return false;
+      if (status === 'confirmed' || status === 'completed' || status.startsWith('cancelled')) return false;
+      return status.includes('pending');
+    }
+
+    async function markSessionistBookingCompleted(bookingId) {
+      if (!bookingId) return;
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to confirm booking completion.');
+        await loadSessionistBookings(localStorage.getItem('userId'));
+        alert(data.message || 'Completion confirmation recorded.');
+      } catch (error) {
+        alert(error.message || 'Failed to mark booking as completed.');
+      }
+    }
+
     async function loadSessionistBookings(userId) {
       const container = document.getElementById('sessionistBookingsContainer');
       try {
@@ -1586,7 +1630,14 @@
           return;
         }
 
-        container.innerHTML = sessionistBookings.map(booking => `
+        container.innerHTML = sessionistBookings.map(booking => {
+          const canViewContract = booking.status === 'Confirmed' || booking.status === 'Completed' || booking.hasMessages;
+          const canComplete = canSessionistMarkBookingCompleted(booking);
+          const showDecisionButtons = canSessionistConfirmBooking(booking);
+          const bookingEnded = (booking.eventEndTime || booking.eventDate) ? new Date(booking.eventEndTime || booking.eventDate).getTime() <= Date.now() : false;
+          const canCancelBooking = booking.status !== 'Completed' && !String(booking.status || '').startsWith('Cancelled') && !isCompletionPendingStatus(booking.status) && !bookingEnded;
+
+          return `
           <div class="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/20 transition-colors">
             <div class="flex-1">
               <div class="flex items-center gap-3 mb-3 flex-wrap">
@@ -1601,20 +1652,22 @@
                 <p class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${escapeHtml(safeText(booking.location, 'Location to be confirmed'))}</p>
               </div>
               <p class="text-[10px] uppercase tracking-widest ${getSessionistPaymentStatusClasses(booking.paymentStatus)} mb-3">Service fee: ${escapeHtml(safeText(booking.paymentStatus, 'Unpaid'))}</p>
-              <p class="text-xs text-white/55 mb-3">PHP ${(booking.bookingFee || 20).toFixed(2)} fee${booking.budget ? ` | Offer ${formatPeso(booking.budget)}` : ''}</p>
+              <p class="text-xs text-white/55 mb-3">PHP ${(booking.bookingFee || 15).toFixed(2)} fee${booking.budget ? ` | Offer ${formatPeso(booking.budget)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` | Platform fee ${formatPeso(booking.talentPlatformFee)}` : ''}</p>
               <p class="text-sm text-white/70">${escapeHtml(safeText(booking.notes || booking.message, 'No notes provided.'))}</p>
+              ${canViewContract ? `<p class="text-[11px] text-white/45 mt-3">Open the contract from Messages to review the accepted terms. After the performance time passes, both sides must confirm completion before escrow is released.</p>` : ''}
             </div>
             <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto">
               <button type="button" data-action="message" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-white/10 transition-colors">
                 Message
               </button>
-              <button type="button" data-action="${booking.hasMessages ? 'confirm' : 'message'}" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_20px_-5px_rgba(239,68,68,0.5)]' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} font-bold rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-colors">
-                <i data-lucide="check-circle-2" class="w-4 h-4"></i> ${booking.hasMessages ? 'Confirm' : 'Message First'}
-              </button>
-              <button type="button" data-action="cancel" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white/70 font-semibold rounded-xl text-[10px] uppercase tracking-widest hover:text-white hover:bg-white/10 transition-colors">Cancel</button>
+              ${canViewContract ? `<button type="button" data-action="contract" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-white/10 transition-colors">View Contract</button>` : ''}
+              ${showDecisionButtons ? `<button type="button" data-action="${booking.hasMessages ? 'confirm' : 'message'}" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white shadow-[0_0_20px_-5px_rgba(239,68,68,0.5)]' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} font-bold rounded-xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"><i data-lucide="check-circle-2" class="w-4 h-4"></i> ${booking.hasMessages ? 'Confirm' : 'Message First'}</button>` : ''}
+              ${canComplete ? `<button type="button" data-action="complete" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-500/20 transition-colors">Confirm Completion</button>` : ''}
+              ${canCancelBooking ? `<button type="button" data-action="cancel" data-booking-id="${escapeAttribute(booking.id)}" class="sessionist-booking-action flex-1 px-6 py-3 bg-white/5 border border-white/10 text-white/70 font-semibold rounded-xl text-[10px] uppercase tracking-widest hover:text-white hover:bg-white/10 transition-colors">Cancel</button>` : ''}
             </div>
           </div>
-        `).join('');
+        `;
+        }).join('');
         container.querySelectorAll('.sessionist-booking-action').forEach((button) => {
           button.addEventListener('click', () => {
             const bookingId = button.dataset.bookingId;
@@ -1626,6 +1679,14 @@
             }
             if (action === 'cancel') {
               updateSessionistBookingStatus(bookingId, 'Cancelled by Sessionist');
+              return;
+            }
+            if (action === 'contract') {
+              openSessionistBookingContract(bookingId);
+              return;
+            }
+            if (action === 'complete') {
+              markSessionistBookingCompleted(bookingId);
               return;
             }
             openSessionistBookingMessages(bookingId);

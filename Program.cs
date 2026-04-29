@@ -50,7 +50,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddSingleton(jwtBootstrapService);
 builder.Services.AddSingleton<TotpService>();
 builder.Services.AddSingleton<UploadScanningService>();
+builder.Services.AddSingleton<AutomatedVerificationAssessmentService>();
 builder.Services.AddSingleton<MessageProtectionService>();
+builder.Services.AddSingleton<BookingMessageStreamService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = "HybridAuth";
@@ -79,6 +81,18 @@ builder.Services.AddAuthentication(options =>
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = jwtBootstrapService.CreateValidationParameters();
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrWhiteSpace(context.Token))
+                {
+                    context.Token = context.Request.Cookies["IMAJINATION-ACCESS"];
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     })
     .AddScheme<AuthenticationSchemeOptions, SessionTokenAuthenticationHandler>(
         SessionTokenAuthenticationHandler.SchemeName,
@@ -211,7 +225,6 @@ app.Use(async (context, next) =>
     {
         "'self'",
         "'unsafe-inline'",
-        "'unsafe-eval'",
         "https://cdn.tailwindcss.com",
         "https://unpkg.com",
         "https://accounts.google.com",
@@ -225,6 +238,7 @@ app.Use(async (context, next) =>
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://accounts.google.com; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
         $"script-src {string.Join(' ', scriptSources)}; " +
+        "script-src-attr 'unsafe-inline'; " +
         "frame-src 'self' https://accounts.google.com; " +
         "connect-src 'self' https:; " +
         "object-src 'none'; " +
@@ -234,7 +248,11 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups";
+    var isLoginPage = context.Request.Path.Equals("/pages/auth/login.html", StringComparison.OrdinalIgnoreCase)
+        || context.Request.Path.Equals("/login.html", StringComparison.OrdinalIgnoreCase);
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = isLoginPage
+        ? "unsafe-none"
+        : "same-origin-allow-popups";
     context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
     context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
     context.Response.Headers["Permissions-Policy"] =
@@ -289,12 +307,34 @@ if (!app.Environment.IsDevelopment())
 var antiforgery = app.Services.GetRequiredService<IAntiforgery>();
 app.Use(async (context, next) =>
 {
+    var requestPath = context.Request.Path;
+    var isPublicAuthPost =
+        requestPath.StartsWithSegments("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWithSegments("/api/auth/google-login", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWithSegments("/api/auth/mfa/complete-login", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWithSegments("/api/auth/send-otp", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWithSegments("/api/auth/reset-password", StringComparison.OrdinalIgnoreCase);
+    var isRealtimeMessagePost =
+        HttpMethods.IsPost(context.Request.Method) &&
+        requestPath.StartsWithSegments("/api/message/booking", StringComparison.OrdinalIgnoreCase);
+    var requestedWith = context.Request.Headers["X-Requested-With"].ToString();
+    var secFetchSite = context.Request.Headers["Sec-Fetch-Site"].ToString();
+    var isSameOriginAjaxRequest =
+        string.Equals(requestedWith, "fetch", StringComparison.OrdinalIgnoreCase) &&
+        (string.IsNullOrWhiteSpace(secFetchSite) ||
+         string.Equals(secFetchSite, "same-origin", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(secFetchSite, "same-site", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(secFetchSite, "none", StringComparison.OrdinalIgnoreCase));
+
     if (!context.Request.Path.StartsWithSegments("/api") ||
         HttpMethods.IsGet(context.Request.Method) ||
         HttpMethods.IsHead(context.Request.Method) ||
         HttpMethods.IsOptions(context.Request.Method) ||
         HttpMethods.IsTrace(context.Request.Method) ||
-        context.Request.Path.StartsWithSegments("/api/security/csrf-token"))
+        context.Request.Path.StartsWithSegments("/api/security/csrf-token") ||
+        isPublicAuthPost ||
+        isRealtimeMessagePost ||
+        isSameOriginAjaxRequest)
     {
         await next();
         return;

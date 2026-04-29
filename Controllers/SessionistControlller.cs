@@ -4,6 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
 using System.Threading;
+using System.Security.Claims;
 
 namespace ImajinationAPI.Controllers
 {
@@ -13,13 +14,30 @@ namespace ImajinationAPI.Controllers
     {
         private readonly string _connectionString;
         private readonly UploadScanningService _uploadScanningService;
+        private readonly AutomatedVerificationAssessmentService _automatedVerificationAssessmentService;
         private static readonly SemaphoreSlim SessionistSchemaLock = new(1, 1);
         private static volatile bool _sessionistSchemaEnsured;
 
-        public SessionistController(IConfiguration configuration, UploadScanningService uploadScanningService)
+        public SessionistController(
+            IConfiguration configuration,
+            UploadScanningService uploadScanningService,
+            AutomatedVerificationAssessmentService automatedVerificationAssessmentService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _uploadScanningService = uploadScanningService;
+            _automatedVerificationAssessmentService = automatedVerificationAssessmentService;
+        }
+
+        private Guid? GetActorUserId() =>
+            Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId) ? parsedUserId : null;
+
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue(ClaimTypes.Role), "Admin", StringComparison.OrdinalIgnoreCase);
+
+        private bool CanAccessOwnSessionistRecord(Guid targetUserId)
+        {
+            var actorUserId = GetActorUserId();
+            return IsAdmin() || (actorUserId.HasValue && actorUserId.Value == targetUserId);
         }
 
         private async Task EnsureEventLineupColumns(NpgsqlConnection connection)
@@ -197,7 +215,10 @@ namespace ImajinationAPI.Controllers
                 }
                 return Ok(sessionists);
             }
-            catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Unable to update sessionist profile right now." });
+            }
         }
 
         [HttpGet("{id}")]
@@ -205,6 +226,7 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                var canViewPrivateFields = CanAccessOwnSessionistRecord(id);
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSessionistSchemaOnce(connection);
@@ -341,17 +363,19 @@ namespace ImajinationAPI.Controllers
                         isVerified = profileSummary.IsVerified || isVerified,
                         verificationStatus = verification.Status,
                         verificationLevel = verification.Level,
-                        verificationMethod = verification.Method,
-                        verificationNotes = verification.Notes,
-                        verificationSubmittedAt = verification.SubmittedAt,
-                        verificationReviewedAt = verification.ReviewedAt,
-                        verificationUploads = new
-                        {
-                            idFrontSubmitted = hasVerificationIdFront,
-                            idBackSubmitted = hasVerificationIdBack,
-                            selfieSubmitted = hasVerificationSelfie,
-                            submittedAt = verificationAssetSubmittedAt
-                        },
+                        verificationMethod = canViewPrivateFields ? verification.Method : string.Empty,
+                        verificationNotes = canViewPrivateFields ? verification.Notes : string.Empty,
+                        verificationSubmittedAt = canViewPrivateFields ? verification.SubmittedAt : null,
+                        verificationReviewedAt = canViewPrivateFields ? verification.ReviewedAt : null,
+                        verificationUploads = canViewPrivateFields
+                            ? new
+                            {
+                                idFrontSubmitted = hasVerificationIdFront,
+                                idBackSubmitted = hasVerificationIdBack,
+                                selfieSubmitted = hasVerificationSelfie,
+                                submittedAt = verificationAssetSubmittedAt
+                            }
+                            : null,
                         profileCompletionPercent = profileSummary.Percent,
                         profileCompletionLabel = profileSummary.Label,
                         relatedEvents,
@@ -361,7 +385,10 @@ namespace ImajinationAPI.Controllers
                 }
                 return NotFound(new { message = "Sessionist not found." });
             }
-            catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to load sessionist profile." });
+            }
         }
 
         [HttpGet("spotlight")]
@@ -397,7 +424,10 @@ namespace ImajinationAPI.Controllers
                 }
                 return Ok(sessionists);
             }
-            catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to load spotlight sessionists right now." });
+            }
         }
 
         [Authorize(Roles = "Sessionist")]
@@ -406,6 +436,11 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                if (!CanAccessOwnSessionistRecord(id))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSessionistSchemaOnce(connection);
@@ -517,7 +552,10 @@ namespace ImajinationAPI.Controllers
                     profileCompletionLabel = profileSummary.Label
                 });
             }
-            catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to load sessionists right now." });
+            }
         }
 
         [Authorize(Roles = "Sessionist")]
@@ -526,6 +564,11 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                if (!CanAccessOwnSessionistRecord(id))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSessionistSchemaOnce(connection);
@@ -594,6 +637,14 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = selfieScan.Message });
                 }
 
+                var automatedAssessment = _automatedVerificationAssessmentService.Assess(
+                    idType,
+                    idNumberLast4,
+                    evidenceSummary,
+                    normalizedIdFront,
+                    normalizedIdBack,
+                    normalizedSelfie);
+
                 const string pendingSql = @"
                     SELECT COUNT(*)
                     FROM talent_verification_requests
@@ -613,12 +664,12 @@ namespace ImajinationAPI.Controllers
                     INSERT INTO talent_verification_requests (
                         id, user_id, role, verification_path, evidence_summary, portfolio_links, supporting_links, reference_name, reference_contact,
                         id_type, id_number_last4, id_image_front, id_image_back, selfie_image, consent_confirmed, face_verification_consent,
-                        id_review_status, facial_review_status, status, created_at
+                        id_review_status, facial_review_status, automated_status, automated_recommendation, automated_score, automated_notes, automated_reviewed_at, status, created_at
                     )
                     VALUES (
                         @id, @userId, 'Sessionist', @verificationPath, @evidenceSummary, @portfolioLinks, @supportingLinks, @referenceName, @referenceContact,
                         @idType, @idNumberLast4, @idImageFront, @idImageBack, @selfieImage, @consentConfirmed, @faceVerificationConsent,
-                        'Pending', 'Pending', 'Pending', NOW()
+                        'Pending', 'Pending', @automatedStatus, @automatedRecommendation, @automatedScore, @automatedNotes, NOW(), 'Pending', NOW()
                     );";
                 await using (var insertCmd = new NpgsqlCommand(insertSql, connection))
                 {
@@ -639,6 +690,10 @@ namespace ImajinationAPI.Controllers
                     insertCmd.Parameters.Add("@selfieImage", NpgsqlDbType.Text).Value = SecuritySupport.ProtectSensitiveData(normalizedSelfie, _connectionString);
                     insertCmd.Parameters.Add("@consentConfirmed", NpgsqlDbType.Boolean).Value = req.consentConfirmed;
                     insertCmd.Parameters.Add("@faceVerificationConsent", NpgsqlDbType.Boolean).Value = req.faceVerificationConsent;
+                    insertCmd.Parameters.Add("@automatedStatus", NpgsqlDbType.Text).Value = automatedAssessment.Status;
+                    insertCmd.Parameters.Add("@automatedRecommendation", NpgsqlDbType.Text).Value = automatedAssessment.Recommendation;
+                    insertCmd.Parameters.Add("@automatedScore", NpgsqlDbType.Integer).Value = automatedAssessment.Score;
+                    insertCmd.Parameters.Add("@automatedNotes", NpgsqlDbType.Text).Value = automatedAssessment.Notes;
                     await insertCmd.ExecuteNonQueryAsync();
                 }
 
@@ -655,11 +710,18 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.Add("@verificationMethod", NpgsqlDbType.Text).Value = "Philippine ID + Facial Review";
                 await updateCmd.ExecuteNonQueryAsync();
 
-                return Ok(new { message = "Verification request submitted.", status = "Pending" });
+                return Ok(new
+                {
+                    message = "Verification request submitted. Automated screening is complete and the request is now waiting for admin review.",
+                    status = "Pending",
+                    automatedStatus = automatedAssessment.Status,
+                    automatedRecommendation = automatedAssessment.Recommendation,
+                    automatedScore = automatedAssessment.Score
+                });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = "Failed to submit verification request: " + ex.Message });
+                return StatusCode(500, new { message = "Failed to submit verification request." });
             }
         }
 
@@ -669,6 +731,11 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                if (!CanAccessOwnSessionistRecord(id))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSessionistSchemaOnce(connection);
@@ -687,9 +754,9 @@ namespace ImajinationAPI.Controllers
 
                 return Ok(new { message = "Availability updated successfully.", isAvailable = req.isAvailable });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return StatusCode(500, new { message = "Unable to update sessionist availability right now." });
             }
         }
 

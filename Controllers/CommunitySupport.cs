@@ -82,7 +82,12 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS consent_confirmed boolean NOT NULL DEFAULT FALSE;
                 ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS face_verification_consent boolean NOT NULL DEFAULT FALSE;
                 ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS id_review_status varchar(30) NOT NULL DEFAULT 'Pending';
-                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS facial_review_status varchar(30) NOT NULL DEFAULT 'Pending';";
+                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS facial_review_status varchar(30) NOT NULL DEFAULT 'Pending';
+                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS automated_status varchar(40) NULL;
+                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS automated_recommendation varchar(60) NULL;
+                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS automated_score integer NULL;
+                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS automated_notes text NULL;
+                ALTER TABLE talent_verification_requests ADD COLUMN IF NOT EXISTS automated_reviewed_at timestamptz NULL;";
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();

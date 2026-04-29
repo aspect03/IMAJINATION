@@ -328,7 +328,7 @@
         </div>
         <div class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
           <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Service fee</p>
-          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 20.00 booking fee first. Artists also see a platform fee after confirmation so the booking flow stays realistic for a live marketplace.</p>
+          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 15.00 booking fee first. Artists also see a platform fee after confirmation so the booking flow stays realistic for a live marketplace.</p>
         </div>
         <p id="bookingStatus" class="text-xs text-white/50">Customers and organizers can send booking requests here.</p>
         <button id="submitBookingBtn" type="submit" class="w-full py-3.5 rounded-xl bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors">
@@ -664,7 +664,7 @@
       document.getElementById('bookingSlotsList').innerHTML = '';
       document.getElementById('bookingStatus').innerText = role === 'Organizer'
         ? `You are sending an organizer booking request to ${currentArtistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
-        : `You are booking ${currentArtistName}. The PHP 20.00 service fee is collected before the artist can review your request.`;
+        : `You are booking ${currentArtistName}. The PHP 15.00 service fee is collected before the artist can review your request.`;
       await loadArtistBlockedDates();
       bookingModal.classList.remove('hidden');
       bookingModal.classList.add('flex');
@@ -779,7 +779,7 @@
 
         document.getElementById('bookingStatus').innerText = data.bookingCount > 1
           ? `Created ${data.bookingCount} booking requests. Redirecting to the first service-fee checkout...`
-          : 'Booking created. Redirecting to the PHP 20.00 service fee checkout...';
+          : 'Booking created. Redirecting to the PHP 15.00 service fee checkout...';
 
         const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}&bookingFeePaid=1`;
         const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}`;

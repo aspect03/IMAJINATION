@@ -1182,8 +1182,13 @@
     function getArtistBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'bg-red-500/15 text-red-400';
       if (status === 'Completed') return 'bg-blue-500/15 text-blue-300';
+      if ((status || '').startsWith('Completion Pending')) return 'bg-amber-500/15 text-amber-300';
       if (status === 'Confirmed') return 'bg-emerald-500/15 text-emerald-400';
       return 'bg-amber-500/15 text-amber-300';
+    }
+
+    function isCompletionPendingStatus(status) {
+      return String(status || '').startsWith('Completion Pending');
     }
 
     function getArtistPaymentStatusClasses(status) {
@@ -1331,6 +1336,45 @@
       window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
     }
 
+    function openArtistBookingContract(bookingId) {
+      window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}&openContract=1`;
+    }
+
+    function canArtistMarkBookingCompleted(booking) {
+      if (!booking || (booking.status !== 'Confirmed' && !isCompletionPendingStatus(booking.status))) return false;
+      const completionValue = booking.eventEndTime || booking.eventDate;
+      if (!completionValue) return false;
+      const completionGate = new Date(completionValue);
+      if (Number.isNaN(completionGate.getTime())) return false;
+      if (booking.targetCompletedAt) return false;
+      return completionGate.getTime() <= Date.now();
+    }
+
+    function canArtistConfirmBooking(booking) {
+      const status = String(booking?.status || '').trim().toLowerCase();
+      if (!status) return false;
+      if (status === 'confirmed' || status === 'completed' || status.startsWith('cancelled')) return false;
+      return status.includes('pending');
+    }
+
+    async function markArtistBookingCompleted(bookingId) {
+      if (!bookingId) return;
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to confirm booking completion.');
+        await loadArtistBookings(localStorage.getItem('userId'));
+        alert(data.message || 'Completion confirmation recorded.');
+      } catch (error) {
+        alert(error.message || 'Failed to mark booking as completed.');
+      }
+    }
+
     async function loadArtistBookings(userId) {
       const container = document.getElementById('artistBookingsContainer');
       try {
@@ -1348,7 +1392,14 @@
           return;
         }
 
-        container.innerHTML = artistBookings.map(booking => `
+        container.innerHTML = artistBookings.map(booking => {
+          const canViewContract = booking.status === 'Confirmed' || booking.status === 'Completed' || booking.hasMessages;
+          const canComplete = canArtistMarkBookingCompleted(booking);
+          const showDecisionButtons = canArtistConfirmBooking(booking);
+          const bookingEnded = (booking.eventEndTime || booking.eventDate) ? new Date(booking.eventEndTime || booking.eventDate).getTime() <= Date.now() : false;
+          const canCancelBooking = booking.status !== 'Completed' && !String(booking.status || '').startsWith('Cancelled') && !isCompletionPendingStatus(booking.status) && !bookingEnded;
+
+          return `
           <div class="p-5 bg-black/40 border border-white/10 rounded-2xl flex flex-col lg:flex-row justify-between gap-4">
             <div class="space-y-2">
               <div class="flex items-center gap-2 flex-wrap">
@@ -1362,16 +1413,20 @@
                 <div><span class="text-white/40 block mb-1">Service</span>${booking.serviceType || 'Booking'}</div>
               </div>
               <p class="text-[10px] uppercase tracking-widest ${getArtistPaymentStatusClasses(booking.paymentStatus)} pt-2">Service fee: ${booking.paymentStatus || 'Unpaid'}</p>
-              <p class="text-xs text-white/55">PHP ${(booking.bookingFee || 20).toFixed(2)} fee${booking.budget ? ` • Offer ${new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(booking.budget || 0)}` : ''}</p>
+              <p class="text-xs text-white/55">PHP ${(booking.bookingFee || 15).toFixed(2)} fee${booking.budget ? ` • Offer ${new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(booking.budget || 0)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee ${new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(booking.talentPlatformFee || 0)}` : ''}</p>
               <p class="text-sm text-white/70 pt-2">${booking.notes || booking.message || 'No notes provided.'}</p>
+              ${canViewContract ? `<p class="text-[11px] text-white/45 pt-2">Open the contract from Messages to review the accepted terms. After the performance time passes, both sides must confirm completion before escrow is released.</p>` : ''}
             </div>
             <div class="flex flex-row lg:flex-col gap-2">
               <button type="button" onclick="openArtistBookingMessages('${booking.id}')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Message</button>
-              <button type="button" onclick="${booking.hasMessages ? `updateArtistBookingStatus('${booking.id}', 'Confirmed')` : `openArtistBookingMessages('${booking.id}')`}" class="px-4 py-2 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} text-xs font-bold uppercase tracking-wider rounded-xl transition-colors">${booking.hasMessages ? 'Confirm' : 'Message First'}</button>
-              <button type="button" onclick="updateArtistBookingStatus('${booking.id}', 'Cancelled by Artist')" class="px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Cancel</button>
+              ${canViewContract ? `<button type="button" onclick="openArtistBookingContract('${booking.id}')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">View Contract</button>` : ''}
+              ${showDecisionButtons ? `<button type="button" onclick="${booking.hasMessages ? `updateArtistBookingStatus('${booking.id}', 'Confirmed')` : `openArtistBookingMessages('${booking.id}')`}" class="px-4 py-2 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} text-xs font-bold uppercase tracking-wider rounded-xl transition-colors">${booking.hasMessages ? 'Confirm' : 'Message First'}</button>` : ''}
+              ${canComplete ? `<button type="button" onclick="markArtistBookingCompleted('${booking.id}')" class="px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-500/20 transition-colors">Confirm Completion</button>` : ''}
+              ${canCancelBooking ? `<button type="button" onclick="updateArtistBookingStatus('${booking.id}', 'Cancelled by Artist')" class="px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Cancel</button>` : ''}
             </div>
           </div>
-        `).join('');
+        `;
+        }).join('');
       } catch (error) {
         container.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load booking requests.</p>`;
       }

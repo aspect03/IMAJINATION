@@ -110,10 +110,10 @@
               <p id="paymentStatusText" class="text-[10px] uppercase tracking-widest text-white/50">Payment: Unpaid</p>
               <div class="flex flex-wrap items-center gap-3">
                 <button id="completeBookingBtn" type="button" class="hidden px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-colors">
-                  Mark Completed
+                  Confirm Completion
                 </button>
                 <button id="refundBookingBtn" type="button" class="hidden px-4 py-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-sky-500/20 transition-colors">
-                  Request Refund
+                  Report No-Show
                 </button>
                 <button id="payBookingBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
                   Pay Now
@@ -187,7 +187,7 @@
                   Save Draft
                 </button>
                 <button id="sendContractBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
-                  Send For Approval
+                  Submit Proposal
                 </button>
                 <button id="createContractBtn" type="button" class="hidden px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">
                   Create Draft
@@ -198,7 +198,7 @@
                   Accept
                 </button>
                 <button id="rejectContractBtn" type="button" class="px-4 py-2.5 bg-red-500/20 border border-red-500/40 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500/30 transition-colors">
-                  Reject
+                  Request Changes
                 </button>
               </div>
               <p id="contractStatusText" class="text-xs text-white/50"></p>
@@ -218,13 +218,18 @@
     const requestedBookingId = query.get('bookingId');
     const bookingFeePaid = query.get('bookingFeePaid');
     const talentFeePaid = query.get('talentFeePaid');
+    const platformFeePaid = query.get('platformFeePaid');
+    const openContractRequested = query.get('openContract') === '1';
 
     let conversations = [];
     let activeBookingId = null;
     let activeBooking = null;
     let activeContract = null;
+    let activeMessages = [];
     let activeConversationRequest = 0;
     let isSendingMessage = false;
+    let liveMessageStream = null;
+    let liveMessagePollHandle = null;
 
     async function showSystemAlert(message, title = 'Notice') {
       if (window.systemDialog?.alert) {
@@ -257,12 +262,16 @@
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') closeContractPanel();
       });
+      window.addEventListener('beforeunload', stopLiveConversationUpdates);
 
       await handleBookingFeeReturn();
       await loadConversations();
 
       if (requestedBookingId) {
         await openConversation(requestedBookingId);
+        if (openContractRequested) {
+          openContractPanel();
+        }
       }
     });
 
@@ -318,12 +327,15 @@
     function getBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'text-red-400';
       if (status === 'Completed') return 'text-blue-300';
+      if ((status || '').startsWith('Completion Pending')) return 'text-amber-300';
       if (status === 'Confirmed') return 'text-emerald-400';
       return 'text-amber-300';
     }
 
     function getPaymentStatusClasses(status) {
       if (status === 'Paid') return 'text-emerald-400';
+      if (status === 'Released') return 'text-emerald-400';
+      if (status === 'HeldInEscrow' || status === 'ReadyForRelease' || status === 'TalentFeeHeldInEscrow' || status === 'TalentReleasePendingPlatformFee') return 'text-sky-300';
       if (status === 'ServiceFeePaid') return 'text-blue-300';
       if (status === 'Refunded') return 'text-sky-300';
       if (status === 'Refund Failed') return 'text-red-300';
@@ -347,24 +359,45 @@
     function normalizeTalentFeeStatus(talentFeeStatus) {
       const rawStatus = (talentFeeStatus || '').trim();
       if (rawStatus === 'AwaitingTalentFeePayment') return 'AwaitingPayment';
+      if (rawStatus === 'TalentFeePaid') return 'HeldInEscrow';
       return rawStatus || 'Unpaid';
     }
 
+    function isCompletionPendingStatus(status) {
+      return String(status || '').startsWith('Completion Pending');
+    }
+
     function canMarkBookingCompleted(booking) {
-      if (!booking || booking.status !== 'Confirmed' || !booking.eventDate) {
+      const completionValue = booking?.eventEndTime || booking?.eventDate;
+      if (!booking || (!['Confirmed'].includes(booking.status) && !isCompletionPendingStatus(booking.status)) || !completionValue) {
         return false;
       }
 
-      const eventDate = new Date(booking.eventDate);
-      if (Number.isNaN(eventDate.getTime())) {
+      const completionDate = new Date(completionValue);
+      if (Number.isNaN(completionDate.getTime())) {
         return false;
       }
 
-      return eventDate.getTime() <= Date.now();
+      const isCustomerSide = String(booking.customerId || '') === String(userId || '');
+      if (isCustomerSide && booking.customerCompletedAt) {
+        return false;
+      }
+
+      if (!isCustomerSide && booking.targetCompletedAt) {
+        return false;
+      }
+
+      return completionDate.getTime() <= Date.now();
     }
 
     async function handleBookingFeeReturn() {
-      const paymentType = talentFeePaid === '1' ? 'talent' : bookingFeePaid === '1' ? 'service' : '';
+      const paymentType = talentFeePaid === '1'
+        ? 'talent'
+        : platformFeePaid === '1'
+          ? 'platform'
+          : bookingFeePaid === '1'
+            ? 'service'
+            : '';
       if (!paymentType || !requestedBookingId) {
         return;
       }
@@ -445,10 +478,156 @@
       lucide.createIcons();
     }
 
+    function mergeMessages(messages) {
+      const seenMessages = new Set();
+      const merged = [];
+
+      for (const message of Array.isArray(messages) ? messages : []) {
+        const dedupeKey = message?.id
+          ? `id:${message.id}`
+          : `${message?.senderId || ''}|${message?.createdAt || ''}|${message?.message || ''}`;
+
+        if (seenMessages.has(dedupeKey)) {
+          continue;
+        }
+
+        seenMessages.add(dedupeKey);
+        merged.push(message);
+      }
+
+      merged.sort((left, right) => new Date(left?.createdAt || 0).getTime() - new Date(right?.createdAt || 0).getTime());
+      return merged;
+    }
+
+    function syncConversationPreview(message) {
+      if (!activeBookingId || !message) {
+        return;
+      }
+
+      const existingConversation = conversations.find(conversation => String(conversation.bookingId) === String(activeBookingId));
+      const nextLastActivity = message.createdAt || new Date().toISOString();
+
+      if (existingConversation) {
+        existingConversation.lastMessage = message.message || existingConversation.lastMessage || '';
+        existingConversation.lastActivity = nextLastActivity;
+        existingConversation.hasMessages = true;
+      } else if (activeBooking) {
+        const counterpartName = String(activeBooking.customerId) === String(userId) ? activeBooking.targetName : activeBooking.customerName;
+        const counterpartId = String(activeBooking.customerId) === String(userId) ? activeBooking.targetUserId : activeBooking.customerId;
+        const counterpartRole = String(activeBooking.customerId) === String(userId) ? activeBooking.targetRole : 'Customer';
+        conversations.unshift({
+          bookingId: activeBookingId,
+          counterpartName: counterpartName || 'Conversation',
+          counterpartId,
+          counterpartRole,
+          eventTitle: activeBooking.eventTitle || '',
+          lastMessage: message.message || '',
+          lastActivity: nextLastActivity,
+          hasMessages: true
+        });
+      }
+
+      conversations.sort((left, right) => new Date(right?.lastActivity || 0).getTime() - new Date(left?.lastActivity || 0).getTime());
+      renderConversationList();
+    }
+
+    function updateLiveChatStatus(text, tone = 'amber') {
+      const status = document.getElementById('chatStatus');
+      const bookingLabel = activeBooking?.status || 'Pending';
+      const toneClasses = tone === 'green'
+        ? 'text-emerald-300'
+        : tone === 'red'
+          ? 'text-red-300'
+          : 'text-amber-300';
+      status.className = `text-[10px] font-semibold uppercase tracking-[0.18em] ${toneClasses}`;
+      status.innerText = text ? `${bookingLabel} • ${text}` : bookingLabel;
+    }
+
+    function stopLiveConversationUpdates() {
+      if (liveMessageStream) {
+        liveMessageStream.close();
+        liveMessageStream = null;
+      }
+
+      if (liveMessagePollHandle) {
+        window.clearInterval(liveMessagePollHandle);
+        liveMessagePollHandle = null;
+      }
+    }
+
+    async function refreshConversationMessagesSilently() {
+      if (!activeBookingId) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/message/booking/${activeBookingId}`, { cache: 'no-store' });
+        if (!res.ok) {
+          return;
+        }
+
+        const messages = await res.json().catch(() => []);
+        activeMessages = mergeMessages(messages);
+        renderMessages(activeMessages);
+      } catch (_) {
+      }
+    }
+
+    function startLiveConversationUpdates(bookingId) {
+      stopLiveConversationUpdates();
+
+      if (typeof window.EventSource !== 'function') {
+        liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
+        updateLiveChatStatus('Live Polling', 'amber');
+        return;
+      }
+
+      const stream = new EventSource(`/api/message/booking/${bookingId}/stream`);
+      liveMessageStream = stream;
+
+      stream.addEventListener('connected', () => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+        if (liveMessagePollHandle) {
+          window.clearInterval(liveMessagePollHandle);
+          liveMessagePollHandle = null;
+        }
+        updateLiveChatStatus(activeBooking?.status || 'Live', 'green');
+      });
+
+      stream.addEventListener('booking-message', (event) => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+
+        const payload = JSON.parse(event.data || '{}');
+        if (payload?.type !== 'message_created' || !payload?.message) {
+          return;
+        }
+
+        activeMessages = mergeMessages([...activeMessages, payload.message]);
+        renderMessages(activeMessages);
+        syncConversationPreview(payload.message);
+      });
+
+      stream.onerror = () => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+
+        updateLiveChatStatus('Reconnecting', 'amber');
+        if (!liveMessagePollHandle) {
+          liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
+        }
+      };
+    }
+
     async function openConversation(bookingId) {
       const requestId = ++activeConversationRequest;
       activeBookingId = bookingId;
       closeContractPanel();
+      stopLiveConversationUpdates();
       renderConversationList();
 
       document.getElementById('emptyState').classList.add('hidden');
@@ -478,9 +657,11 @@
         }
 
         activeBooking = booking;
+        activeMessages = mergeMessages(messages);
         applyBookingHeader(activeBooking);
         await loadBookingContract(bookingId);
-        renderMessages(messages);
+        renderMessages(activeMessages);
+        startLiveConversationUpdates(bookingId);
       } catch (error) {
         if (requestId !== activeConversationRequest) {
           return;
@@ -502,9 +683,9 @@
         ? `${formatDateTime(booking.eventDate)} to ${formatDateTime(booking.eventEndTime)}`
         : formatDateTime(booking.eventDate);
       document.getElementById('bookingEventDate').innerText = bookingWindow;
-      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}`;
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 15)} service fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}`;
       document.getElementById('bookingLocation').innerText = booking.location || 'Location to be confirmed';
-      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 20)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee ${formatPeso(booking.talentPlatformFee)}` : ''}`;
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 15)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee ${formatPeso(booking.talentPlatformFee)}` : ''}`;
 
       const paymentRow = document.getElementById('paymentActionRow');
       const paymentStatusText = document.getElementById('paymentStatusText');
@@ -515,25 +696,27 @@
       const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
       const platformFeeStatus = normalizeTalentFeeStatus(booking.talentPlatformFeeStatus);
       const canPayServiceFee = userRole === 'Customer' && serviceFeeStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled');
+      const isBookableSettlementState = booking.status === 'Confirmed' || isCompletionPendingStatus(booking.status);
       const canPayTalentFee = userRole === 'Customer'
         && serviceFeeStatus === 'Paid'
         && booking.status === 'Confirmed'
         && Number(booking.budget || 0) > 0
-        && talentFeeStatus !== 'Paid'
+        && !['Paid', 'HeldInEscrow', 'ReadyForRelease', 'Released'].includes(talentFeeStatus)
         && !(booking.status || '').startsWith('Cancelled');
       const canPayPlatformFee = (userRole === 'Artist' || userRole === 'Sessionist')
-        && booking.status === 'Confirmed'
+        && isBookableSettlementState
         && Number(booking.talentPlatformFee || 0) > 0
+        && ['HeldInEscrow', 'ReadyForRelease'].includes(talentFeeStatus)
         && platformFeeStatus !== 'Paid'
         && !(booking.status || '').startsWith('Cancelled');
-      const bookingEnded = booking.eventDate ? new Date(booking.eventDate).getTime() <= Date.now() : false;
+      const bookingEnded = (booking.eventEndTime || booking.eventDate) ? new Date(booking.eventEndTime || booking.eventDate).getTime() <= Date.now() : false;
       const canRequestCustomerRefund = (userRole === 'Customer' || userRole === 'Organizer')
         && bookingEnded
-        && booking.status === 'Confirmed'
+        && isBookableSettlementState
         && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || talentFeeStatus === 'Paid' || talentFeeStatus === 'Refund Failed');
       const canRequestTalentRefund = (userRole === 'Artist' || userRole === 'Sessionist')
         && bookingEnded
-        && booking.status === 'Confirmed'
+        && isBookableSettlementState
         && (platformFeeStatus === 'Paid' || platformFeeStatus === 'Refund Failed');
 
       paymentStatusText.innerText = `Service fee: ${serviceFeeStatus}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee: ${platformFeeStatus}` : ''}`;
@@ -541,15 +724,15 @@
       completeButton.classList.toggle('hidden', !canMarkBookingCompleted(booking));
       refundButton.classList.toggle('hidden', !(canRequestCustomerRefund || canRequestTalentRefund));
       refundButton.dataset.reasonCode = canRequestTalentRefund ? 'CustomerNoShow' : 'TalentNoShow';
-      refundButton.innerText = canRequestTalentRefund ? 'Report Customer No-Show' : 'Request Refund';
+      refundButton.innerText = canRequestTalentRefund ? 'Report Customer No-Show' : 'Report Talent No-Show';
 
       if (canPayServiceFee) {
         payButton.dataset.paymentType = 'service';
-        payButton.innerText = serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 20)} Fee`;
+        payButton.innerText = serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 15)} Fee`;
         paymentRow.classList.remove('hidden');
       } else if (canPayTalentFee) {
         payButton.dataset.paymentType = 'talent';
-        payButton.innerText = talentFeeStatus === 'AwaitingPayment' ? 'Continue Talent Fee Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee`;
+        payButton.innerText = talentFeeStatus === 'AwaitingPayment' ? 'Continue Escrow Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee to Escrow`;
         paymentRow.classList.remove('hidden');
       } else if (canPayPlatformFee) {
         payButton.dataset.paymentType = 'platform';
@@ -567,8 +750,8 @@
     }
 
     function getContractAccess() {
-      const canEdit = userRole === 'Organizer' || userRole === 'Customer';
-      const canRespond = userRole === 'Artist' || userRole === 'Sessionist';
+      const canEdit = ['Organizer', 'Customer', 'Artist', 'Sessionist'].includes(userRole);
+      const canRespond = ['Organizer', 'Customer', 'Artist', 'Sessionist'].includes(userRole);
       return { canEdit, canRespond };
     }
 
@@ -579,18 +762,34 @@
       trigger.classList.remove('hidden');
 
       try {
-        const res = await fetch(`/api/booking/${bookingId}/contract`);
+        let res = await fetch(`/api/booking/${bookingId}/contract`, {
+          cache: 'no-store',
+          skipApiFallbackOn404: true
+        });
         if (res.status === 404) {
-          activeContract = null;
-          renderContractUI(null);
+          const createRes = await fetch(`/api/booking/${bookingId}/contract`, {
+            method: 'POST',
+            cache: 'no-store'
+          });
+          const createData = await createRes.json().catch(() => ({}));
+          if (!createRes.ok) {
+            throw new Error(createData.message || 'Failed to create contract draft.');
+          }
+          activeContract = createData;
+          renderContractUI(activeContract);
           return;
         }
-        if (!res.ok) throw new Error();
-        activeContract = await res.json();
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to load contract draft.');
+        }
+
+        activeContract = data;
         renderContractUI(activeContract);
       } catch (error) {
         activeContract = null;
-        renderContractUI(null, 'Failed to load contract draft.');
+        renderContractUI(null, error?.message || 'Failed to load contract draft.');
       }
     }
 
@@ -634,23 +833,32 @@
       emptyState.classList.add('hidden');
       form.classList.remove('opacity-75');
       statusBadge.innerText = contract.contractStatus || 'Draft';
-      statusText.innerText = contract.contractStatus
-        ? `Status: ${contract.contractStatus}`
-        : 'Draft contract ready.';
+      const proposedByRole = contract.proposedByRole || 'Participant';
+      const revisionText = contract.revisionNumber ? `Revision ${contract.revisionNumber}` : 'Draft';
+      statusText.innerText = contract.contractStatus === 'PendingAcceptance'
+        ? `${revisionText} submitted by ${proposedByRole}. Review the proposed budget and terms before accepting.`
+        : contract.contractStatus === 'NeedsRevision'
+          ? `${revisionText} needs changes. Either side can edit and submit a new proposal.`
+          : contract.contractStatus === 'Accepted'
+            ? `${revisionText} accepted. This is now the active booking contract.`
+            : `${revisionText} saved. Both sides can keep refining the draft.`;
       titleInput.value = contract.title || '';
       termsInput.value = contract.terms || '';
       feeInput.value = contract.agreedFee || '';
-      statusSelect.value = contract.contractStatus || 'Draft';
+      statusSelect.value = ['Draft', 'PendingAcceptance'].includes(contract.contractStatus) ? contract.contractStatus : 'Draft';
 
-      titleInput.disabled = !canEdit;
-      termsInput.disabled = !canEdit;
-      feeInput.disabled = !canEdit;
-      statusSelect.disabled = !canEdit;
+      const isLocked = contract.contractStatus === 'Accepted';
+      titleInput.disabled = !canEdit || isLocked;
+      termsInput.disabled = !canEdit || isLocked;
+      feeInput.disabled = !canEdit || isLocked;
+      statusSelect.disabled = !canEdit || isLocked;
 
-      editRow.classList.toggle('hidden', !canEdit);
+      editRow.classList.toggle('hidden', !canEdit || isLocked);
       createBtn.classList.add('hidden');
 
-      const responseAllowed = canRespond && ['PendingAcceptance', 'Draft'].includes(contract.contractStatus || 'Draft');
+      const responseAllowed = canRespond
+        && (contract.contractStatus || 'Draft') === 'PendingAcceptance'
+        && String(contract.proposedByRole || '').toLowerCase() !== String(userRole || '').toLowerCase();
       responseRow.classList.toggle('hidden', !responseAllowed);
     }
 
@@ -695,6 +903,7 @@
         if (!res.ok) throw new Error(data.message || 'Failed to update contract.');
         statusText.innerText = data.message || 'Contract updated.';
         await loadBookingContract(activeBookingId);
+        await refreshActiveBooking();
       } catch (error) {
         statusText.innerText = error.message || 'Failed to update contract.';
       }
@@ -720,6 +929,7 @@
         if (!res.ok) throw new Error(data.message || 'Failed to update contract.');
         statusText.innerText = data.message || 'Contract updated.';
         await loadBookingContract(activeBookingId);
+        await refreshActiveBooking();
       } catch (error) {
         statusText.innerText = error.message || 'Failed to update contract.';
       }
@@ -729,7 +939,11 @@
       if (!activeBookingId) return;
 
       const paymentType = document.getElementById('payBookingBtn').dataset.paymentType || 'service';
-      const successFlag = paymentType === 'talent' ? 'talentFeePaid=1' : 'bookingFeePaid=1';
+      const successFlag = paymentType === 'talent'
+        ? 'talentFeePaid=1'
+        : paymentType === 'platform'
+          ? 'platformFeePaid=1'
+          : 'bookingFeePaid=1';
       const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}&${successFlag}`;
       const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}`;
       const payButton = document.getElementById('payBookingBtn');
@@ -776,7 +990,7 @@
           throw new Error(data.message || 'Failed to mark booking as completed.');
         }
 
-        await showSystemAlert(data.message || 'Booking marked as completed.', 'Booking Completed');
+        await showSystemAlert(data.message || 'Completion confirmation recorded.', 'Booking Completion');
         await loadConversations();
         await openConversation(activeBookingId);
       } catch (error) {
@@ -784,6 +998,17 @@
       } finally {
         button.disabled = false;
         button.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function refreshActiveBooking() {
+      if (!activeBookingId) return;
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}`);
+        if (!res.ok) return;
+        activeBooking = await res.json();
+        applyBookingHeader(activeBooking);
+      } catch (_) {
       }
     }
 
@@ -892,9 +1117,13 @@
           throw new Error(data.message || 'Failed to send message.');
         }
 
+        const data = await res.json().catch(() => ({}));
         input.value = '';
-        await loadConversations();
-        await openConversation(activeBookingId);
+        if (data?.sentMessage) {
+          activeMessages = mergeMessages([...activeMessages, data.sentMessage]);
+          renderMessages(activeMessages);
+          syncConversationPreview(data.sentMessage);
+        }
       } catch (error) {
         await showSystemAlert(error.message || 'Failed to send message.', 'Message Error');
       } finally {

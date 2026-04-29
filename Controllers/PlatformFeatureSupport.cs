@@ -106,9 +106,128 @@ namespace ImajinationAPI.Controllers
                     agreed_fee numeric NULL,
                     event_date timestamptz NULL,
                     location text NULL,
+                    proposed_by_user_id uuid NULL,
+                    proposed_by_role varchar(30) NULL,
+                    accepted_by_user_id uuid NULL,
+                    accepted_by_role varchar(30) NULL,
+                    accepted_at timestamptz NULL,
+                    revision_number integer NOT NULL DEFAULT 1,
+                    last_action varchar(30) NOT NULL DEFAULT 'DraftSaved',
                     created_at timestamptz NOT NULL DEFAULT NOW(),
                     updated_at timestamptz NOT NULL DEFAULT NOW()
                 );
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS booking_id uuid NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS contract_status varchar(30) NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS title text NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS terms text NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS agreed_fee numeric NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS event_date timestamptz NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS location text NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS proposed_by_user_id uuid NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS proposed_by_role varchar(30) NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS accepted_by_user_id uuid NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS accepted_by_role varchar(30) NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS accepted_at timestamptz NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS revision_number integer NOT NULL DEFAULT 1;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS last_action varchar(30) NOT NULL DEFAULT 'DraftSaved';
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS created_at timestamptz NULL;
+
+                ALTER TABLE booking_contracts
+                    ADD COLUMN IF NOT EXISTS updated_at timestamptz NULL;
+
+                UPDATE booking_contracts
+                SET contract_status = COALESCE(NULLIF(contract_status, ''), 'Draft'),
+                    title = COALESCE(title, 'Performance Contract'),
+                    terms = COALESCE(terms, ''),
+                    revision_number = COALESCE(revision_number, 1),
+                    last_action = COALESCE(NULLIF(last_action, ''), 'DraftSaved'),
+                    created_at = COALESCE(created_at, NOW()),
+                    updated_at = COALESCE(updated_at, NOW());
+
+                CREATE TABLE IF NOT EXISTS booking_contract_history (
+                    id uuid PRIMARY KEY,
+                    booking_id uuid NOT NULL,
+                    revision_number integer NOT NULL,
+                    action varchar(30) NOT NULL,
+                    actor_user_id uuid NULL,
+                    actor_role varchar(30) NULL,
+                    title text NOT NULL,
+                    terms text NOT NULL,
+                    proposed_fee numeric NULL,
+                    contract_status varchar(30) NOT NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW()
+                );
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS booking_id uuid NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS revision_number integer NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS action varchar(30) NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS actor_user_id uuid NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS actor_role varchar(30) NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS title text NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS terms text NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS proposed_fee numeric NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS contract_status varchar(30) NULL;
+
+                ALTER TABLE booking_contract_history
+                    ADD COLUMN IF NOT EXISTS created_at timestamptz NULL;
+
+                UPDATE booking_contract_history
+                SET revision_number = COALESCE(revision_number, 1),
+                    action = COALESCE(NULLIF(action, ''), 'DraftSaved'),
+                    title = COALESCE(title, 'Performance Contract'),
+                    terms = COALESCE(terms, ''),
+                    contract_status = COALESCE(NULLIF(contract_status, ''), 'Draft'),
+                    created_at = COALESCE(created_at, NOW());
+
+                CREATE INDEX IF NOT EXISTS idx_booking_contract_history_booking
+                    ON booking_contract_history(booking_id, revision_number DESC);
 
                 CREATE TABLE IF NOT EXISTS talent_verification_requests (
                     id uuid PRIMARY KEY,
@@ -253,16 +372,13 @@ namespace ImajinationAPI.Controllers
 
             const string sql = @"
                 INSERT INTO booking_contracts (
-                    id, booking_id, contract_status, title, terms, agreed_fee, event_date, location, created_at, updated_at
+                    id, booking_id, contract_status, title, terms, agreed_fee, event_date, location, revision_number, last_action, created_at, updated_at
                 )
                 VALUES (
-                    @id, @bookingId, 'Draft', @title, @terms, @agreedFee, @eventDate, @location, NOW(), NOW()
+                    @id, @bookingId, 'Draft', @title, @terms, @agreedFee, @eventDate, @location, 1, 'DraftSaved', NOW(), NOW()
                 )
                 ON CONFLICT (booking_id)
                 DO UPDATE SET
-                    title = EXCLUDED.title,
-                    terms = EXCLUDED.terms,
-                    agreed_fee = EXCLUDED.agreed_fee,
                     event_date = EXCLUDED.event_date,
                     location = EXCLUDED.location,
                     updated_at = NOW();";

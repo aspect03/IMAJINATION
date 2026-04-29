@@ -29,6 +29,11 @@ namespace ImajinationAPI.Services
             var sessionToken = Request.Headers["X-Session-Token"].ToString().Trim();
             if (string.IsNullOrWhiteSpace(sessionToken))
             {
+                sessionToken = Request.Cookies["IMAJINATION-SESSION"]?.Trim() ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(sessionToken))
+            {
                 return AuthenticateResult.NoResult();
             }
 

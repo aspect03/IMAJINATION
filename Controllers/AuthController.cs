@@ -21,6 +21,8 @@ namespace ImajinationAPI.Controllers
         private readonly IConfiguration _config;
         private readonly JwtTokenService _jwtTokenService;
         private readonly TotpService _totpService;
+        private const string AccessTokenCookieName = "IMAJINATION-ACCESS";
+        private const string SessionTokenCookieName = "IMAJINATION-SESSION";
 
         public AuthController(IConfiguration configuration, IMemoryCache cache, JwtTokenService jwtTokenService, TotpService totpService)
         {
@@ -29,6 +31,34 @@ namespace ImajinationAPI.Controllers
             _cache = cache;
             _jwtTokenService = jwtTokenService;
             _totpService = totpService;
+        }
+
+        private CookieOptions BuildAuthCookieOptions()
+        {
+            var secure = HttpContext.Request.IsHttps || !HttpContext.Request.Host.Host.Contains("localhost", StringComparison.OrdinalIgnoreCase);
+            return new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = secure,
+                SameSite = SameSiteMode.Lax,
+                IsEssential = true,
+                Path = "/"
+            };
+        }
+
+        private void SetAuthCookies(Guid userId, string role, string firstName, string username, string sessionToken)
+        {
+            var cookieOptions = BuildAuthCookieOptions();
+            var accessToken = _jwtTokenService.GenerateAccessToken(userId, role, firstName, username);
+            Response.Cookies.Append(AccessTokenCookieName, accessToken, cookieOptions);
+            Response.Cookies.Append(SessionTokenCookieName, sessionToken, cookieOptions);
+        }
+
+        private void ClearAuthCookies()
+        {
+            var cookieOptions = BuildAuthCookieOptions();
+            Response.Cookies.Delete(AccessTokenCookieName, cookieOptions);
+            Response.Cookies.Delete(SessionTokenCookieName, cookieOptions);
         }
 
         // ==========================================
@@ -271,7 +301,15 @@ namespace ImajinationAPI.Controllers
                 await EnsureMfaColumnsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
-                var normalizedRole = SecuritySupport.SanitizePlainText(req.role, 40, false);
+                var normalizedRole = NormalizeRegistrationRole(req.role);
+                if (normalizedRole is null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Invalid role. Allowed roles are Customer, Organizer, Artist, and Sessionist."
+                    });
+                }
+
                 var requiresAdminApproval = string.Equals(normalizedRole, "Organizer", StringComparison.OrdinalIgnoreCase);
                 var accountStatus = requiresAdminApproval ? "PendingApproval" : "Active";
 
@@ -475,6 +513,12 @@ namespace ImajinationAPI.Controllers
                         authenticatedUserId,
                         HttpContext,
                         $"Successful login for {normalizedEmail}.");
+                    SetAuthCookies(
+                        authenticatedUserId,
+                        authenticatedRole,
+                        authenticatedFirstName,
+                        authenticatedUsername,
+                        trackedSession.SessionToken);
 
                     return Ok(new
                     {
@@ -483,8 +527,6 @@ namespace ImajinationAPI.Controllers
                         firstName = authenticatedFirstName,
                         username = authenticatedUsername,
                         profilePicture = authenticatedProfilePicture,
-                        accessToken = _jwtTokenService.GenerateAccessToken(authenticatedUserId, authenticatedRole, authenticatedFirstName, authenticatedUsername),
-                        sessionToken = trackedSession.SessionToken,
                         signedOutOtherDevices = trackedSession.RevokedCount > 0
                     });
                 }
@@ -615,7 +657,7 @@ namespace ImajinationAPI.Controllers
 
                     return Conflict(new
                     {
-                        message = "No existing Imajination account was found for this Google email. Please continue to signup first.",
+                        message = "No existing Imajination account was found for this Google email. Continue account setup to finish creating your profile.",
                         signUpRequired = true,
                         email = normalizedEmail,
                         firstName,
@@ -687,6 +729,12 @@ namespace ImajinationAPI.Controllers
                     existingUser.Id,
                     HttpContext,
                     $"Successful Google Sign-In for {normalizedEmail}.");
+                SetAuthCookies(
+                    existingUser.Id,
+                    existingUser.Role,
+                    existingUser.FirstName,
+                    existingUser.Username,
+                    trackedSession.SessionToken);
 
                 return Ok(new
                 {
@@ -695,8 +743,6 @@ namespace ImajinationAPI.Controllers
                     firstName = existingUser.FirstName,
                     username = existingUser.Username,
                     profilePicture = existingUser.ProfilePicture ?? string.Empty,
-                    accessToken = _jwtTokenService.GenerateAccessToken(existingUser.Id, existingUser.Role, existingUser.FirstName, existingUser.Username),
-                    sessionToken = trackedSession.SessionToken,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
             }
@@ -1002,6 +1048,12 @@ namespace ImajinationAPI.Controllers
                 var trackedSession = await SecuritySupport.CreateTrackedSessionAsync(connection, pendingLogin.UserId, pendingLogin.Role, HttpContext);
                 await SecuritySupport.LogSecurityEventAsync(connection, pendingLogin.UserId, pendingLogin.Role, "mfa_success", "user", pendingLogin.UserId, HttpContext, "MFA challenge completed successfully.");
                 _cache.Remove($"mfa-login:{req.mfaTicket}");
+                SetAuthCookies(
+                    pendingLogin.UserId,
+                    pendingLogin.Role,
+                    pendingLogin.FirstName,
+                    pendingLogin.Username,
+                    trackedSession.SessionToken);
 
                 return Ok(new
                 {
@@ -1010,8 +1062,6 @@ namespace ImajinationAPI.Controllers
                     firstName = pendingLogin.FirstName,
                     username = pendingLogin.Username,
                     profilePicture = pendingLogin.ProfilePicture,
-                    accessToken = _jwtTokenService.GenerateAccessToken(pendingLogin.UserId, pendingLogin.Role, pendingLogin.FirstName, pendingLogin.Username),
-                    sessionToken = trackedSession.SessionToken,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
             }
@@ -1031,6 +1081,16 @@ namespace ImajinationAPI.Controllers
         public async Task<IActionResult> GetSessionStatus([FromQuery] Guid userId)
         {
             var sessionToken = Request.Headers["X-Session-Token"].ToString();
+            if (string.IsNullOrWhiteSpace(sessionToken))
+            {
+                sessionToken = Request.Cookies[SessionTokenCookieName] ?? string.Empty;
+            }
+
+            if (userId == Guid.Empty && Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var authenticatedUserId))
+            {
+                userId = authenticatedUserId;
+            }
+
             if (userId == Guid.Empty || string.IsNullOrWhiteSpace(sessionToken))
             {
                 return Unauthorized(new { message = "Session validation requires a valid user and session token." });
@@ -1064,6 +1124,21 @@ namespace ImajinationAPI.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromBody] SessionLogoutDto req)
         {
+            if (req.userId == Guid.Empty && Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var authenticatedUserId))
+            {
+                req.userId = authenticatedUserId;
+            }
+
+            if (string.IsNullOrWhiteSpace(req.sessionToken))
+            {
+                req.sessionToken = Request.Headers["X-Session-Token"].ToString();
+            }
+
+            if (string.IsNullOrWhiteSpace(req.sessionToken))
+            {
+                req.sessionToken = Request.Cookies[SessionTokenCookieName] ?? string.Empty;
+            }
+
             if (req.userId == Guid.Empty || string.IsNullOrWhiteSpace(req.sessionToken))
             {
                 return BadRequest(new { message = "Session details are required to log out." });
@@ -1084,6 +1159,7 @@ namespace ImajinationAPI.Controllers
                     req.userId,
                     HttpContext,
                     "User signed out of the current device.");
+                ClearAuthCookies();
                 return Ok(new { message = "Signed out successfully." });
             }
             catch
@@ -1365,6 +1441,24 @@ namespace ImajinationAPI.Controllers
         private static string NormalizeEmail(string? email)
         {
             return (email ?? string.Empty).Trim().ToLowerInvariant();
+        }
+
+        private static string? NormalizeRegistrationRole(string? role)
+        {
+            var normalized = SecuritySupport.SanitizePlainText(role, 40, false);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return null;
+            }
+
+            return normalized.Trim().ToLowerInvariant() switch
+            {
+                "customer" => "Customer",
+                "organizer" => "Organizer",
+                "artist" => "Artist",
+                "sessionist" => "Sessionist",
+                _ => null
+            };
         }
 
         private static bool IsStrongPassword(string? password)

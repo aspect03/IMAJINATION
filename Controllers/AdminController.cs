@@ -337,6 +337,10 @@ namespace ImajinationAPI.Controllers
                         COALESCE(tvr.selfie_image, ''),
                         COALESCE(tvr.id_review_status, 'Pending'),
                         COALESCE(tvr.facial_review_status, 'Pending'),
+                        COALESCE(tvr.automated_status, ''),
+                        COALESCE(tvr.automated_recommendation, ''),
+                        COALESCE(tvr.automated_score, 0),
+                        COALESCE(tvr.automated_notes, ''),
                         COALESCE(u.stagename, ''),
                         COALESCE(u.productionname, ''),
                         COALESCE(u.firstname, ''),
@@ -353,11 +357,11 @@ namespace ImajinationAPI.Controllers
                 {
                     while (await reader.ReadAsync())
                     {
-                        var stageName = reader.IsDBNull(14) ? "" : reader.GetString(14);
-                        var productionName = reader.IsDBNull(15) ? "" : reader.GetString(15);
-                        var firstName = reader.IsDBNull(16) ? "" : reader.GetString(16);
-                        var lastName = reader.IsDBNull(17) ? "" : reader.GetString(17);
-                        var email = reader.IsDBNull(18) ? "" : reader.GetString(18);
+                        var stageName = reader.IsDBNull(18) ? "" : reader.GetString(18);
+                        var productionName = reader.IsDBNull(19) ? "" : reader.GetString(19);
+                        var firstName = reader.IsDBNull(20) ? "" : reader.GetString(20);
+                        var lastName = reader.IsDBNull(21) ? "" : reader.GetString(21);
+                        var email = reader.IsDBNull(22) ? "" : reader.GetString(22);
                         var displayName = !string.IsNullOrWhiteSpace(stageName)
                             ? stageName
                             : !string.IsNullOrWhiteSpace(productionName)
@@ -380,6 +384,10 @@ namespace ImajinationAPI.Controllers
                             hasSelfieImage = !reader.IsDBNull(11) && !string.IsNullOrWhiteSpace(reader.GetString(11)),
                             idReviewStatus = reader.IsDBNull(12) ? "Pending" : reader.GetString(12),
                             facialReviewStatus = reader.IsDBNull(13) ? "Pending" : reader.GetString(13),
+                            automatedStatus = reader.IsDBNull(14) ? "" : reader.GetString(14),
+                            automatedRecommendation = reader.IsDBNull(15) ? "" : reader.GetString(15),
+                            automatedScore = reader.IsDBNull(16) ? 0 : reader.GetInt32(16),
+                            automatedNotes = reader.IsDBNull(17) ? "" : reader.GetString(17),
                             displayName = string.IsNullOrWhiteSpace(displayName) ? "Unnamed Talent" : displayName,
                             email = email
                         });

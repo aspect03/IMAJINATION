@@ -1104,6 +1104,10 @@
       window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
     }
 
+    function openBookingContract(bookingId) {
+      window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}&openContract=1`;
+    }
+
     function openBookingPrimaryAction(bookingId, serviceFeeStatus) {
       if (serviceFeeStatus !== 'Paid' && serviceFeeStatus !== 'NotRequired') {
         showSystemAlert('Pay the booking fee first before you can open messages for this booking.', 'Booking Fee Required');
@@ -1127,6 +1131,7 @@
     function getBookingStatusClasses(status) {
       if ((status || '').startsWith('Cancelled')) return 'bg-red-500/15 text-red-400';
       if (status === 'Completed') return 'bg-blue-500/15 text-blue-300';
+      if ((status || '').startsWith('Completion Pending')) return 'bg-amber-500/15 text-amber-300';
       if (status === 'Confirmed') return 'bg-emerald-500/15 text-emerald-400';
       return 'bg-amber-500/15 text-amber-300';
     }
@@ -1137,6 +1142,7 @@
       if (status === 'Refunded') return 'text-sky-300';
       if (status === 'Refund Failed') return 'text-red-300';
       if (status === 'AwaitingPayment' || status === 'AwaitingTalentFeePayment' || status === 'Refund Pending') return 'text-amber-300';
+      if (status === 'HeldInEscrow' || status === 'ReadyForRelease' || status === 'Released' || status === 'TalentReleasePendingPlatformFee') return 'text-sky-300';
       return 'text-white/35';
     }
 
@@ -1156,7 +1162,79 @@
     function normalizeTalentFeeStatus(talentFeeStatus) {
       const rawStatus = (talentFeeStatus || '').trim();
       if (rawStatus === 'AwaitingTalentFeePayment') return 'AwaitingPayment';
+      if (rawStatus === 'TalentFeePaid') return 'HeldInEscrow';
       return rawStatus || 'Unpaid';
+    }
+
+    function isCompletionPendingStatus(status) {
+      return String(status || '').startsWith('Completion Pending');
+    }
+
+    function isTalentFeeSecured(status) {
+      return ['Paid', 'HeldInEscrow', 'ReadyForRelease', 'Released'].includes(String(status || '').trim());
+    }
+
+    function getTalentFeeReceiptLabel(status) {
+      const normalized = String(status || '').trim();
+      if (normalized === 'HeldInEscrow') return 'Held in escrow';
+      if (normalized === 'ReadyForRelease') return 'Ready for release';
+      if (normalized === 'Released') return 'Released';
+      if (normalized === 'Paid') return '';
+      if (normalized === 'AwaitingPayment') return 'Unpaid';
+      return normalized || 'Unpaid';
+    }
+
+    function resolveReceiptReference(...values) {
+      for (const value of values) {
+        const normalized = String(value || '').trim();
+        if (normalized) return normalized;
+      }
+      return 'Reference unavailable';
+    }
+
+    function canMarkCustomerBookingCompleted(booking) {
+      if (!booking || (booking.status !== 'Confirmed' && !isCompletionPendingStatus(booking.status))) {
+        return false;
+      }
+
+      const completionValue = booking.eventEndTime || booking.eventDate;
+      if (!completionValue) {
+        return false;
+      }
+
+      const completionGate = new Date(completionValue);
+      if (Number.isNaN(completionGate.getTime())) {
+        return false;
+      }
+
+      if (booking.customerCompletedAt) {
+        return false;
+      }
+
+      return completionGate.getTime() <= Date.now();
+    }
+
+    async function markCustomerBookingCompleted(bookingId) {
+      if (!bookingId) return;
+
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to mark booking as completed.');
+        }
+
+        await showSystemAlert(data.message || 'Completion confirmation recorded.', 'Booking Completion');
+        await loadCustomerBookings();
+        await loadCustomerNotifications();
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to mark booking as completed.', 'Completion Error');
+      }
     }
 
     async function requestBookingRefund(bookingId, reasonCode) {
@@ -1297,18 +1375,21 @@
           const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
           const isCancelled = (booking.status || '').startsWith('Cancelled');
           const isCompleted = (booking.status || '') === 'Completed';
-          const ended = booking.eventDate ? new Date(booking.eventDate).getTime() <= Date.now() : false;
+          const isCompletionPending = isCompletionPendingStatus(booking.status);
+          const ended = (booking.eventEndTime || booking.eventDate) ? new Date(booking.eventEndTime || booking.eventDate).getTime() <= Date.now() : false;
           const canPayServiceFee = serviceFeeStatus !== 'Paid'
             && serviceFeeStatus !== 'NotRequired'
             && !isCancelled;
           const canPayTalentFee = serviceFeeStatus === 'Paid'
             && booking.status === 'Confirmed'
             && Number(booking.budget || 0) > 0
-            && talentFeeStatus !== 'Paid'
+            && !['Paid', 'HeldInEscrow', 'ReadyForRelease', 'Released'].includes(talentFeeStatus)
             && !isCancelled;
-          const canStopBooking = !isCancelled && !isCompleted;
+          const canViewContract = serviceFeeStatus === 'Paid' || serviceFeeStatus === 'NotRequired' || isCompleted;
+          const canCompleteBooking = canMarkCustomerBookingCompleted(booking);
+          const canStopBooking = !isCancelled && !isCompleted && !isCompletionPending && !ended;
           const canRequestNoShowRefund = ended
-            && booking.status === 'Confirmed'
+            && (booking.status === 'Confirmed' || isCompletionPending)
             && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || talentFeeStatus === 'Paid' || talentFeeStatus === 'Refund Failed');
 
           return `
@@ -1323,7 +1404,7 @@
             <div class="text-xs text-white/60 space-y-1">
               <p>${formatBookingDate(booking.eventDate)}</p>
               <p>${booking.location || 'Location to be confirmed'}</p>
-              <p>Service fee: ${formatPeso(booking.bookingFee || 20)}${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}</p>
+              <p>Service fee: ${formatPeso(booking.bookingFee || 15)}${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee ${formatPeso(booking.talentPlatformFee)}` : ''}</p>
             </div>
             <div class="flex flex-wrap gap-2">
               <button onclick="openBookingPrimaryAction('${booking.id}', '${serviceFeeStatus}')" class="px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">
@@ -1331,11 +1412,17 @@
                   ? (booking.hasMessages ? 'Open Messages' : 'Start Conversation')
                   : 'Messages Locked'}
               </button>
+              ${canViewContract
+                ? `<button onclick="openBookingContract('${booking.id}')" class="px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">View Contract</button>`
+                : ''}
               ${canPayServiceFee
-                ? `<button onclick="startBookingPayment('${booking.id}', 'service')" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors whitespace-nowrap">${serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 20)} Fee`}</button>`
+                ? `<button onclick="startBookingPayment('${booking.id}', 'service')" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors whitespace-nowrap">${serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 15)} Fee`}</button>`
                 : canPayTalentFee
-                  ? `<button onclick="startBookingPayment('${booking.id}', 'talent')" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors whitespace-nowrap">${talentFeeStatus === 'AwaitingPayment' ? 'Continue Talent Fee Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee`}</button>`
+                  ? `<button onclick="startBookingPayment('${booking.id}', 'talent')" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors whitespace-nowrap">${talentFeeStatus === 'AwaitingPayment' ? 'Continue Escrow Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee to Escrow`}</button>`
                   : ''}
+              ${canCompleteBooking
+                ? `<button onclick="markCustomerBookingCompleted('${booking.id}')" class="px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-colors whitespace-nowrap">Confirm Completion</button>`
+                : ''}
               ${serviceFeeStatus === 'Paid'
                 ? `<button onclick="showBookingReceipt('${booking.id}')" class="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/15 transition-colors whitespace-nowrap">View Fee Receipt</button>`
                 : ''}
@@ -1343,12 +1430,15 @@
                 ? `<button onclick="cancelCustomerBooking('${booking.id}')" class="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500/15 transition-colors whitespace-nowrap">Stop Booking</button>`
                 : ''}
               ${canRequestNoShowRefund
-                ? `<button onclick="requestBookingRefund('${booking.id}', 'TalentNoShow')" class="px-4 py-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-sky-500/15 transition-colors whitespace-nowrap">Request No-Show Refund</button>`
+                ? `<button onclick="requestBookingRefund('${booking.id}', 'TalentNoShow')" class="px-4 py-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-sky-500/15 transition-colors whitespace-nowrap">Report Talent No-Show</button>`
                 : ''}
             </div>
             <p class="text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(serviceFeeStatus)}">
-              Service fee: ${serviceFeeStatus}${booking.serviceFeePaymentMethod || booking.paymentMethod ? ` • ${formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod)}` : ''}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}
+              Service fee: ${serviceFeeStatus}${booking.serviceFeePaymentMethod || booking.paymentMethod ? ` • ${formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod)}` : ''}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee: ${booking.talentPlatformFeeStatus || 'Unpaid'}` : ''}
             </p>
+            ${canViewContract
+              ? `<p class="text-[11px] text-white/45">Both sides can review the contract inside Messages. After the performance time passes, each side must confirm completion before escrow is released.</p>`
+              : ''}
           </div>
         `;});
         container.innerHTML = bookingMarkup.join('');
@@ -1392,13 +1482,14 @@
           throw new Error(booking.message || 'Failed to load booking receipt.');
         }
 
-        const serviceFeeAmount = Number(booking.bookingFee || 20);
+        const serviceFeeAmount = Number(booking.bookingFee || 15);
         const talentFeeAmount = Number(booking.budget || 0);
         const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
         const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
         const hasTalentPayment = talentFeeAmount > 0;
-        const talentFeePaid = talentFeeStatus === 'Paid';
-        const totalPaid = serviceFeeAmount + (talentFeePaid ? talentFeeAmount : 0);
+        const talentFeeSecured = isTalentFeeSecured(talentFeeStatus);
+        const talentFeeReceiptLabel = getTalentFeeReceiptLabel(talentFeeStatus);
+        const totalPaid = serviceFeeAmount + (talentFeeSecured ? talentFeeAmount : 0);
 
         document.getElementById('brTarget').innerText = booking.targetName || 'Talent';
         document.getElementById('brEvent').innerText = booking.eventTitle || 'Booking payment';
@@ -1409,7 +1500,11 @@
         document.getElementById('brServiceFee').innerText = formatPeso(serviceFeeAmount);
         document.getElementById('brMethod').innerText = formatPaymentMethod(booking.serviceFeePaymentMethod || booking.paymentMethod || '');
         document.getElementById('brPaidAt').innerText = booking.serviceFeePaidAt ? formatBookingDate(booking.serviceFeePaidAt) : (booking.paidAt ? formatBookingDate(booking.paidAt) : 'Payment confirmed');
-        document.getElementById('brReference').innerText = booking.paymentReference || booking.checkoutReference || 'Reference unavailable';
+        document.getElementById('brReference').innerText = resolveReceiptReference(
+          booking.paymentReference,
+          booking.paymentId,
+          booking.checkoutReference
+        );
 
         const talentFeeRow = document.getElementById('brTalentFeeRow');
         const talentMethodRow = document.getElementById('brTalentMethodRow');
@@ -1420,10 +1515,16 @@
           talentMethodRow.classList.remove('hidden');
           talentPaidAtRow.classList.remove('hidden');
           talentReferenceRow.classList.remove('hidden');
-          document.getElementById('brTalentFee').innerText = `${formatPeso(talentFeeAmount)}${talentFeePaid ? '' : ' (unpaid)'}`;
-          document.getElementById('brTalentMethod').innerText = talentFeePaid ? formatPaymentMethod(booking.talentFeePaymentMethod || '') : 'Pending';
-          document.getElementById('brTalentPaidAt').innerText = talentFeePaid && booking.talentFeePaidAt ? formatBookingDate(booking.talentFeePaidAt) : 'Not paid yet';
-          document.getElementById('brTalentReference').innerText = talentFeePaid ? (booking.talentFeePaymentReference || booking.talentFeeCheckoutReference || 'Reference unavailable') : 'Pending';
+          document.getElementById('brTalentFee').innerText = `${formatPeso(talentFeeAmount)}${talentFeeReceiptLabel ? ` (${talentFeeReceiptLabel})` : ''}`;
+          document.getElementById('brTalentMethod').innerText = talentFeeSecured ? formatPaymentMethod(booking.talentFeePaymentMethod || '') : 'Pending';
+          document.getElementById('brTalentPaidAt').innerText = talentFeeSecured && booking.talentFeePaidAt ? formatBookingDate(booking.talentFeePaidAt) : 'Not paid yet';
+          document.getElementById('brTalentReference').innerText = talentFeeSecured
+            ? resolveReceiptReference(
+                booking.talentFeePaymentReference,
+                booking.talentFeePaymentId,
+                booking.talentFeeCheckoutReference
+              )
+            : 'Pending';
         } else {
           talentFeeRow.classList.add('hidden');
           talentMethodRow.classList.add('hidden');

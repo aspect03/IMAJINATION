@@ -468,17 +468,9 @@
       const firstName = localStorage.getItem('userFirstName');
       const role = localStorage.getItem('userRole');
       const userId = localStorage.getItem('userId');
-      const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
-      const accessToken = (localStorage.getItem('accessToken') || '').trim();
 
       if (!firstName || role !== 'Admin') {
           window.location.href = '/pages/auth/login.html';
-          return;
-      }
-
-      if (!sessionToken && !accessToken) {
-          localStorage.setItem('sessionEndedReason', 'session_ended');
-          window.location.href = '/pages/auth/login.html?session=expired';
           return;
       }
 
@@ -1005,6 +997,17 @@
           </div>
           <p class="mt-3 text-sm text-white/65">${escapeHtml(item.verificationPath || 'Manual review')}</p>
           <p class="mt-2 text-xs text-white/45 line-clamp-3">${escapeHtml(item.evidenceSummary || 'No evidence summary provided.')}</p>
+          <div class="mt-3 rounded-2xl border ${Number(item.automatedScore || 0) >= 85 ? 'border-emerald-500/20 bg-emerald-500/10' : Number(item.automatedScore || 0) >= 60 ? 'border-amber-500/20 bg-amber-500/10' : 'border-red-500/20 bg-red-500/10'} p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-[10px] uppercase tracking-[0.2em] text-white/45">Automated Pre-Check</p>
+                <p class="mt-1 text-sm font-semibold text-white">${escapeHtml(item.automatedRecommendation || 'Awaiting automated review')}</p>
+              </div>
+              <span class="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/75">${Number(item.automatedScore || 0)}/100</span>
+            </div>
+            <p class="mt-2 text-xs text-white/55">${escapeHtml(item.automatedNotes || 'The system will scan file completeness, duplicate-image risk, and upload quality before admin review.')}</p>
+            <p class="mt-2 text-[11px] text-white/40">${escapeHtml(item.automatedStatus || 'Pending automation')} | Final decision still requires admin confirmation.</p>
+          </div>
           <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
             ${item.idImageFront ? `
               <button type="button" data-image-src="${escapeHtml(item.idImageFront)}" data-image-title="ID Front • ${escapeHtml(item.displayName || 'Talent')}" class="admin-verification-preview group relative h-28 overflow-hidden rounded-xl border border-white/10 bg-black/40 text-left transition-colors hover:border-white/25">

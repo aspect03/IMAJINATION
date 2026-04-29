@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using ImajinationAPI.Services;
 using Npgsql;
 using NpgsqlTypes;
+using System.Security.Claims;
 
 namespace ImajinationAPI.Controllers
 {
@@ -19,11 +20,54 @@ namespace ImajinationAPI.Controllers
     {
         private readonly string _connectionString;
         private readonly MessageProtectionService _messageProtection;
+        private readonly BookingMessageStreamService _messageStream;
 
-        public MessageController(IConfiguration configuration, MessageProtectionService messageProtection)
+        public MessageController(
+            IConfiguration configuration,
+            MessageProtectionService messageProtection,
+            BookingMessageStreamService messageStream)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _messageProtection = messageProtection;
+            _messageStream = messageStream;
+        }
+
+        private Guid? GetActorUserId() =>
+            Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId) ? parsedUserId : null;
+
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue(ClaimTypes.Role), "Admin", StringComparison.OrdinalIgnoreCase);
+
+        private bool CanAccessUserConversation(Guid targetUserId)
+        {
+            var actorUserId = GetActorUserId();
+            return IsAdmin() || (actorUserId.HasValue && actorUserId.Value == targetUserId);
+        }
+
+        private async Task<(bool Found, Guid CustomerId, Guid TargetUserId, string ServiceFeeStatus, string PaymentStatus)> GetBookingAccessAsync(
+            NpgsqlConnection connection,
+            Guid bookingId)
+        {
+            const string bookingSql = @"
+                SELECT customer_id, target_user_id, COALESCE(service_fee_status, ''), COALESCE(payment_status, '')
+                FROM bookings
+                WHERE id = @bookingId";
+
+            await using var bookingCmd = new NpgsqlCommand(bookingSql, connection);
+            bookingCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+
+            await using var reader = await bookingCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                return (false, Guid.Empty, Guid.Empty, string.Empty, string.Empty);
+            }
+
+            return (
+                true,
+                reader.GetGuid(0),
+                reader.GetGuid(1),
+                reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3));
         }
 
         [HttpGet("conversations/{userId}")]
@@ -31,6 +75,11 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                if (!CanAccessUserConversation(userId))
+                {
+                    return Forbid();
+                }
+
                 var conversations = new List<object>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -105,9 +154,9 @@ namespace ImajinationAPI.Controllers
 
                 return Ok(conversations);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = "Failed to load conversations: " + ex.Message });
+                return StatusCode(500, new { message = "Failed to load conversations." });
             }
         }
 
@@ -121,30 +170,25 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureMessagesTableExists(connection);
 
-                const string bookingGuardSql = @"
-                    SELECT
-                        COALESCE(service_fee_status, ''),
-                        COALESCE(payment_status, '')
-                    FROM bookings
-                    WHERE id = @bookingId;";
-
-                using (var bookingGuardCmd = new NpgsqlCommand(bookingGuardSql, connection))
+                var bookingAccess = await GetBookingAccessAsync(connection, bookingId);
+                if (!bookingAccess.Found)
                 {
-                    bookingGuardCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
-                    using var guardReader = await bookingGuardCmd.ExecuteReaderAsync();
-                    if (!await guardReader.ReadAsync())
-                    {
-                        return NotFound(new { message = "Booking request not found." });
-                    }
+                    return NotFound(new { message = "Booking request not found." });
+                }
 
-                    var serviceFeeStatus = guardReader.IsDBNull(0) ? "" : guardReader.GetString(0);
-                    var paymentStatus = guardReader.IsDBNull(1) ? "" : guardReader.GetString(1);
-                    var normalizedServiceFee = NormalizeServiceFeeStatus(serviceFeeStatus, paymentStatus);
-                    if (!string.Equals(normalizedServiceFee, "Paid", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return StatusCode(403, new { message = "Pay the booking service fee first before opening messages." });
-                    }
+                var actorUserId = GetActorUserId();
+                var isParticipant = actorUserId.HasValue
+                    && (actorUserId.Value == bookingAccess.CustomerId || actorUserId.Value == bookingAccess.TargetUserId);
+                if (!IsAdmin() && !isParticipant)
+                {
+                    return Forbid();
+                }
+
+                var normalizedServiceFee = NormalizeServiceFeeStatus(bookingAccess.ServiceFeeStatus, bookingAccess.PaymentStatus);
+                if (!string.Equals(normalizedServiceFee, "Paid", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(403, new { message = "Pay the booking service fee first before opening messages." });
                 }
 
                 const string sql = @"
@@ -171,9 +215,9 @@ namespace ImajinationAPI.Controllers
 
                 return Ok(messages);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = "Failed to load messages: " + ex.Message });
+                return StatusCode(500, new { message = "Failed to load messages." });
             }
         }
 
@@ -182,7 +226,8 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
-                if (req.senderId == Guid.Empty || string.IsNullOrWhiteSpace(req.message))
+                var actorUserId = GetActorUserId();
+                if (!actorUserId.HasValue || string.IsNullOrWhiteSpace(req.message))
                 {
                     return BadRequest(new { message = "Sender and message are required." });
                 }
@@ -191,56 +236,149 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureMessagesTableExists(connection);
 
-                Guid customerId;
-                Guid targetUserId;
-                string serviceFeeStatus = string.Empty;
-                string paymentStatus = string.Empty;
-
-                const string bookingSql = @"
-                    SELECT customer_id, target_user_id, COALESCE(service_fee_status, ''), COALESCE(payment_status, '')
-                    FROM bookings
-                    WHERE id = @bookingId";
-                using (var bookingCmd = new NpgsqlCommand(bookingSql, connection))
+                if (req.senderId != Guid.Empty && req.senderId != actorUserId.Value)
                 {
-                    bookingCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
-                    using var reader = await bookingCmd.ExecuteReaderAsync();
-                    if (!await reader.ReadAsync())
-                    {
-                        return NotFound(new { message = "Booking request not found." });
-                    }
-
-                    customerId = reader.GetGuid(0);
-                    targetUserId = reader.GetGuid(1);
-                    serviceFeeStatus = reader.IsDBNull(2) ? "" : reader.GetString(2);
-                    paymentStatus = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    return Forbid();
                 }
 
-                var normalizedServiceFee = NormalizeServiceFeeStatus(serviceFeeStatus, paymentStatus);
+                var bookingAccess = await GetBookingAccessAsync(connection, bookingId);
+                if (!bookingAccess.Found)
+                {
+                    return NotFound(new { message = "Booking request not found." });
+                }
+
+                var isParticipant = actorUserId.Value == bookingAccess.CustomerId || actorUserId.Value == bookingAccess.TargetUserId;
+                if (!isParticipant)
+                {
+                    return Forbid();
+                }
+
+                var normalizedServiceFee = NormalizeServiceFeeStatus(bookingAccess.ServiceFeeStatus, bookingAccess.PaymentStatus);
                 if (!string.Equals(normalizedServiceFee, "Paid", StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
                 {
                     return StatusCode(403, new { message = "Pay the booking service fee first before sending messages." });
                 }
 
-                var receiverId = req.senderId == customerId ? targetUserId : customerId;
+                var senderId = actorUserId.Value;
+                var receiverId = senderId == bookingAccess.CustomerId ? bookingAccess.TargetUserId : bookingAccess.CustomerId;
+                var createdAt = DateTime.UtcNow;
+                var messageId = Guid.NewGuid();
+                var cleanMessage = req.message!.Trim();
 
                 const string sql = @"
                     INSERT INTO booking_messages (id, booking_id, sender_id, receiver_id, message_text, created_at)
-                    VALUES (@id, @bookingId, @senderId, @receiverId, @messageText, NOW());";
+                    VALUES (@id, @bookingId, @senderId, @receiverId, @messageText, @createdAt);";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
-                cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = Guid.NewGuid();
+                cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = messageId;
                 cmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
-                cmd.Parameters.Add("@senderId", NpgsqlDbType.Uuid).Value = req.senderId;
+                cmd.Parameters.Add("@senderId", NpgsqlDbType.Uuid).Value = senderId;
                 cmd.Parameters.Add("@receiverId", NpgsqlDbType.Uuid).Value = receiverId;
-                cmd.Parameters.Add("@messageText", NpgsqlDbType.Text).Value = _messageProtection.Protect(req.message!);
+                cmd.Parameters.Add("@messageText", NpgsqlDbType.Text).Value = _messageProtection.Protect(cleanMessage);
+                cmd.Parameters.Add("@createdAt", NpgsqlDbType.TimestampTz).Value = createdAt;
                 await cmd.ExecuteNonQueryAsync();
 
-                return Ok(new { message = "Message sent successfully." });
+                var messagePayload = new
+                {
+                    id = messageId,
+                    senderId,
+                    receiverId,
+                    message = cleanMessage,
+                    createdAt
+                };
+
+                await _messageStream.PublishAsync(bookingId, new
+                {
+                    type = "message_created",
+                    bookingId,
+                    message = messagePayload
+                }, HttpContext.RequestAborted);
+
+                return Ok(new
+                {
+                    message = "Message sent successfully.",
+                    sentMessage = messagePayload
+                });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = "Failed to send message: " + ex.Message });
+                return StatusCode(500, new { message = "Failed to send message." });
+            }
+        }
+
+        [HttpGet("booking/{bookingId}/stream")]
+        public async Task StreamMessages(Guid bookingId)
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(HttpContext.RequestAborted);
+            await EnsureMessagesTableExists(connection);
+
+            var bookingAccess = await GetBookingAccessAsync(connection, bookingId);
+            if (!bookingAccess.Found)
+            {
+                Response.StatusCode = StatusCodes.Status404NotFound;
+                await Response.WriteAsJsonAsync(new { message = "Booking request not found." }, HttpContext.RequestAborted);
+                return;
+            }
+
+            var actorUserId = GetActorUserId();
+            var isParticipant = actorUserId.HasValue
+                && (actorUserId.Value == bookingAccess.CustomerId || actorUserId.Value == bookingAccess.TargetUserId);
+            if (!isParticipant)
+            {
+                Response.StatusCode = StatusCodes.Status403Forbidden;
+                await Response.WriteAsJsonAsync(new { message = "You do not have access to this conversation." }, HttpContext.RequestAborted);
+                return;
+            }
+
+            var normalizedServiceFee = NormalizeServiceFeeStatus(bookingAccess.ServiceFeeStatus, bookingAccess.PaymentStatus);
+            if (!string.Equals(normalizedServiceFee, "Paid", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
+            {
+                Response.StatusCode = StatusCodes.Status403Forbidden;
+                await Response.WriteAsJsonAsync(new { message = "Pay the booking service fee first before opening messages." }, HttpContext.RequestAborted);
+                return;
+            }
+
+            Response.StatusCode = StatusCodes.Status200OK;
+            Response.ContentType = "text/event-stream";
+            Response.Headers["Cache-Control"] = "no-cache";
+            Response.Headers.Append("X-Accel-Buffering", "no");
+
+            await using var subscription = _messageStream.Subscribe(bookingId);
+            await Response.WriteAsync("event: connected\ndata: {\"connected\":true}\n\n", HttpContext.RequestAborted);
+            await Response.Body.FlushAsync(HttpContext.RequestAborted);
+
+            try
+            {
+                while (!HttpContext.RequestAborted.IsCancellationRequested)
+                {
+                    var readTask = subscription.Reader.ReadAsync(HttpContext.RequestAborted).AsTask();
+                    var heartbeatTask = Task.Delay(TimeSpan.FromSeconds(20), HttpContext.RequestAborted);
+                    var completedTask = await Task.WhenAny(readTask, heartbeatTask);
+
+                    if (completedTask == readTask)
+                    {
+                        var payload = await readTask;
+                        await Response.WriteAsync($"event: booking-message\ndata: {payload}\n\n", HttpContext.RequestAborted);
+                    }
+                    else
+                    {
+                        await Response.WriteAsync(": keepalive\n\n", HttpContext.RequestAborted);
+                    }
+
+                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (IOException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
             }
         }
 

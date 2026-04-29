@@ -4,6 +4,7 @@
   const defaultApiCacheTtlMs = 30 * 1000;
   let csrfToken = null;
   let csrfTokenPromise = null;
+  let sessionValidationPromise = null;
   let sessionTimeoutHandle = null;
   let sessionMonitorHandle = null;
   const sessionIdleLimitMs = 30 * 60 * 1000;
@@ -39,7 +40,11 @@
     }
   }
 
-  function shouldRetryWithFallback(response) {
+  function shouldRetryWithFallback(response, options) {
+    if (response?.status === 404 && options?.skipApiFallbackOn404) {
+      return false;
+    }
+
     if (!response) return true;
     return response.status === 404
       || response.status === 502
@@ -56,7 +61,7 @@
     let primaryResponse = null;
     try {
       primaryResponse = await primaryFetch(resource, options);
-      if (!shouldRetryWithFallback(primaryResponse)) {
+      if (!shouldRetryWithFallback(primaryResponse, options)) {
         return primaryResponse;
       }
     } catch {
@@ -74,7 +79,7 @@
           ? new Request(fallbackUrl, resource)
           : fallbackUrl;
         const fallbackResponse = await primaryFetch(fallbackResource, options);
-        if (!shouldRetryWithFallback(fallbackResponse)) {
+        if (!shouldRetryWithFallback(fallbackResponse, options)) {
           return fallbackResponse;
         }
         primaryResponse = fallbackResponse;
@@ -160,6 +165,7 @@
     window.__imajinationSecurityFetchInstalled = true;
 
     const nativeFetch = window.fetch.bind(window);
+    window.__imajinationNativeFetch = nativeFetch;
 
     async function ensureCsrfToken() {
       if (csrfToken) return csrfToken;
@@ -200,6 +206,10 @@
       }
 
       if (isApiRequest) {
+        if (!headers.has('X-Requested-With')) {
+          headers.set('X-Requested-With', 'fetch');
+        }
+
         if (requiresCsrf) {
           const token = await ensureCsrfToken();
           if (!headers.has('X-CSRF-TOKEN') && token) {
@@ -209,20 +219,12 @@
 
         const actorUserId = localStorage.getItem('userId');
         const actorRole = localStorage.getItem('userRole');
-        const sessionToken = localStorage.getItem('sessionToken');
-        const accessToken = localStorage.getItem('accessToken');
 
         if (actorUserId && !headers.has('X-Actor-UserId')) {
           headers.set('X-Actor-UserId', actorUserId);
         }
         if (actorRole && !headers.has('X-Actor-Role')) {
           headers.set('X-Actor-Role', actorRole);
-        }
-        if (sessionToken && !headers.has('X-Session-Token')) {
-          headers.set('X-Session-Token', sessionToken);
-        }
-        if (accessToken && !headers.has('Authorization')) {
-          headers.set('Authorization', `Bearer ${accessToken}`);
         }
       }
 
@@ -361,19 +363,65 @@
     localStorage.removeItem('userProfilePicture');
     localStorage.removeItem('sessionToken');
     localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('loginSessionNotice');
     if (reasonKey) {
       localStorage.setItem('sessionEndedReason', reasonKey);
     }
   }
 
-  function handleUnauthorizedApiResponse(response, requestUrl) {
+  async function confirmSessionExpired() {
+    if (sessionValidationPromise) {
+      return sessionValidationPromise;
+    }
+
+    const userId = (localStorage.getItem('userId') || '').trim();
+    if (!userId) {
+      return true;
+    }
+
+    const nativeFetch = window.__imajinationNativeFetch || window.fetch.bind(window);
+    sessionValidationPromise = nativeFetch(`/api/auth/session-status?userId=${encodeURIComponent(userId)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: {
+        'X-Requested-With': 'fetch'
+      }
+    })
+      .then(async (validationResponse) => {
+        if (validationResponse.ok) {
+          return false;
+        }
+
+        if (validationResponse.status !== 401) {
+          return false;
+        }
+
+        const data = await validationResponse.json().catch(() => ({}));
+        return {
+          expired: true,
+          replacedElsewhere: !!data?.replacedElsewhere
+        };
+      })
+      .catch(() => false)
+      .finally(() => {
+        sessionValidationPromise = null;
+      });
+
+    return sessionValidationPromise;
+  }
+
+  async function handleUnauthorizedApiResponse(response, requestUrl) {
     const path = (window.location.pathname || '').toLowerCase();
     if (path.includes('/pages/auth/') || response?.status !== 401) {
       return response;
     }
 
     const url = String(requestUrl || '').toLowerCase();
-    if (url.includes('/api/auth/login') || url.includes('/api/auth/google-login') || url.includes('/api/auth/mfa/')) {
+    if (url.includes('/api/auth/login')
+      || url.includes('/api/auth/google-login')
+      || url.includes('/api/auth/mfa/')
+      || url.includes('/api/auth/session-status')) {
       return response;
     }
 
@@ -381,9 +429,17 @@
       return response;
     }
 
-    clearStoredUserSession('session_ended');
+    const sessionState = await confirmSessionExpired();
+    if (!sessionState || sessionState === false) {
+      return response;
+    }
+
+    const replacedElsewhere = typeof sessionState === 'object' && !!sessionState.replacedElsewhere;
+    clearStoredUserSession(replacedElsewhere ? 'another_device' : 'session_ended');
     window.setTimeout(() => {
-      window.location.href = '/pages/auth/login.html?session=expired';
+      window.location.href = replacedElsewhere
+        ? '/pages/auth/login.html?session=another-device'
+        : '/pages/auth/login.html?session=expired';
     }, 0);
 
     return response;
@@ -398,8 +454,7 @@
     if (isAuthPage) return;
 
     const userId = (localStorage.getItem('userId') || '').trim();
-    const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
-    if (!userId || !sessionToken) return;
+    if (!userId) return;
 
     const nativeFetch = window.fetch.bind(window);
 
@@ -410,8 +465,7 @@
           cache: 'no-store',
           credentials: 'same-origin',
           headers: {
-            'X-Requested-With': 'fetch',
-            'X-Session-Token': sessionToken
+            'X-Requested-With': 'fetch'
           }
         });
 

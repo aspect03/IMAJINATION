@@ -9,6 +9,7 @@ obj/
 out/
 temp-build-verify/
 temp_build_verify/
+deploy-check/
 runtime-test-*.log
 
 # Local backup and docker backup artifacts

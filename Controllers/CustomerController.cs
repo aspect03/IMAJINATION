@@ -4,6 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using ImajinationAPI.Services;
 using BCrypt.Net;
+using System.Security.Claims;
 
 namespace ImajinationAPI.Controllers
 {
@@ -34,11 +35,28 @@ namespace ImajinationAPI.Controllers
             _uploadScanningService = uploadScanningService;
         }
 
+        private bool CanAccessCustomerRecord(Guid targetUserId)
+        {
+            var actorRole = User.FindFirstValue(ClaimTypes.Role);
+            if (string.Equals(actorRole, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId) &&
+                   actorUserId == targetUserId;
+        }
+
         [HttpGet("{id}/favorites")]
         public async Task<IActionResult> GetCustomerFavorites(Guid id)
         {
             try
             {
+                if (!CanAccessCustomerRecord(id))
+                {
+                    return Forbid();
+                }
+
                 var favorites = new List<object>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -96,9 +114,9 @@ namespace ImajinationAPI.Controllers
 
                 return Ok(favorites);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { message = "Failed to load favorites: " + ex.Message });
+                return StatusCode(500, new { message = "Failed to load favorites." });
             }
         }
 
@@ -124,6 +142,11 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                if (!CanAccessCustomerRecord(id))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
@@ -173,7 +196,10 @@ namespace ImajinationAPI.Controllers
                 }
                 return NotFound(new { message = "Customer not found." });
             }
-            catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to load customer profile." });
+            }
         }
 
         // UPDATE CUSTOMER PROFILE
@@ -183,6 +209,11 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                if (!CanAccessCustomerRecord(id))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
@@ -371,7 +402,10 @@ namespace ImajinationAPI.Controllers
                     profileCompletionLabel = profileSummary.Label
                 });
             }
-            catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to load customer profile." });
+            }
         }
 
         private static string NormalizeEmail(string? email)

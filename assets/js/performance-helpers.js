@@ -8,7 +8,7 @@
   let sessionTimeoutHandle = null;
   let sessionMonitorHandle = null;
   const sessionIdleLimitMs = 30 * 60 * 1000;
-  const sessionMonitorIntervalMs = 45 * 1000;
+  const sessionMonitorIntervalMs = 15 * 1000;
   const apiFallbackBases = resolveApiFallbackBases();
 
   function resolveApiFallbackBases() {
@@ -456,7 +456,7 @@
     const userId = (localStorage.getItem('userId') || '').trim();
     if (!userId) return;
 
-    const nativeFetch = window.fetch.bind(window);
+    const nativeFetch = window.__imajinationNativeFetch || window.fetch.bind(window);
 
     const validateSession = async () => {
       try {
@@ -484,11 +484,16 @@
       }
     };
 
+    validateSession();
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         validateSession();
       }
     });
+
+    window.addEventListener('focus', validateSession);
+    window.addEventListener('pageshow', validateSession);
 
     sessionMonitorHandle = window.setInterval(validateSession, sessionMonitorIntervalMs);
   }

@@ -595,6 +595,8 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureTicketPaymentColumnsExist(connection);
                 await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
+                await SyncPendingTicketRefundStatusesAsync(connection, customerId);
 
                 // FIX: Added 'e.status' so the frontend knows if the event is Finished!
                 string sql = @"
@@ -653,6 +655,87 @@ namespace ImajinationAPI.Controllers
                 return Ok(tickets);
             }
             catch (Exception ex) { return StatusCode(500, new { message = ex.Message }); }
+        }
+
+        private async Task SyncPendingTicketRefundStatusesAsync(NpgsqlConnection connection, Guid customerId)
+        {
+            if (customerId == Guid.Empty || string.IsNullOrWhiteSpace(_paymongoSecretKey))
+            {
+                return;
+            }
+
+            const string sql = @"
+                SELECT
+                    rr.id,
+                    rr.ticket_id,
+                    COALESCE(rr.provider_refund_id, ''),
+                    COALESCE(rr.status, 'Requested'),
+                    COALESCE(rr.amount, 0)
+                FROM refund_requests rr
+                INNER JOIN tickets t ON t.id = rr.ticket_id
+                WHERE rr.refund_scope = 'ticket'
+                  AND t.customer_id = @customerId
+                  AND COALESCE(t.refund_status, '') = 'Refund Pending'
+                  AND COALESCE(rr.status, 'Requested') IN ('Requested', 'ManualReview', 'Refund Pending');";
+
+            var pendingItems = new List<(Guid RefundRequestId, Guid TicketId, string ProviderRefundId, string Status, decimal Amount)>();
+            await using (var cmd = new NpgsqlCommand(sql, connection))
+            {
+                cmd.Parameters.AddWithValue("@customerId", customerId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    pendingItems.Add((
+                        reader.GetGuid(0),
+                        reader.GetGuid(1),
+                        reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                        reader.IsDBNull(3) ? "Requested" : reader.GetString(3),
+                        reader.IsDBNull(4) ? 0m : reader.GetDecimal(4)
+                    ));
+                }
+            }
+
+            foreach (var item in pendingItems)
+            {
+                if (string.IsNullOrWhiteSpace(item.ProviderRefundId))
+                {
+                    continue;
+                }
+
+                var refundResult = await PaymentRefundService.GetPayMongoRefundStatusAsync(_paymongoSecretKey, item.ProviderRefundId);
+                var localRefundStatus = refundResult.Status == "Refunded"
+                    ? "Refunded"
+                    : refundResult.Status == "Refund Pending"
+                        ? "Refund Pending"
+                        : refundResult.Status == "ManualReview"
+                            ? "Refund Pending"
+                            : "Refund Failed";
+
+                await using (var updateTicketCmd = new NpgsqlCommand(@"
+                    UPDATE tickets
+                    SET refund_status = @status,
+                        refund_processed_at = CASE WHEN @status = 'Refunded' THEN NOW() ELSE refund_processed_at END
+                    WHERE id = @ticketId;", connection))
+                {
+                    updateTicketCmd.Parameters.AddWithValue("@status", localRefundStatus);
+                    updateTicketCmd.Parameters.AddWithValue("@ticketId", item.TicketId);
+                    await updateTicketCmd.ExecuteNonQueryAsync();
+                }
+
+                await PaymentRefundService.UpdateRefundRequestAsync(
+                    connection,
+                    item.RefundRequestId,
+                    status: localRefundStatus == "Refunded" ? "Refunded" : localRefundStatus == "Refund Pending" ? "ManualReview" : "Failed",
+                    providerRefundId: refundResult.RefundId,
+                    providerStatus: refundResult.ProviderStatus,
+                    errorCode: refundResult.ErrorCode,
+                    errorMessage: refundResult.ErrorMessage);
+
+                if (localRefundStatus == "Refunded")
+                {
+                    await PaymentLedgerService.MarkRefundedAsync(connection, "ticket_purchase", item.TicketId, null, "Refunded");
+                }
+            }
         }
 
         [HttpPost("{ticketId}/payment/confirm")]

@@ -432,7 +432,7 @@
       const role = (localStorage.getItem('userRole') || '').trim();
       const userId = (localStorage.getItem('userId') || '').trim();
       const storedProfilePicture = localStorage.getItem('userProfilePicture');
-      const displayName = firstName || username || role || 'User';
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
 
       if (userId && role) {
         document.getElementById('authLoggedOut').classList.add('hidden');

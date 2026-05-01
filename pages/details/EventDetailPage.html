@@ -116,11 +116,10 @@
         </div>
 
         <div id="eventContent" class="hidden">
-          <div class="mb-10 flex items-center gap-4">
-            <a href="/pages/browse/Events.html" class="text-white/60 hover:text-white transition-colors bg-white/5 p-2 rounded-full border border-white/10">
-              <i data-lucide="arrow-left" class="w-5 h-5"></i>
+          <div class="mb-8">
+            <a href="/pages/browse/Events.html" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors text-xs font-medium mb-6">
+              <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Events
             </a>
-            <h2 class="text-3xl font-extrabold tracking-tight text-white">Event Details</h2>
           </div>
 
           <div class="w-full aspect-[21/9] md:aspect-[24/7] rounded-3xl overflow-hidden relative mb-8 border border-white/10 bg-black/40">
@@ -299,7 +298,7 @@
       const role = (localStorage.getItem('userRole') || '').trim();
       const userId = (localStorage.getItem('userId') || '').trim();
       const storedProfilePicture = localStorage.getItem('userProfilePicture');
-      const displayName = firstName || username || role || 'User';
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
 
       if (userId && role) {
         document.getElementById('authLoggedOut').classList.add('hidden');
@@ -449,6 +448,97 @@
       }).join('');
     }
 
+    function parseArtistNames(value) {
+      return String(value || '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean);
+    }
+
+    function renderEventTags(ev) {
+      const tagsContainer = document.getElementById('detailTags');
+      if (!tagsContainer) return;
+
+      let markup = `<span class="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-white">${ev.eventType || 'Live Gig'}</span>`;
+      if (ev.genres) {
+        ev.genres.split(',').forEach((genre) => {
+          if (genre.trim()) {
+            markup += `<span class="px-3 py-1 bg-[#cc292b]/20 border border-[#cc292b]/50 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-red-400">${genre.trim()}</span>`;
+          }
+        });
+      }
+
+      const artistNames = Array.isArray(ev.artistLineup) && ev.artistLineup.length
+        ? ev.artistLineup.map((item) => item.displayName).filter(Boolean)
+        : parseArtistNames(ev.artists);
+      artistNames.slice(0, 4).forEach((name) => {
+        markup += `<span class="px-3 py-1 bg-amber-500/12 border border-amber-400/25 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">Artist: ${name}</span>`;
+      });
+
+      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0) {
+        const saleSuffix = String(ev.saleType).toLowerCase() === 'percent' ? `${ev.saleValue}% off` : `PHP ${Number(ev.saleValue).toFixed(0)} off`;
+        markup += `<span class="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">${ev.saleName} • ${saleSuffix}</span>`;
+      }
+
+      tagsContainer.innerHTML = markup;
+    }
+
+    const eventReportReasons = [
+      'Drugs involved',
+      'Minors present',
+      'Harassment or misconduct',
+      'Illegal activity',
+      'Other'
+    ];
+
+    async function promptForStructuredEventReport() {
+      const selection = await window.systemDialog.prompt(
+        `Choose the main reason for this report:\n1. Drugs involved\n2. Minors present\n3. Harassment or misconduct\n4. Illegal activity\n5. Other`,
+        {
+          title: 'Report Event',
+          kicker: 'Safety Report',
+          placeholder: 'Type 1 to 5',
+          okText: 'Next',
+          required: true
+        }
+      );
+
+      if (!selection) return null;
+
+      const normalized = selection.trim().toLowerCase();
+      const optionIndex = Number.parseInt(normalized, 10) - 1;
+      const reason = eventReportReasons[optionIndex]
+        || eventReportReasons.find((item) => item.toLowerCase() === normalized);
+
+      if (!reason) {
+        await window.systemDialog.alert('Choose one of the listed event report reasons from 1 to 5.', {
+          title: 'Reason Needed',
+          kicker: 'Safety Report'
+        });
+        return promptForStructuredEventReport();
+      }
+
+      const details = await window.systemDialog.prompt(
+        reason === 'Other'
+          ? 'Tell us what happened so the team can review this event report.'
+          : `Add more details about "${reason}" if needed.`,
+        {
+          title: reason === 'Other' ? 'Describe The Issue' : 'Additional Details',
+          kicker: 'Safety Report',
+          placeholder: reason === 'Other' ? 'Explain what happened' : 'Optional extra details',
+          okText: 'Submit',
+          multiline: true,
+          required: reason === 'Other'
+        }
+      );
+
+      if (details === null) return null;
+      return {
+        reason,
+        details: details || ''
+      };
+    }
+
     function renderEventDetails(ev, eventId) {
       currentEventId = eventId;
       currentEventTitle = ev.title || 'Event';
@@ -462,9 +552,11 @@
       document.getElementById('detailDesc').innerText = ev.description;
       document.getElementById('detailOrganizerName').innerText = ev.organizerName || 'Unknown Organizer';
       document.getElementById('detailOrganizerName').href = ev.organizerId ? `/pages/details/OrganizerDetails.html?id=${ev.organizerId}` : '#';
-      document.getElementById('detailOrganizerMeta').innerText = ev.organizerVerified
-        ? 'Verified organizer profile'
-        : (ev.organizerBio || 'Organizer profile details are still being completed.');
+      document.getElementById('detailOrganizerMeta').innerText = ev.organizerEmail
+        ? `Organizer email: ${ev.organizerEmail}`
+        : (ev.organizerVerified
+          ? 'Verified organizer profile'
+          : (ev.organizerBio || 'Organizer profile details are still being completed.'));
       const organizerImg = document.getElementById('detailOrganizerImg');
       const organizerIcon = document.getElementById('detailOrganizerIcon');
       if (ev.organizerProfilePicture) {
@@ -484,8 +576,9 @@
             if (organizer.averageRating) ratingBits.push(`${Number(organizer.averageRating).toFixed(1)} average rating`);
             if (organizer.reviewCount) ratingBits.push(`${organizer.reviewCount} review${organizer.reviewCount === 1 ? '' : 's'}`);
             if (Array.isArray(organizer.recentGigs) && organizer.recentGigs.length) ratingBits.push(`${organizer.recentGigs.length} recent gig${organizer.recentGigs.length === 1 ? '' : 's'}`);
+            if (organizer.email) ratingBits.unshift(organizer.email);
             if (ratingBits.length) {
-              document.getElementById('detailOrganizerMeta').innerText = ratingBits.join(' • ');
+              document.getElementById('detailOrganizerMeta').innerText = ratingBits.join(' | ');
             }
           })
           .catch(() => {});
@@ -503,6 +596,8 @@
         const saleSuffix = String(ev.saleType).toLowerCase() === 'percent' ? `${ev.saleValue}% off` : `PHP ${Number(ev.saleValue).toFixed(0)} off`;
         tagsContainer.innerHTML += `<span class="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">${ev.saleName} • ${saleSuffix}</span>`;
       }
+
+      renderEventTags(ev);
 
       const fTime = new Date(ev.time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       document.getElementById('detailTime').innerText = fTime;
@@ -675,7 +770,9 @@
           });
         }
 
-        const fTime = new Date(ev.time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        renderEventTags(ev);
+
+      const fTime = new Date(ev.time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         document.getElementById('detailTime').innerText = fTime;
 
         // ==============================================================
@@ -953,21 +1050,8 @@
         return;
       }
 
-      const reason = await window.systemDialog.prompt('What is the main reason for this event report?', {
-        title: 'Report Event',
-        kicker: 'Safety Report',
-        placeholder: 'Enter the main reason',
-        okText: 'Next',
-        required: true
-      });
-      if (!reason) return;
-      const details = await window.systemDialog.prompt('Add more details if needed (optional):', {
-        title: 'More Details',
-        kicker: 'Optional Context',
-        placeholder: 'Add more details here',
-        okText: 'Submit',
-        multiline: true
-      }) || '';
+      const reportPayload = await promptForStructuredEventReport();
+      if (!reportPayload) return;
 
       try {
         const response = await fetch('/api/report', {
@@ -977,17 +1061,25 @@
             reporterUserId,
             targetId: currentEventId,
             targetType: 'event',
-            reason,
-            details
+            reason: reportPayload.reason,
+            details: reportPayload.details
           })
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.message || 'Failed to submit report.');
-        alert(data.message || `${currentEventTitle} was reported successfully.`);
+        await window.systemDialog.alert(data.message || `${currentEventTitle} was reported successfully.`, {
+          title: 'Report Submitted',
+          kicker: 'Safety Report'
+        });
       } catch (error) {
-        alert(error.message || 'Failed to submit report.');
+        await window.systemDialog.alert(error.message || 'Failed to submit report.', {
+          title: 'Report Failed',
+          kicker: 'Safety Report'
+        });
       }
     });
   </script>
 </body>
 </html>
+
+

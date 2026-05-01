@@ -94,175 +94,222 @@
     </div>
   </nav>
 
-  <main class="relative z-10 w-full flex-grow pt-32 pb-24">
-    <section class="max-w-6xl mx-auto px-6">
-      
-      <a href="/pages/browse/Artists.html" class="inline-flex items-center justify-center w-10 h-10 rounded-full border border-white/10 bg-black/40 text-white/60 hover:text-white hover:bg-white/5 transition-colors mb-12 backdrop-blur-sm">
-        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+  <!-- Ambient background -->
+  <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+    <div class="absolute top-0 left-1/4 w-[700px] h-[400px] bg-red-600/[0.05] blur-[140px] rounded-full"></div>
+    <div class="absolute bottom-0 right-1/4 w-[500px] h-[400px] bg-blue-600/[0.04] blur-[120px] rounded-full"></div>
+  </div>
+
+  <main class="relative z-10 w-full flex-grow pt-20 pb-24">
+    <section class="max-w-6xl mx-auto px-6 pt-8">
+
+      <!-- Back link -->
+      <a href="/pages/browse/Artists.html" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors text-xs font-medium mb-8">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Artists
       </a>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div class="lg:col-span-7 xl:col-span-8 flex flex-col">
-          <div class="flex items-center gap-6">
-            <img id="detailImg" src="" alt="Avatar" class="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-[#221e1e] shadow-xl hidden bg-neutral-900">
-            
-            <div class="flex flex-col items-start">
-              <h1 id="detailName" class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">Loading...</h1>
-              <div id="artistProfileBadge" class="mb-3 inline-flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 text-white/40" title="Profile status">
-                <i data-lucide="shield" class="w-4 h-4"></i>
+      <!-- Profile header card -->
+      <div class="relative overflow-hidden bg-white/[0.02] border border-white/[0.07] rounded-2xl p-6 mb-8">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_0%_0%,rgba(239,68,68,0.06),transparent_65%)] pointer-events-none"></div>
+        <div class="relative flex flex-col lg:flex-row gap-6">
+          <!-- Left: photo + info -->
+          <div class="flex flex-col sm:flex-row gap-6 flex-1 min-w-0">
+            <!-- Photo -->
+            <div class="relative flex-shrink-0 w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden bg-neutral-900 border border-white/[0.08] shadow-2xl">
+              <img id="detailImg" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <div id="artistProfileBadge" class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-white/10 bg-white/5 text-white/40" title="Profile status">
+                  <i data-lucide="shield" class="w-3 h-3"></i>
+                </div>
+                <p id="detailAvailability" class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">Available</p>
+                <span id="artistVerificationTag" class="hidden px-2.5 py-1 rounded-full border border-amber-400/20 bg-amber-500/10 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Not Yet Verified</span>
               </div>
-              <p id="detailAvailability" class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">Available</p>
+              <h1 id="detailName" class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-3 leading-tight">Loading...</h1>
+              <p id="artistProfileStatusLabel" class="text-xs text-white/45 bg-white/[0.04] border border-white/[0.07] px-3 py-1.5 rounded-full inline-block mb-4">Loading...</p>
               <div class="flex flex-wrap items-center gap-2">
-                <button id="favoriteBtn" type="button" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-transparent text-[10px] font-semibold uppercase tracking-[0.15em] text-white hover:bg-white/5 transition-colors">
-                  <i data-lucide="heart" class="w-3.5 h-3.5 text-white/60"></i> Add to Favorites
+                <button id="favoriteBtn" type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.04] text-xs font-semibold text-white/65 hover:text-white hover:bg-white/[0.08] transition-colors">
+                  <i data-lucide="heart" class="w-3.5 h-3.5"></i> Add to Favorites
                 </button>
-                <button id="reportArtistBtn" type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-full border border-white/15 bg-transparent text-white/70 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Artist" aria-label="Report Artist">
+                <button id="reportArtistBtn" type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-white/[0.1] bg-white/[0.04] text-white/45 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Artist">
                   <i data-lucide="shield-alert" class="w-4 h-4"></i>
                 </button>
               </div>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-8">
-            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/40">Average Rating</p>
-              <p id="ratingAverage" class="text-2xl font-bold text-white mt-2">0.0</p>
+          <!-- Right: metrics + book button -->
+          <div class="flex flex-row lg:flex-col gap-3 lg:w-48 flex-shrink-0">
+            <div class="flex gap-3 flex-1 lg:flex-none">
+              <div class="flex-1 bg-gradient-to-br from-amber-500/[0.1] to-transparent border border-amber-500/20 rounded-xl px-3 py-3 text-center">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-1">Rating</p>
+                <p id="ratingAverage" class="text-xl font-extrabold text-amber-400">0.0</p>
+              </div>
+              <div class="flex-1 bg-gradient-to-br from-red-500/[0.1] to-transparent border border-red-500/20 rounded-xl px-3 py-3 text-center">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-1">From</p>
+                <p id="detailBasePrice" class="text-base font-extrabold text-red-400">PHP 0</p>
+              </div>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/40">Favorites</p>
-              <p id="favoriteCount" class="text-2xl font-bold text-white mt-2">0</p>
+            <button id="bookArtistBtn" type="button" title="Send a booking request"
+              class="lg:w-full px-5 py-3 lg:py-4 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors shadow-[0_0_20px_-8px_rgba(239,68,68,0.7)] disabled:cursor-not-allowed disabled:bg-white/[0.07] disabled:text-white/35 disabled:shadow-none whitespace-nowrap">
+              Book Artist
+            </button>
+          </div>
+        </div>
+
+        <!-- Genres + Spotify row (inside profile card, below) -->
+        <div class="relative mt-5 pt-5 border-t border-white/[0.06] flex flex-wrap items-center gap-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 mr-1">Genres</p>
+            <div class="flex flex-wrap gap-2" id="detailGenres"></div>
+          </div>
+          <div class="hidden ml-auto" id="spotifyContainer">
+            <a id="detailSpotify" href="#" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-[#1db954]/10 border border-[#1db954]/20 rounded-xl text-[#1db954] hover:bg-[#1db954]/20 transition-colors text-[10px] font-bold uppercase tracking-widest">
+              <i data-lucide="music" class="w-3.5 h-3.5"></i> Spotify
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main content — full width -->
+      <div class="space-y-6">
+
+          <!-- Stat row -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-gradient-to-br from-blue-500/[0.08] to-transparent border border-blue-500/[0.15] rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-2">Favorites</p>
+              <p id="favoriteCount" class="text-2xl font-extrabold text-white">0</p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/40">Feedback Entries</p>
-              <p id="reviewCount" class="text-2xl font-bold text-white mt-2">0</p>
+            <div class="bg-gradient-to-br from-purple-500/[0.08] to-transparent border border-purple-500/[0.15] rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-2">Reviews</p>
+              <p id="reviewCount" class="text-2xl font-extrabold text-white">0</p>
             </div>
-            <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/40">Base Price</p>
-              <p id="detailBasePrice" class="text-2xl font-bold text-white mt-2">PHP 0</p>
+            <div id="artistTalentSetupCard" class="hidden sm:col-span-2 bg-gradient-to-br from-white/[0.04] to-transparent border border-white/[0.08] rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-2">Talent Setup</p>
+              <span id="artistTalentCategoryBadge" class="text-sm font-extrabold text-white">Artist</span>
+              <div id="artistMembersWrap" class="hidden mt-3 pt-3 border-t border-white/5">
+                <p class="text-[10px] text-white/30 mb-2">Members</p>
+                <div id="artistMembersList" class="flex flex-wrap gap-1.5"></div>
+              </div>
             </div>
           </div>
 
-          <div class="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 mt-4">
-            <p class="text-[10px] uppercase tracking-widest text-emerald-200/70">Verified Gigs</p>
-            <p id="verifiedGigCount" class="text-2xl font-bold text-emerald-300 mt-2">0</p>
+          <!-- About -->
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-white/[0.07] border border-white/[0.09] flex items-center justify-center flex-shrink-0"><i data-lucide="user-round" class="w-3.5 h-3.5 text-white/50"></i></span>
+              <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/50">About The Artist</p>
+            </div>
+            <p id="detailBio" class="text-sm text-white/75 leading-relaxed whitespace-pre-line"></p>
           </div>
 
-          <div id="artistTalentSetupCard" class="hidden rounded-2xl border border-white/10 bg-black/30 p-5 mt-4">
-            <div class="flex items-center justify-between gap-4 mb-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/40">Talent Setup</p>
-              <span id="artistTalentCategoryBadge" class="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">Artist</span>
-            </div>
-            <div id="artistMembersWrap" class="hidden">
-              <p class="text-[10px] uppercase tracking-widest text-white/40 mb-3">Members</p>
-              <div id="artistMembersList" class="flex flex-wrap gap-2"></div>
-            </div>
-          </div>
-
-          <hr class="border-white/5 my-8">
-
+          <!-- Current Gigs -->
           <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45 mb-4">About The Artist</p>
-            <p id="detailBio" class="text-sm font-light text-white/80 leading-relaxed whitespace-pre-line uppercase tracking-wide"></p>
-          </div>
-
-          <div class="mt-8">
-            <div class="flex items-center justify-between mb-4">
-              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Events Joined</p>
-              <span class="text-[10px] uppercase tracking-widest text-white/35">Linked by organizers</span>
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-400"></i></span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Current Gigs</p>
+                <p class="text-[10px] text-white/30 mt-0.5">Upcoming or active bookings</p>
+              </div>
             </div>
-            <div id="relatedEventsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <p class="text-sm text-white/50">Loading events...</p>
+            <div id="currentGigsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <p class="text-sm text-white/45">Loading events...</p>
             </div>
           </div>
 
-          <div class="mt-8">
-            <div class="flex items-center justify-between mb-4">
-              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Verified Performance History</p>
-              <span class="text-[10px] uppercase tracking-widest text-emerald-300/70">Auto-verified from finished gigs</span>
+          <!-- Past Gigs -->
+          <div>
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-slate-500/10 border border-slate-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="history" class="w-3.5 h-3.5 text-slate-400"></i></span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Past Gigs</p>
+                <p class="text-[10px] text-white/30 mt-0.5">Finished event history</p>
+              </div>
             </div>
-            <div id="verifiedGigsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <p class="text-sm text-white/50">Loading verified gigs...</p>
+            <div id="pastGigsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <p class="text-sm text-white/45">Loading gig history...</p>
             </div>
           </div>
 
-          <div class="mt-8">
-            <div class="flex items-center justify-between mb-4">
-              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">Community Posts</p>
-              <span class="text-[10px] uppercase tracking-widest text-white/35">Visible to customers and organizers</span>
+          <!-- Community Posts -->
+          <div>
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="megaphone" class="w-3.5 h-3.5 text-blue-400"></i></span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Community Posts</p>
+                <p class="text-[10px] text-white/30 mt-0.5">Visible to customers and organizers</p>
+              </div>
             </div>
             <div id="artistPostsList" class="space-y-4">
-              <p class="text-sm text-white/50">Loading posts...</p>
+              <p class="text-sm text-white/45">Loading posts...</p>
             </div>
           </div>
 
-          <div class="mt-8 grid grid-cols-1 xl:grid-cols-5 gap-6">
-            <div id="artistReviewPanel" class="hidden xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
-              <div class="flex items-center justify-between mb-5">
-                <div>
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white">Rate This Artist</h3>
-                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Customer feedback only</p>
-                </div>
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">
-                  <i data-lucide="star" class="w-3.5 h-3.5 text-yellow-400"></i> Live Reviews
-                </div>
+          <!-- Reviews -->
+          <div id="artistReviewPanel" class="hidden bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-2.5 mb-5">
+              <span class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="star" class="w-3.5 h-3.5 text-amber-400"></i></span>
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Rate This Artist</h3>
+                <p class="text-[10px] text-white/30 mt-0.5">Customer feedback only</p>
               </div>
-              <form id="reviewForm" class="space-y-4">
-                <div class="space-y-2">
-                  <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Your Rating</label>
-                  <select id="reviewRating" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
-                    <option value="5">5 - Outstanding</option>
-                    <option value="4">4 - Great</option>
-                    <option value="3">3 - Good</option>
-                    <option value="2">2 - Fair</option>
-                    <option value="1">1 - Needs Work</option>
-                  </select>
-                </div>
-                <div class="space-y-2">
-                  <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Feedback</label>
-                  <textarea id="reviewFeedback" rows="5" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none" placeholder="Share what stood out, how they performed, and why you would recommend them."></textarea>
-                </div>
-                <p id="reviewStatus" class="text-xs text-white/45">Sign in as a Customer to leave a rating or add them to your favorites.</p>
-                <button id="submitReviewBtn" type="submit" class="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 transition-colors">
-                  Submit Feedback
-                </button>
-              </form>
             </div>
+            <form id="reviewForm" class="space-y-4">
+              <div class="space-y-1.5">
+                <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Your Rating</label>
+                <select id="reviewRating" class="w-full px-4 py-3 bg-black/30 border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50">
+                  <option value="5">5 - Outstanding</option>
+                  <option value="4">4 - Great</option>
+                  <option value="3">3 - Good</option>
+                  <option value="2">2 - Fair</option>
+                  <option value="1">1 - Needs Work</option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Feedback</label>
+                <textarea id="reviewFeedback" rows="4" class="w-full px-4 py-3 bg-black/30 border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 resize-none" placeholder="Share what stood out, how they performed, and why you'd recommend them."></textarea>
+              </div>
+              <p id="reviewStatus" class="text-xs text-white/40">Sign in as a Customer to leave a rating.</p>
+              <button id="submitReviewBtn" type="submit" class="w-full py-3 rounded-xl bg-white/[0.05] border border-white/[0.09] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/[0.09] transition-colors">Submit Feedback</button>
+            </form>
+          </div>
 
-            <div id="artistReviewsPanel" class="xl:col-span-5 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
-              <div class="flex items-center justify-between mb-5">
-                <div>
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white">Customer Feedback</h3>
-                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Recent ratings and comments</p>
-                </div>
-              </div>
-              <div id="reviewsList" class="space-y-4">
-                <p class="text-sm text-white/50">Loading feedback...</p>
-              </div>
+          <div id="artistReviewsPanel" class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-2.5 mb-5">
+              <span class="w-7 h-7 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="message-square-text" class="w-3.5 h-3.5 text-yellow-400"></i></span>
+              <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Customer Feedback</p>
+            </div>
+            <div id="reviewsList" class="space-y-4">
+              <p class="text-sm text-white/45">Loading feedback...</p>
             </div>
           </div>
         </div>
 
-        <div class="lg:col-span-5 xl:col-span-4">
-          <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 shadow-2xl backdrop-blur-md">
-            <button id="bookArtistBtn" type="button" class="w-full py-4 rounded-2xl bg-[#cc292b] text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors shadow-[0_0_30px_-10px_rgba(204,41,43,0.5)]">
-              Book Artist
-            </button>
-
-            <div class="mt-8 mb-8">
-              <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Genres:</h4>
-              <div class="flex flex-wrap gap-2" id="detailGenres"></div>
+        <!-- RIGHT — sticky booking sidebar -->
+        <div class="lg:col-span-1">
+          <div class="sticky top-24 space-y-4">
+            <!-- Book button -->
+            <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
+              <button id="bookArtistBtn" type="button" title="Send a booking request" class="w-full py-4 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors shadow-[0_0_30px_-12px_rgba(239,68,68,0.6)] disabled:cursor-not-allowed disabled:bg-white/[0.07] disabled:text-white/35 disabled:shadow-none">
+                Book Artist
+              </button>
+              <div class="mt-5">
+                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-3">Genres</p>
+                <div class="flex flex-wrap gap-2" id="detailGenres"></div>
+              </div>
             </div>
-
-            <div class="mb-8 hidden" id="spotifyContainer">
-              <h4 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-4">Music:</h4>
+            <!-- Spotify -->
+            <div class="hidden" id="spotifyContainer">
               <a id="detailSpotify" href="#" target="_blank" class="w-full py-3 bg-[#1db954]/10 border border-[#1db954]/20 rounded-xl flex items-center justify-center gap-2 text-[#1db954] hover:bg-[#1db954]/20 transition-colors text-[10px] font-bold uppercase tracking-widest">
                 <i data-lucide="music" class="w-4 h-4"></i> Listen on Spotify
               </a>
             </div>
-
           </div>
         </div>
 
+      </div>
       </div>
     </section>
   </main>
@@ -476,7 +523,7 @@
       const role = (localStorage.getItem('userRole') || '').trim();
       const userId = (localStorage.getItem('userId') || '').trim();
       const storedProfilePicture = localStorage.getItem('userProfilePicture');
-      const displayName = firstName || username || role || 'User';
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
 
       if (userId && role) {
         document.getElementById('authLoggedOut').classList.add('hidden');
@@ -535,7 +582,8 @@
 
         // Populate Text
         currentArtistName = artist.displayName;
-        const artistVerifiedForBookings = String(artist.verificationStatus || '').toLowerCase() === 'approved';
+        const artistVerificationStatus = String(artist.verificationStatus || '').toLowerCase();
+        const artistVerifiedForBookings = artistVerificationStatus === 'approved';
         currentArtistAvailable = artist.isAvailable !== false && artistVerifiedForBookings;
         document.getElementById('detailName').innerText = artist.displayName;
         document.getElementById('bookingModalSubtitle').innerText = `Book ${artist.displayName}, send the request, and continue in chat.`;
@@ -548,16 +596,24 @@
           ? 'Available'
           : artistVerifiedForBookings ? 'Not Available' : 'Verification Pending';
         document.getElementById('detailAvailability').className = `mb-3 text-[10px] font-bold uppercase tracking-[0.18em] ${currentArtistAvailable ? 'text-emerald-400' : 'text-white/50'}`;
+        document.getElementById('artistProfileStatusLabel').innerText = getArtistProfileStatusLabel(artist.verificationStatus, artist.isAvailable !== false);
         currentArtistBasePrice = Number(artist.basePrice || 0);
         document.getElementById('detailBasePrice').innerText = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentArtistBasePrice);
         syncBookingBudgetWithBasePrice(true);
         document.getElementById('bookArtistBtn').disabled = !currentArtistAvailable;
         document.getElementById('bookArtistBtn').classList.toggle('opacity-50', !currentArtistAvailable);
+        document.getElementById('bookArtistBtn').title = currentArtistAvailable
+          ? `Send a booking request to ${artist.displayName}`
+          : artistVerifiedForBookings
+            ? `${artist.displayName} is currently unavailable for new bookings.`
+            : `${artist.displayName} cannot be booked until profile verification is approved.`;
         document.getElementById('bookArtistBtn').innerText = currentArtistAvailable
           ? 'Book Artist'
           : artistVerifiedForBookings ? 'Currently Unavailable' : 'Verification Pending';
+        const verificationTag = document.getElementById('artistVerificationTag');
+        verificationTag.classList.toggle('hidden', artistVerifiedForBookings);
+        verificationTag.innerText = artistVerificationStatus === 'pending' ? 'Verification Pending' : 'Not Yet Verified';
         document.getElementById('detailBio').innerText = artist.bio;
-        document.getElementById('verifiedGigCount').innerText = artist.verifiedGigCount || 0;
         renderTalentSetup(artist.talentCategory, artist.memberNames, 'Artist');
         
         // Populate Image
@@ -581,8 +637,9 @@
             document.getElementById('spotifyContainer').classList.remove('hidden');
         }
 
-        renderRelatedEvents(artist.relatedEvents || []);
-        renderVerifiedGigs(artist.verifiedGigs || []);
+        const timelineGroups = splitEventsByTimeline(artist.relatedEvents || []);
+        renderEventsIntoSection('currentGigsList', timelineGroups.current, 'No current gigs yet.');
+        renderEventsIntoSection('pastGigsList', timelineGroups.past, 'No past gigs yet.');
         lucide.createIcons();
         await loadArtistBlockedDates();
 
@@ -620,7 +677,7 @@
         membersWrap.classList.remove('hidden');
         normalizedMembers.forEach(name => {
           const chip = document.createElement('span');
-          chip.className = 'px-3 py-1.5 bg-[#0a0a0a] border border-white/5 rounded-lg text-[10px] font-bold tracking-widest uppercase text-white/70 shadow-inner';
+          chip.className = 'px-3.5 py-2 bg-[#0a0a0a] border border-white/5 rounded-xl text-[10px] font-bold tracking-widest uppercase text-white/70 shadow-inner';
           chip.innerText = name;
           membersList.appendChild(chip);
         });
@@ -1068,11 +1125,37 @@
       if (normalized.includes('cancel') || normalized === 'suspended' || normalized === 'flagged') return 'bg-red-500/15 border border-red-400/20 text-red-300';
       return 'bg-emerald-500/15 border border-emerald-400/20 text-emerald-300';
     }
-    function renderRelatedEvents(events) {
-      const container = document.getElementById('relatedEventsList');
+    function getArtistProfileStatusLabel(verificationStatus, isAvailable) {
+      const normalized = String(verificationStatus || '').trim().toLowerCase();
+      if (normalized === 'approved') return isAvailable ? 'Verified & Bookable' : 'Verified';
+      if (normalized === 'pending') return 'Verification Pending';
+      if (normalized === 'denied' || normalized === 'rejected') return 'Verification Needs Attention';
+      return 'Not Yet Verified';
+    }
+    function splitEventsByTimeline(events) {
+      const now = Date.now();
+      const current = [];
+      const past = [];
+      (Array.isArray(events) ? events : []).forEach((event) => {
+        const normalizedStatus = String(event?.status || '').trim().toLowerCase();
+        const eventTime = new Date(event?.time || '').getTime();
+        const isPast = normalizedStatus === 'finished'
+          || normalizedStatus === 'completed'
+          || (!Number.isNaN(eventTime) && eventTime < now);
+        if (isPast) {
+          past.push(event);
+        } else {
+          current.push(event);
+        }
+      });
+      return { current, past };
+    }
+    function renderEventsIntoSection(containerId, events, emptyMessage) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
 
       if (!Array.isArray(events) || events.length === 0) {
-        container.innerHTML = `<p class="text-sm text-white/50">No linked events yet.</p>`;
+        container.innerHTML = `<p class="text-sm text-white/50">${emptyMessage}</p>`;
         return;
       }
 
@@ -1083,26 +1166,6 @@
           <p class="mt-1 text-xs text-white/45">${event.city ? `${event.city} - ${event.location}` : event.location}</p>
           <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest ${getEventStatusBadgeClass(event.status)}">${event.status}</span>
         </a>
-      `).join('');
-    }
-    function renderVerifiedGigs(gigs) {
-      const container = document.getElementById('verifiedGigsList');
-
-      if (!Array.isArray(gigs) || gigs.length === 0) {
-        container.innerHTML = `<p class="text-sm text-white/50">No verified gigs yet.</p>`;
-        return;
-      }
-
-      container.innerHTML = gigs.map(gig => `
-        <div class="rounded-2xl border border-emerald-500/20 bg-black/30 p-4">
-          <div class="flex items-center justify-between gap-3">
-            <p class="text-sm font-bold text-white">${gig.title || 'Untitled Event'}</p>
-            <span class="text-[10px] uppercase tracking-widest text-emerald-300">${gig.roleAtEvent || 'Artist'}</span>
-          </div>
-          <p class="mt-2 text-xs text-white/55">${gig.time ? new Date(gig.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable'}</p>
-          <p class="mt-1 text-xs text-white/45">${gig.city ? `${gig.city} - ${gig.location}` : (gig.location || 'Location to be confirmed')}</p>
-          <p class="mt-3 text-[10px] font-bold uppercase tracking-widest text-emerald-200/70">Verified ${gig.verifiedAt ? new Date(gig.verifiedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'recently'}</p>
-        </div>
       `).join('');
     }
     async function loadArtistPosts() {

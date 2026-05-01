@@ -252,6 +252,58 @@ namespace ImajinationAPI.Services
             return firstPayment.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
         }
 
+        public static async Task<RefundAttemptResult> GetPayMongoRefundStatusAsync(string secretKey, string refundId)
+        {
+            if (string.IsNullOrWhiteSpace(secretKey))
+            {
+                return new RefundAttemptResult(false, "Failed", null, null, "missing_secret_key", "PayMongo is not configured yet.");
+            }
+
+            if (string.IsNullOrWhiteSpace(refundId))
+            {
+                return new RefundAttemptResult(false, "Failed", null, null, "missing_refund_id", "This refund is missing its PayMongo refund id.");
+            }
+
+            using var client = new HttpClient();
+            var plainTextBytes = Encoding.UTF8.GetBytes(secretKey);
+            var base64Auth = Convert.ToBase64String(plainTextBytes);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
+
+            var response = await client.GetAsync($"https://api.paymongo.com/v1/refunds/{refundId}");
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return ParseRefundError(responseString, (int)response.StatusCode);
+            }
+
+            using var doc = JsonDocument.Parse(responseString);
+            if (!doc.RootElement.TryGetProperty("data", out var data))
+            {
+                return new RefundAttemptResult(false, "ManualReview", refundId, null, "invalid_response", "PayMongo returned an incomplete refund response.");
+            }
+
+            var attributes = data.TryGetProperty("attributes", out var attrProp) ? attrProp : default;
+            var providerStatus = attributes.ValueKind == JsonValueKind.Object && attributes.TryGetProperty("status", out var statusProp)
+                ? statusProp.GetString()
+                : null;
+
+            var normalizedProviderStatus = (providerStatus ?? string.Empty).Trim().ToLowerInvariant();
+            var localStatus = normalizedProviderStatus == "succeeded"
+                ? "Refunded"
+                : normalizedProviderStatus == "pending" || normalizedProviderStatus == "processing"
+                    ? "Refund Pending"
+                    : "ManualReview";
+
+            return new RefundAttemptResult(
+                localStatus == "Refunded" || localStatus == "Refund Pending",
+                localStatus,
+                refundId,
+                providerStatus,
+                null,
+                null);
+        }
+
         private static RefundAttemptResult ParseRefundError(string responseString, int statusCode)
         {
             string? code = null;

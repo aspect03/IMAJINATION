@@ -10,6 +10,12 @@
   const sessionIdleLimitMs = 30 * 60 * 1000;
   const sessionMonitorIntervalMs = 15 * 1000;
   const apiFallbackBases = resolveApiFallbackBases();
+  const protectedPathPrefixes = [
+    '/pages/dashboards/',
+    '/pages/bookings/checkout.html',
+    '/pages/bookings/messages.html',
+    '/pages/tools/dashboardscanner.html'
+  ];
 
   function resolveApiFallbackBases() {
     const configured = [
@@ -160,6 +166,15 @@
     });
   }
 
+  function shouldAttachSessionToken(url) {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      return parsed.origin === window.location.origin && parsed.pathname.startsWith('/api/');
+    } catch {
+      return false;
+    }
+  }
+
   function installSecurityFetch() {
     if (window.__imajinationSecurityFetchInstalled) return;
     window.__imajinationSecurityFetchInstalled = true;
@@ -219,12 +234,15 @@
 
         const actorUserId = localStorage.getItem('userId');
         const actorRole = localStorage.getItem('userRole');
-
         if (actorUserId && !headers.has('X-Actor-UserId')) {
           headers.set('X-Actor-UserId', actorUserId);
         }
         if (actorRole && !headers.has('X-Actor-Role')) {
           headers.set('X-Actor-Role', actorRole);
+        }
+        const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
+        if (sessionToken && shouldAttachSessionToken(originalUrl) && !headers.has('X-Session-Token')) {
+          headers.set('X-Session-Token', sessionToken);
         }
       }
 
@@ -332,9 +350,9 @@
     window.__imajinationSessionTimeoutInstalled = true;
 
     const hasSession = !!localStorage.getItem('userId');
-    const path = window.location.pathname.toLowerCase();
-    const isAuthPage = path.includes('/pages/auth/');
-    if (!hasSession || isAuthPage) return;
+    const path = getCurrentPath();
+    if (!hasSession || isAuthPage(path) || !isProtectedPage(path)) return;
+    if ((localStorage.getItem('userRole') || '').toLowerCase() === 'organizer') return;
 
     const resetTimer = () => {
       if (sessionTimeoutHandle) {
@@ -355,9 +373,26 @@
     resetTimer();
   }
 
+  function getCurrentPath() {
+    return (window.location.pathname || '').toLowerCase();
+  }
+
+  function isAuthPage(path = getCurrentPath()) {
+    return path.includes('/pages/auth/');
+  }
+
+  function isProtectedPage(path = getCurrentPath()) {
+    return protectedPathPrefixes.some((prefix) => path.startsWith(prefix));
+  }
+
+  function notifySessionStateChanged() {
+    window.dispatchEvent(new CustomEvent('imajination:session-cleared'));
+  }
+
   function clearStoredUserSession(reasonKey) {
     localStorage.removeItem('userId');
     localStorage.removeItem('userFirstName');
+    localStorage.removeItem('userDisplayName');
     localStorage.removeItem('userRole');
     localStorage.removeItem('username');
     localStorage.removeItem('userProfilePicture');
@@ -367,6 +402,34 @@
     if (reasonKey) {
       localStorage.setItem('sessionEndedReason', reasonKey);
     }
+    notifySessionStateChanged();
+  }
+
+  function redirectAfterSessionEnded(replacedElsewhere) {
+    window.location.href = replacedElsewhere
+      ? '/pages/auth/login.html?session=another-device'
+      : '/pages/auth/login.html?session=expired';
+  }
+
+  function handleEndedSession(replacedElsewhere) {
+    const protectedPage = isProtectedPage();
+    clearStoredUserSession(protectedPage
+      ? (replacedElsewhere ? 'another_device' : 'session_ended')
+      : '');
+    if (protectedPage) {
+      window.setTimeout(() => redirectAfterSessionEnded(replacedElsewhere), 0);
+    }
+  }
+
+  function buildSessionStatusHeaders() {
+    const headers = {
+      'X-Requested-With': 'fetch'
+    };
+    const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
+    if (sessionToken) {
+      headers['X-Session-Token'] = sessionToken;
+    }
+    return headers;
   }
 
   async function confirmSessionExpired() {
@@ -384,9 +447,7 @@
       method: 'GET',
       cache: 'no-store',
       credentials: 'same-origin',
-      headers: {
-        'X-Requested-With': 'fetch'
-      }
+      headers: buildSessionStatusHeaders()
     })
       .then(async (validationResponse) => {
         if (validationResponse.ok) {
@@ -412,8 +473,8 @@
   }
 
   async function handleUnauthorizedApiResponse(response, requestUrl) {
-    const path = (window.location.pathname || '').toLowerCase();
-    if (path.includes('/pages/auth/') || response?.status !== 401) {
+    const path = getCurrentPath();
+    if (isAuthPage(path) || response?.status !== 401) {
       return response;
     }
 
@@ -435,13 +496,7 @@
     }
 
     const replacedElsewhere = typeof sessionState === 'object' && !!sessionState.replacedElsewhere;
-    clearStoredUserSession(replacedElsewhere ? 'another_device' : 'session_ended');
-    window.setTimeout(() => {
-      window.location.href = replacedElsewhere
-        ? '/pages/auth/login.html?session=another-device'
-        : '/pages/auth/login.html?session=expired';
-    }, 0);
-
+    handleEndedSession(replacedElsewhere);
     return response;
   }
 
@@ -449,12 +504,12 @@
     if (window.__imajinationSessionMonitorInstalled) return;
     window.__imajinationSessionMonitorInstalled = true;
 
-    const path = window.location.pathname.toLowerCase();
-    const isAuthPage = path.includes('/pages/auth/');
-    if (isAuthPage) return;
+    const path = getCurrentPath();
+    if (isAuthPage(path) || !isProtectedPage(path)) return;
 
     const userId = (localStorage.getItem('userId') || '').trim();
     if (!userId) return;
+    if ((localStorage.getItem('userRole') || '').toLowerCase() === 'organizer') return;
 
     const nativeFetch = window.__imajinationNativeFetch || window.fetch.bind(window);
 
@@ -464,21 +519,20 @@
           method: 'GET',
           cache: 'no-store',
           credentials: 'same-origin',
-          headers: {
-            'X-Requested-With': 'fetch'
-          }
+          headers: buildSessionStatusHeaders()
         });
 
         if (response.ok) {
           return;
         }
 
+        if (response.status !== 401) {
+          return;
+        }
+
         const data = await response.json().catch(() => ({}));
         const replacedElsewhere = !!data?.replacedElsewhere;
-        clearStoredUserSession(replacedElsewhere ? 'another_device' : 'session_ended');
-        window.location.href = replacedElsewhere
-          ? '/pages/auth/login.html?session=another-device'
-          : '/pages/auth/login.html?session=expired';
+        handleEndedSession(replacedElsewhere);
       } catch {
         // Keep the current session active if the network briefly fails.
       }

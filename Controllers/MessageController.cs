@@ -44,12 +44,19 @@ namespace ImajinationAPI.Controllers
             return IsAdmin() || (actorUserId.HasValue && actorUserId.Value == targetUserId);
         }
 
-        private async Task<(bool Found, Guid CustomerId, Guid TargetUserId, string ServiceFeeStatus, string PaymentStatus)> GetBookingAccessAsync(
+        private async Task<(bool Found, Guid CustomerId, Guid TargetUserId, string ServiceFeeStatus, string PaymentStatus, string Status, DateTime? EventDate, DateTime? EventEndTime, DateTime? UpdatedAt)> GetBookingAccessAsync(
             NpgsqlConnection connection,
             Guid bookingId)
         {
             const string bookingSql = @"
-                SELECT customer_id, target_user_id, COALESCE(service_fee_status, ''), COALESCE(payment_status, '')
+                SELECT customer_id,
+                       target_user_id,
+                       COALESCE(service_fee_status, ''),
+                       COALESCE(payment_status, ''),
+                       COALESCE(status, 'Pending'),
+                       event_date,
+                       event_end_time,
+                       updated_at
                 FROM bookings
                 WHERE id = @bookingId";
 
@@ -59,7 +66,7 @@ namespace ImajinationAPI.Controllers
             await using var reader = await bookingCmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync())
             {
-                return (false, Guid.Empty, Guid.Empty, string.Empty, string.Empty);
+                return (false, Guid.Empty, Guid.Empty, string.Empty, string.Empty, string.Empty, null, null, null);
             }
 
             return (
@@ -67,7 +74,26 @@ namespace ImajinationAPI.Controllers
                 reader.GetGuid(0),
                 reader.GetGuid(1),
                 reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-                reader.IsDBNull(3) ? string.Empty : reader.GetString(3));
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                reader.IsDBNull(4) ? "Pending" : reader.GetString(4),
+                reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5),
+                reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
+                reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7));
+        }
+
+        private static bool IsCancelledConversationClosed(string bookingStatus, DateTime? bookingUpdatedAtUtc)
+        {
+            if (string.IsNullOrWhiteSpace(bookingStatus) || !bookingStatus.StartsWith("Cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!bookingUpdatedAtUtc.HasValue)
+            {
+                return true;
+            }
+
+            return bookingUpdatedAtUtc.Value.AddDays(1) <= DateTime.UtcNow;
         }
 
         [HttpGet("conversations/{userId}")]
@@ -84,6 +110,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureMessagesTableExists(connection);
+                await EnsureBookingMessagingColumnsExist(connection);
 
                 const string sql = @"
                     SELECT
@@ -115,7 +142,9 @@ namespace ImajinationAPI.Controllers
                             SELECT 1
                             FROM booking_messages m
                             WHERE m.booking_id = b.id
-                        ) AS has_messages
+                        ) AS has_messages,
+                        COALESCE(b.status, 'Pending') AS booking_status,
+                        b.updated_at
                     FROM bookings b
                     LEFT JOIN users c ON c.id = b.customer_id
                     LEFT JOIN users t ON t.id = b.target_user_id
@@ -136,6 +165,12 @@ namespace ImajinationAPI.Controllers
                     var targetName = !string.IsNullOrWhiteSpace(targetStage)
                         ? targetStage
                         : $"{(reader.IsDBNull(7) ? "" : reader.GetString(7))} {(reader.IsDBNull(8) ? "" : reader.GetString(8))}".Trim();
+                    var bookingStatus = reader.IsDBNull(13) ? "Pending" : reader.GetString(13);
+                    var updatedAt = reader.IsDBNull(14) ? (DateTime?)null : reader.GetDateTime(14);
+                    if (IsCancelledConversationClosed(bookingStatus, updatedAt))
+                    {
+                        continue;
+                    }
 
                     var decryptedLastMessage = _messageProtection.Unprotect(reader.IsDBNull(10) ? "" : reader.GetString(10));
 
@@ -169,6 +204,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureMessagesTableExists(connection);
+                await EnsureBookingMessagingColumnsExist(connection);
 
                 var bookingAccess = await GetBookingAccessAsync(connection, bookingId);
                 if (!bookingAccess.Found)
@@ -189,6 +225,11 @@ namespace ImajinationAPI.Controllers
                     && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
                 {
                     return StatusCode(403, new { message = "Pay the booking service fee first before opening messages." });
+                }
+
+                if (IsCancelledConversationClosed(bookingAccess.Status, bookingAccess.UpdatedAt))
+                {
+                    return StatusCode(403, new { message = "This cancelled booking thread closed after the 1-day grace period." });
                 }
 
                 const string sql = @"
@@ -235,6 +276,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureMessagesTableExists(connection);
+                await EnsureBookingMessagingColumnsExist(connection);
 
                 if (req.senderId != Guid.Empty && req.senderId != actorUserId.Value)
                 {
@@ -258,6 +300,11 @@ namespace ImajinationAPI.Controllers
                     && !string.Equals(normalizedServiceFee, "NotRequired", StringComparison.OrdinalIgnoreCase))
                 {
                     return StatusCode(403, new { message = "Pay the booking service fee first before sending messages." });
+                }
+
+                if (IsCancelledConversationClosed(bookingAccess.Status, bookingAccess.UpdatedAt))
+                {
+                    return StatusCode(403, new { message = "This cancelled booking thread is already closed." });
                 }
 
                 var senderId = actorUserId.Value;
@@ -313,6 +360,7 @@ namespace ImajinationAPI.Controllers
             await using var connection = new NpgsqlConnection(_connectionString);
             await connection.OpenAsync(HttpContext.RequestAborted);
             await EnsureMessagesTableExists(connection);
+            await EnsureBookingMessagingColumnsExist(connection);
 
             var bookingAccess = await GetBookingAccessAsync(connection, bookingId);
             if (!bookingAccess.Found)
@@ -338,6 +386,13 @@ namespace ImajinationAPI.Controllers
             {
                 Response.StatusCode = StatusCodes.Status403Forbidden;
                 await Response.WriteAsJsonAsync(new { message = "Pay the booking service fee first before opening messages." }, HttpContext.RequestAborted);
+                return;
+            }
+
+            if (IsCancelledConversationClosed(bookingAccess.Status, bookingAccess.UpdatedAt))
+            {
+                Response.StatusCode = StatusCodes.Status403Forbidden;
+                await Response.WriteAsJsonAsync(new { message = "This cancelled booking thread closed after the 1-day grace period." }, HttpContext.RequestAborted);
                 return;
             }
 
@@ -393,6 +448,21 @@ namespace ImajinationAPI.Controllers
                     message_text text NOT NULL,
                     created_at timestamptz NOT NULL DEFAULT NOW()
                 );";
+
+            using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task EnsureBookingMessagingColumnsExist(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status varchar(30) NOT NULL DEFAULT 'Unpaid';
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid';
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS event_end_time timestamptz NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW();
+                UPDATE bookings
+                SET updated_at = COALESCE(updated_at, created_at, NOW())
+                WHERE updated_at IS NULL;";
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();

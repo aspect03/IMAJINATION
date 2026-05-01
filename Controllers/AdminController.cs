@@ -23,6 +23,12 @@ namespace ImajinationAPI.Controllers
         public string? notes { get; set; }
     }
 
+    public class ReviewRefundRequest
+    {
+        public string? action { get; set; }
+        public string? notes { get; set; }
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
@@ -47,6 +53,8 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureUserModerationColumnsAsync(connection);
                 await EnsureBookingMonitoringColumnsAsync(connection);
+                await EnsureTicketMonitoringColumnsAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
                 await SecuritySupport.LogSecurityEventAsync(
@@ -71,6 +79,7 @@ namespace ImajinationAPI.Controllers
                 var bookingStatusCounts = new List<object>();
                 var topEvents = new List<object>();
                 var topTalent = new List<object>();
+                var bookingLogs = new List<object>();
                 var recentSignups = new List<object>();
                 object paymentSummary = new { };
                 var paymentWatchlist = new List<object>();
@@ -281,6 +290,46 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
+                const string bookingLogsSql = @"
+                    SELECT
+                        b.target_user_id,
+                        CASE
+                            WHEN COALESCE(u.stagename, '') <> '' THEN u.stagename
+                            ELSE TRIM(CONCAT(COALESCE(u.firstname, ''), ' ', COALESCE(u.lastname, '')))
+                        END AS display_name,
+                        COALESCE(u.role, b.target_role) AS role,
+                        COUNT(*) AS total_bookings,
+                        COUNT(*) FILTER (WHERE b.status ILIKE 'Cancelled%') AS cancellations,
+                        COUNT(*) FILTER (WHERE COALESCE(b.status, '') IN ('Pending', 'AwaitingApproval', 'AwaitingPayment', 'AwaitingTalentFeePayment')) AS pending_count,
+                        COUNT(*) FILTER (WHERE COALESCE(b.status, '') IN ('Confirmed', 'Active')) AS active_count,
+                        COALESCE(SUM(CASE WHEN COALESCE(b.talent_platform_fee_status, 'Unpaid') = 'Paid' THEN COALESCE(b.talent_platform_fee, 0) ELSE 0 END), 0) AS platform_fee_earned
+                    FROM bookings b
+                    INNER JOIN users u ON u.id = b.target_user_id
+                    WHERE COALESCE(u.role, b.target_role) IN ('Artist', 'Sessionist')
+                    GROUP BY b.target_user_id, u.stagename, u.firstname, u.lastname, u.role, b.target_role
+                    ORDER BY total_bookings DESC, display_name ASC
+                    LIMIT 20;";
+
+                using (var cmd = new NpgsqlCommand(bookingLogsSql, connection))
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var displayName = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                        bookingLogs.Add(new
+                        {
+                            userId = reader.GetGuid(0),
+                            displayName = string.IsNullOrWhiteSpace(displayName) ? "Unnamed" : displayName,
+                            role = reader.IsDBNull(2) ? "Artist" : reader.GetString(2),
+                            totalBookings = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetInt64(3)),
+                            cancellations = reader.IsDBNull(4) ? 0 : Convert.ToInt32(reader.GetInt64(4)),
+                            pendingCount = reader.IsDBNull(5) ? 0 : Convert.ToInt32(reader.GetInt64(5)),
+                            activeCount = reader.IsDBNull(6) ? 0 : Convert.ToInt32(reader.GetInt64(6)),
+                            platformFeeEarned = reader.IsDBNull(7) ? 0 : reader.GetDecimal(7)
+                        });
+                    }
+                }
+
                 const string recentSignupsSql = @"
                     SELECT
                         id,
@@ -430,6 +479,28 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
+                const string ticketRefundSummarySql = @"
+                    SELECT COUNT(*)
+                    FROM refund_requests
+                    WHERE refund_scope = 'ticket'
+                      AND status IN ('Requested', 'ManualReview');";
+                using (var cmd = new NpgsqlCommand(ticketRefundSummarySql, connection))
+                {
+                    var pendingTicketRefunds = Convert.ToInt32(await cmd.ExecuteScalarAsync() ?? 0);
+                    paymentSummary = new
+                    {
+                        serviceFeesPaid = GetAnonymousInt(paymentSummary, "serviceFeesPaid"),
+                        talentFeesPaid = GetAnonymousInt(paymentSummary, "talentFeesPaid"),
+                        platformFeesPaid = GetAnonymousInt(paymentSummary, "platformFeesPaid"),
+                        paymentsWaiting = GetAnonymousInt(paymentSummary, "paymentsWaiting"),
+                        refundsPending = GetAnonymousInt(paymentSummary, "refundsPending") + pendingTicketRefunds,
+                        ticketRefundsPending = pendingTicketRefunds,
+                        serviceFeeRevenue = GetAnonymousDecimal(paymentSummary, "serviceFeeRevenue"),
+                        talentFeeCollected = GetAnonymousDecimal(paymentSummary, "talentFeeCollected"),
+                        platformFeeRevenue = GetAnonymousDecimal(paymentSummary, "platformFeeRevenue")
+                    };
+                }
+
                 const string paymentWatchlistSql = @"
                     SELECT
                         b.id,
@@ -483,6 +554,57 @@ namespace ImajinationAPI.Controllers
                             budget = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12),
                             talentPlatformFee = reader.IsDBNull(13) ? 0 : reader.GetDecimal(13),
                             createdAt = reader.IsDBNull(14) ? now : reader.GetDateTime(14)
+                        });
+                    }
+                }
+
+                const string ticketRefundWatchlistSql = @"
+                    SELECT
+                        rr.id,
+                        rr.ticket_id,
+                        COALESCE(rr.status, 'Requested'),
+                        COALESCE(rr.reason_code, 'Other'),
+                        COALESCE(rr.reason_details, ''),
+                        COALESCE(rr.amount, 0),
+                        COALESCE(rr.error_message, ''),
+                        rr.created_at,
+                        COALESCE(e.title, 'Event Ticket'),
+                        COALESCE(c.firstname, ''),
+                        COALESCE(c.lastname, ''),
+                        COALESCE(t.refund_status, 'Refund Pending')
+                    FROM refund_requests rr
+                    LEFT JOIN tickets t ON t.id = rr.ticket_id
+                    LEFT JOIN events e ON e.id = t.event_id
+                    LEFT JOIN users c ON c.id = t.customer_id
+                    WHERE rr.refund_scope = 'ticket'
+                      AND rr.status IN ('Requested', 'ManualReview')
+                    ORDER BY rr.created_at DESC
+                    LIMIT 8;";
+
+                using (var cmd = new NpgsqlCommand(ticketRefundWatchlistSql, connection))
+                using (var reader = await cmd.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        var customerName = $"{(reader.IsDBNull(9) ? "" : reader.GetString(9))} {(reader.IsDBNull(10) ? "" : reader.GetString(10))}".Trim();
+                        paymentWatchlist.Add(new
+                        {
+                            itemType = "ticket_refund",
+                            requestId = reader.GetGuid(0),
+                            ticketId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1),
+                            eventTitle = reader.IsDBNull(8) ? "Event Ticket" : reader.GetString(8),
+                            customerName = string.IsNullOrWhiteSpace(customerName) ? "Unknown Customer" : customerName,
+                            talentName = "Ticket Refund",
+                            paymentStatus = reader.IsDBNull(11) ? "Refund Pending" : reader.GetString(11),
+                            serviceFeeStatus = reader.IsDBNull(2) ? "Requested" : reader.GetString(2),
+                            talentFeeStatus = reader.IsDBNull(3) ? "Other" : reader.GetString(3),
+                            talentPlatformFeeStatus = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                            bookingFee = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
+                            budget = 0,
+                            talentPlatformFee = 0,
+                            createdAt = reader.IsDBNull(7) ? now : reader.GetDateTime(7),
+                            reasonDetails = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                            canResolve = true
                         });
                     }
                 }
@@ -554,6 +676,7 @@ namespace ImajinationAPI.Controllers
                     bookingStatusCounts,
                     topEvents,
                     topTalent,
+                    bookingLogs,
                     recentSignups,
                     paymentSummary,
                     paymentWatchlist,
@@ -790,6 +913,135 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to review verification request: " + ex.Message });
+            }
+        }
+
+        [HttpPost("refunds/{requestId}/resolve")]
+        public async Task<IActionResult> ResolveRefund(Guid requestId, [FromBody] ReviewRefundRequest req)
+        {
+            try
+            {
+                var action = (req.action ?? string.Empty).Trim().ToLowerInvariant();
+                if (action != "refunded" && action != "failed")
+                {
+                    return BadRequest(new { message = "Invalid refund resolution action." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureTicketMonitoringColumnsAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                Guid? ticketId = null;
+                Guid? beneficiaryUserId = null;
+                string refundScope = string.Empty;
+                decimal amount = 0m;
+
+                const string lookupSql = @"
+                    SELECT refund_scope,
+                           ticket_id,
+                           beneficiary_user_id,
+                           COALESCE(amount, 0),
+                           COALESCE(status, 'Requested')
+                    FROM refund_requests
+                    WHERE id = @id
+                    LIMIT 1;";
+
+                await using (var cmd = new NpgsqlCommand(lookupSql, connection))
+                {
+                    cmd.Parameters.AddWithValue("@id", requestId);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Refund request not found." });
+                    }
+
+                    refundScope = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    ticketId = reader.IsDBNull(1) ? (Guid?)null : reader.GetGuid(1);
+                    beneficiaryUserId = reader.IsDBNull(2) ? (Guid?)null : reader.GetGuid(2);
+                    amount = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3);
+                    var currentStatus = reader.IsDBNull(4) ? "Requested" : reader.GetString(4);
+                    if (currentStatus is "Refunded" or "Failed")
+                    {
+                        return BadRequest(new { message = "This refund request has already been resolved." });
+                    }
+                }
+
+                if (!string.Equals(refundScope, "ticket", StringComparison.OrdinalIgnoreCase) || !ticketId.HasValue)
+                {
+                    return BadRequest(new { message = "Only ticket refund requests can be resolved here." });
+                }
+
+                var targetTicketStatus = action == "refunded" ? "Refunded" : "Refund Failed";
+                await using (var cmd = new NpgsqlCommand(@"
+                    UPDATE tickets
+                    SET refund_status = @status,
+                        refund_amount = @amount,
+                        refund_reason = COALESCE(NULLIF(@notes, ''), refund_reason),
+                        refund_processed_at = CASE WHEN @status = 'Refunded' THEN NOW() ELSE refund_processed_at END
+                    WHERE id = @ticketId;", connection))
+                {
+                    cmd.Parameters.AddWithValue("@status", targetTicketStatus);
+                    cmd.Parameters.AddWithValue("@amount", amount);
+                    cmd.Parameters.AddWithValue("@notes", (object?)(req.notes ?? string.Empty) ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ticketId", ticketId.Value);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                await PaymentRefundService.UpdateRefundRequestAsync(
+                    connection,
+                    requestId,
+                    status: action == "refunded" ? "Refunded" : "Failed",
+                    providerRefundId: null,
+                    providerStatus: "AdminResolved",
+                    errorCode: action == "failed" ? "admin_review" : null,
+                    errorMessage: string.IsNullOrWhiteSpace(req.notes)
+                        ? (action == "refunded" ? "Resolved by admin review." : "Refund failed after admin review.")
+                        : req.notes);
+
+                if (action == "refunded")
+                {
+                    await PaymentLedgerService.MarkRefundedAsync(connection, "ticket_purchase", ticketId.Value, null, "Refunded");
+                }
+
+                if (beneficiaryUserId.HasValue && beneficiaryUserId.Value != Guid.Empty)
+                {
+                    await NotificationSupport.InsertNotificationAsync(
+                        connection,
+                        beneficiaryUserId.Value,
+                        "ticket_refund",
+                        action == "refunded" ? "Ticket refund completed" : "Ticket refund update",
+                        action == "refunded"
+                            ? "Your ticket refund was approved and marked as refunded."
+                            : $"Your ticket refund request could not be completed. {(string.IsNullOrWhiteSpace(req.notes) ? "Please contact support for more details." : req.notes)}",
+                        ticketId,
+                        "ticket");
+                }
+
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    TryReadActorUserId(),
+                    TryReadActorRole() ?? "Admin",
+                    "ticket_refund_resolved",
+                    "refund_request",
+                    requestId,
+                    HttpContext,
+                    $"Admin marked ticket refund request {requestId} as {targetTicketStatus}.");
+
+                return Ok(new
+                {
+                    message = action == "refunded"
+                        ? "Ticket refund marked as refunded."
+                        : "Ticket refund marked as failed.",
+                    status = targetTicketStatus
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to resolve refund request: " + ex.Message });
             }
         }
 
@@ -1073,6 +1325,32 @@ namespace ImajinationAPI.Controllers
 
             await using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task EnsureTicketMonitoringColumnsAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_status varchar(30) NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_amount numeric(12,2) NOT NULL DEFAULT 0;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_reason text NULL;
+                ALTER TABLE tickets ADD COLUMN IF NOT EXISTS refund_processed_at timestamptz NULL;";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static int GetAnonymousInt(object source, string propertyName)
+        {
+            var prop = source.GetType().GetProperty(propertyName);
+            if (prop?.GetValue(source) is null) return 0;
+            return Convert.ToInt32(prop.GetValue(source));
+        }
+
+        private static decimal GetAnonymousDecimal(object source, string propertyName)
+        {
+            var prop = source.GetType().GetProperty(propertyName);
+            if (prop?.GetValue(source) is null) return 0m;
+            return Convert.ToDecimal(prop.GetValue(source));
         }
 
         private Guid? TryReadActorUserId()

@@ -178,7 +178,8 @@ namespace ImajinationAPI.Controllers
                         u.member_names,
                         COALESCE(u.base_price, 0),
                         COALESCE(review_stats.average_rating, 0),
-                        COALESCE(review_stats.review_count, 0)
+                        COALESCE(review_stats.review_count, 0),
+                        COALESCE(u.verification_status, 'Not Submitted')
                     FROM users u
                     LEFT JOIN (
                         SELECT
@@ -200,17 +201,19 @@ namespace ImajinationAPI.Controllers
                     string first = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     string last = reader.IsDBNull(3) ? "" : reader.GetString(3);
                     
+                    var verificationStatus = reader.IsDBNull(15) ? "Not Submitted" : reader.GetString(15);
+                    var isApproved = verificationStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase);
                     artists.Add(new
                     {
                         id = reader.GetGuid(0),
-                        // Use Stage Name if available, otherwise use First + Last name
                         displayName = !string.IsNullOrEmpty(stage) ? stage : $"{first} {last}".Trim(),
                         profilePicture = CommunitySupport.NormalizeListImage(
                             reader.IsDBNull(4) ? "" : reader.GetString(4),
                             "https://images.unsplash.com/photo-1549834125-82d3c48159a3?auto=format&fit=crop&q=80&w=300"),
                         genres = reader.IsDBNull(5) ? "Music" : reader.GetString(5),
                         isAvailable = reader.IsDBNull(6) || reader.GetBoolean(6),
-                        isVerified = !reader.IsDBNull(7) && reader.GetBoolean(7),
+                        isVerified = isApproved,
+                        verificationStatus,
                         talentCategory = reader.IsDBNull(10) ? "" : reader.GetString(10),
                         memberNames = reader.IsDBNull(11) ? "" : reader.GetString(11),
                         basePrice = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12),

@@ -70,6 +70,12 @@ builder.Services.AddAuthentication(options =>
                 return JwtBearerDefaults.AuthenticationScheme;
             }
 
+            var accessCookie = context.Request.Cookies["IMAJINATION-ACCESS"];
+            if (!string.IsNullOrWhiteSpace(accessCookie))
+            {
+                return JwtBearerDefaults.AuthenticationScheme;
+            }
+
             if (!string.IsNullOrWhiteSpace(context.Request.Headers["X-Session-Token"]))
             {
                 return SessionTokenAuthenticationHandler.SchemeName;

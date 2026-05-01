@@ -1224,7 +1224,8 @@ namespace ImajinationAPI.Controllers
                         b.customer_completed_at,
                         b.target_completed_at,
                         b.booking_group_id,
-                        COALESCE(b.booking_sequence, 1)
+                        COALESCE(b.booking_sequence, 1),
+                        b.updated_at
                     FROM bookings b
                     LEFT JOIN users c ON c.id = b.customer_id
                     LEFT JOIN users t ON t.id = b.target_user_id
@@ -1289,7 +1290,8 @@ namespace ImajinationAPI.Controllers
                     customerCompletedAt = reader.IsDBNull(42) ? (DateTime?)null : reader.GetDateTime(42),
                     targetCompletedAt = reader.IsDBNull(43) ? (DateTime?)null : reader.GetDateTime(43),
                     bookingGroupId = reader.IsDBNull(44) ? (Guid?)null : reader.GetGuid(44),
-                    bookingSequence = reader.IsDBNull(45) ? 1 : reader.GetInt32(45)
+                    bookingSequence = reader.IsDBNull(45) ? 1 : reader.GetInt32(45),
+                    updatedAt = reader.IsDBNull(46) ? (DateTime?)null : reader.GetDateTime(46)
                 });
             }
             catch (Exception ex)
@@ -2872,7 +2874,8 @@ namespace ImajinationAPI.Controllers
                     customer_completed_at timestamptz NULL,
                     target_completed_at timestamptz NULL,
                     booking_group_id uuid NULL,
-                    booking_sequence integer NOT NULL DEFAULT 1
+                    booking_sequence integer NOT NULL DEFAULT 1,
+                    updated_at timestamptz NOT NULL DEFAULT NOW()
                 );";
 
             using var cmd = new NpgsqlCommand(sql, connection);
@@ -2916,6 +2919,8 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS target_completed_at timestamptz NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_group_id uuid NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_sequence integer NOT NULL DEFAULT 1;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW();
+                UPDATE bookings SET updated_at = COALESCE(updated_at, created_at, NOW()) WHERE updated_at IS NULL;
                 ALTER TABLE bookings ALTER COLUMN status TYPE varchar(60);";
 
             using var alterCmd = new NpgsqlCommand(alterSql, connection);

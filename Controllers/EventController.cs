@@ -205,8 +205,10 @@ namespace ImajinationAPI.Controllers
             if (lineup == null) return new List<TalentLineupItemDto>();
 
             return lineup
-                .Where(item => item != null && item.id != Guid.Empty && !string.IsNullOrWhiteSpace(item.displayName))
-                .GroupBy(item => item.id)
+                .Where(item => item != null && !string.IsNullOrWhiteSpace(item.displayName))
+                .GroupBy(item => item.id != Guid.Empty
+                    ? $"id:{item.id}"
+                    : $"external:{role}:{item.displayName.Trim().ToLowerInvariant()}")
                 .Select(group =>
                 {
                     var item = group.First();
@@ -290,6 +292,84 @@ namespace ImajinationAPI.Controllers
                 $"You were removed from the lineup for '{eventTitle}'.",
                 eventId,
                 "event");
+        }
+
+        private static async Task<HashSet<Guid>> GetConnectedEventUserIdsAsync(
+            NpgsqlConnection connection,
+            Guid eventId,
+            IEnumerable<TalentLineupItemDto> artistLineup,
+            IEnumerable<TalentLineupItemDto> sessionistLineup)
+        {
+            var userIds = new HashSet<Guid>(
+                artistLineup
+                    .Concat(sessionistLineup)
+                    .Where(item => item.id != Guid.Empty)
+                    .Select(item => item.id));
+
+            const string ticketSql = @"
+                SELECT DISTINCT customer_id
+                FROM tickets
+                WHERE event_id = @eventId
+                  AND customer_id IS NOT NULL;";
+
+            await using (var ticketCmd = new NpgsqlCommand(ticketSql, connection))
+            {
+                ticketCmd.Parameters.AddWithValue("@eventId", eventId);
+                await using var ticketReader = await ticketCmd.ExecuteReaderAsync();
+                while (await ticketReader.ReadAsync())
+                {
+                    if (!ticketReader.IsDBNull(0))
+                    {
+                        userIds.Add(ticketReader.GetGuid(0));
+                    }
+                }
+            }
+
+            const string bookingSql = @"
+                SELECT DISTINCT target_user_id
+                FROM bookings
+                WHERE event_id = @eventId
+                  AND target_user_id IS NOT NULL;";
+
+            await using (var bookingCmd = new NpgsqlCommand(bookingSql, connection))
+            {
+                bookingCmd.Parameters.AddWithValue("@eventId", eventId);
+                await using var bookingReader = await bookingCmd.ExecuteReaderAsync();
+                while (await bookingReader.ReadAsync())
+                {
+                    if (!bookingReader.IsDBNull(0))
+                    {
+                        userIds.Add(bookingReader.GetGuid(0));
+                    }
+                }
+            }
+
+            return userIds;
+        }
+
+        private static async Task NotifyEventAudienceUpdatedAsync(
+            NpgsqlConnection connection,
+            IEnumerable<Guid> userIds,
+            Guid organizerId,
+            Guid eventId,
+            string eventTitle,
+            string message,
+            string notificationType = "event_updated")
+        {
+            await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
+
+            foreach (var userId in userIds.Where(id => id != Guid.Empty && id != organizerId).Distinct())
+            {
+                await NotificationSupport.InsertNotificationIfNotExistsAsync(
+                    connection,
+                    userId,
+                    notificationType,
+                    "Event update",
+                    message,
+                    eventId,
+                    "event",
+                    6);
+            }
         }
 
         private async Task AutoFinishExpiredEvents(NpgsqlConnection connection, Guid? organizerId = null)
@@ -1322,7 +1402,8 @@ namespace ImajinationAPI.Controllers
                            COALESCE(NULLIF(u.productionname, ''), NULLIF(TRIM(COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')), ''), 'Unknown Organizer'),
                            COALESCE(u.profile_picture, ''),
                            COALESCE(u.bio, ''),
-                           COALESCE(u.is_verified, FALSE)
+                           COALESCE(u.is_verified, FALSE),
+                           COALESCE(u.email, '')
                     FROM events e
                     LEFT JOIN users u ON u.id = e.organizer_id
                     WHERE e.id = @id";
@@ -1366,7 +1447,8 @@ namespace ImajinationAPI.Controllers
                         organizerName = reader.IsDBNull(27) ? "Unknown Organizer" : reader.GetString(27),
                         organizerProfilePicture = reader.IsDBNull(28) ? "" : reader.GetString(28),
                         organizerBio = reader.IsDBNull(29) ? "" : reader.GetString(29),
-                        organizerVerified = !reader.IsDBNull(30) && reader.GetBoolean(30)
+                        organizerVerified = !reader.IsDBNull(30) && reader.GetBoolean(30),
+                        organizerEmail = reader.IsDBNull(31) ? "" : reader.GetString(31)
                     });
                 }
                 return NotFound(new { message = "Event not found." });
@@ -1438,10 +1520,18 @@ namespace ImajinationAPI.Controllers
                 const string existingSql = @"
                     SELECT COALESCE(artist_lineup, '[]'),
                            COALESCE(sessionist_lineup, '[]'),
-                           COALESCE(title, 'This event')
+                           COALESCE(title, 'This event'),
+                           event_time,
+                           COALESCE(city, ''),
+                           COALESCE(location, ''),
+                           organizer_id
                     FROM events
                     WHERE id = @id AND organizer_id = @orgId;";
                 string previousTitle = "This event";
+                DateTime previousEventTime = DateTime.UtcNow;
+                string previousCity = "";
+                string previousLocation = "";
+                Guid organizerId = req.organizerId;
                 using (var existingCmd = new NpgsqlCommand(existingSql, connection))
                 {
                     existingCmd.Parameters.AddWithValue("@id", id);
@@ -1455,12 +1545,27 @@ namespace ImajinationAPI.Controllers
                     previousArtistLineup = DeserializeLineup(reader.IsDBNull(0) ? null : reader.GetString(0));
                     previousSessionistLineup = DeserializeLineup(reader.IsDBNull(1) ? null : reader.GetString(1));
                     previousTitle = reader.IsDBNull(2) ? "This event" : reader.GetString(2);
+                    previousEventTime = reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3);
+                    previousCity = reader.IsDBNull(4) ? "" : reader.GetString(4);
+                    previousLocation = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                    organizerId = reader.IsDBNull(6) ? req.organizerId : reader.GetGuid(6);
                 }
 
                 var normalizedArtistLineup = NormalizeLineup(req.artistLineup, "Artist");
                 var normalizedSessionistLineup = NormalizeLineup(req.sessionistLineup, "Sessionist");
                 var lineupDisplay = sanitizedArtists;
                 var maxTicketsPerCustomer = Math.Clamp(req.maxTicketsPerCustomer ?? 5, 3, 10);
+                var normalizedEventTime = new DateTime(
+                    previousEventTime.Year,
+                    previousEventTime.Month,
+                    previousEventTime.Day,
+                    req.time.Hour,
+                    req.time.Minute,
+                    req.time.Second,
+                    req.time.Kind == DateTimeKind.Unspecified ? DateTimeKind.Utc : req.time.Kind);
+
+                var audienceUserIds = await GetConnectedEventUserIdsAsync(connection, id, previousArtistLineup, previousSessionistLineup);
+                audienceUserIds.UnionWith(await GetConnectedEventUserIdsAsync(connection, id, normalizedArtistLineup, normalizedSessionistLineup));
 
                 string sql = @"
                     UPDATE events SET 
@@ -1499,7 +1604,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@title", sanitizedTitle);
                 cmd.Parameters.AddWithValue("@artists", lineupDisplay);
                 cmd.Parameters.AddWithValue("@desc", sanitizedDescription);
-                cmd.Parameters.AddWithValue("@time", req.time);
+                cmd.Parameters.AddWithValue("@time", normalizedEventTime);
                 cmd.Parameters.AddWithValue("@city", string.IsNullOrWhiteSpace(sanitizedCity) ? DBNull.Value : sanitizedCity);
                 cmd.Parameters.AddWithValue("@loc", sanitizedLocation);
                 cmd.Parameters.AddWithValue("@poster", (object?)normalizedPoster ?? DBNull.Value);
@@ -1552,6 +1657,70 @@ namespace ImajinationAPI.Controllers
                 foreach (var removedId in removedIds)
                 {
                     await NotifyLineupRemovedAsync(connection, removedId, id, string.IsNullOrWhiteSpace(req.title) ? previousTitle : req.title);
+                }
+
+                var effectiveTitle = string.IsNullOrWhiteSpace(sanitizedTitle) ? previousTitle : sanitizedTitle;
+                var changeNotes = new List<string>();
+                if (!string.Equals(previousTitle, effectiveTitle, StringComparison.OrdinalIgnoreCase))
+                {
+                    changeNotes.Add("title");
+                }
+                if (previousEventTime.TimeOfDay != normalizedEventTime.TimeOfDay)
+                {
+                    changeNotes.Add("time");
+                }
+                if (!string.Equals(previousCity, sanitizedCity ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                {
+                    changeNotes.Add("city");
+                }
+                if (!string.Equals(previousLocation, sanitizedLocation ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                {
+                    changeNotes.Add("venue");
+                }
+                if (addedMembers.Count > 0 || removedIds.Count > 0)
+                {
+                    changeNotes.Add("lineup");
+                }
+                if (!string.Equals(normalizedStatus, "Draft", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.Equals(req.description ?? string.Empty, string.Empty, StringComparison.Ordinal) && !changeNotes.Contains("details"))
+                    {
+                        // Reserve generic copy for non-location event edits that still matter to users.
+                    }
+                }
+
+                if (changeNotes.Count > 0)
+                {
+                    var message = $"'{effectiveTitle}' has been updated by the organizer.";
+                    var locationChanged = changeNotes.Contains("city") || changeNotes.Contains("venue");
+                    if (locationChanged)
+                    {
+                        var locationBits = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(sanitizedLocation)) locationBits.Add(sanitizedLocation);
+                        if (!string.IsNullOrWhiteSpace(sanitizedCity)) locationBits.Add(sanitizedCity);
+                        message = $"'{effectiveTitle}' has a venue update. New location: {string.Join(", ", locationBits)}.";
+                    }
+                    else if (changeNotes.Count == 1 && changeNotes[0] == "time")
+                    {
+                        message = $"'{effectiveTitle}' has a new start time. Check the updated event details before you go.";
+                    }
+                    else if (changeNotes.Count == 1 && changeNotes[0] == "lineup")
+                    {
+                        message = $"'{effectiveTitle}' has an updated performer lineup. Open the event to review the latest details.";
+                    }
+                    else
+                    {
+                        message = $"'{effectiveTitle}' has updated event details ({string.Join(", ", changeNotes)}). Open the event for the latest information.";
+                    }
+
+                    await NotifyEventAudienceUpdatedAsync(
+                        connection,
+                        audienceUserIds,
+                        organizerId,
+                        id,
+                        effectiveTitle,
+                        message,
+                        locationChanged ? "event_location_updated" : "event_updated");
                 }
 
                 return Ok(new { message = normalizedStatus == "Draft" ? "Draft updated successfully!" : "Event successfully updated!" });

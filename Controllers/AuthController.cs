@@ -527,6 +527,7 @@ namespace ImajinationAPI.Controllers
                         firstName = authenticatedFirstName,
                         username = authenticatedUsername,
                         profilePicture = authenticatedProfilePicture,
+                        sessionToken = trackedSession.SessionToken,
                         signedOutOtherDevices = trackedSession.RevokedCount > 0
                     });
                 }
@@ -743,6 +744,7 @@ namespace ImajinationAPI.Controllers
                     firstName = existingUser.FirstName,
                     username = existingUser.Username,
                     profilePicture = existingUser.ProfilePicture ?? string.Empty,
+                    sessionToken = trackedSession.SessionToken,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
             }
@@ -1062,6 +1064,7 @@ namespace ImajinationAPI.Controllers
                     firstName = pendingLogin.FirstName,
                     username = pendingLogin.Username,
                     profilePicture = pendingLogin.ProfilePicture,
+                    sessionToken = trackedSession.SessionToken,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
             }

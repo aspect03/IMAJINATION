@@ -161,7 +161,8 @@ namespace ImajinationAPI.Controllers
                         u.member_names,
                         COALESCE(u.base_price, 0),
                         COALESCE(review_stats.average_rating, 0),
-                        COALESCE(review_stats.review_count, 0)
+                        COALESCE(review_stats.review_count, 0),
+                        COALESCE(u.verification_status, 'Not Submitted')
                     FROM users u
                     LEFT JOIN (
                         SELECT
@@ -183,6 +184,8 @@ namespace ImajinationAPI.Controllers
                     string first = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     string last = reader.IsDBNull(3) ? "" : reader.GetString(3);
                     
+                    var verificationStatus = reader.IsDBNull(15) ? "Not Submitted" : reader.GetString(15);
+                    var isApproved = verificationStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase);
                     sessionists.Add(new
                     {
                         id = reader.GetGuid(0),
@@ -192,7 +195,8 @@ namespace ImajinationAPI.Controllers
                             "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&q=80&w=300"),
                         genres = reader.IsDBNull(5) ? "Sessionist" : reader.GetString(5),
                         isAvailable = reader.IsDBNull(6) || reader.GetBoolean(6),
-                        isVerified = !reader.IsDBNull(7) && reader.GetBoolean(7),
+                        isVerified = isApproved,
+                        verificationStatus,
                         talentCategory = reader.IsDBNull(10) ? "" : reader.GetString(10),
                         memberNames = reader.IsDBNull(11) ? "" : reader.GetString(11),
                         basePrice = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12),
@@ -315,38 +319,35 @@ namespace ImajinationAPI.Controllers
                     }
                     await eventReader.CloseAsync();
 
-                    var verifiedGigs = new List<object>();
-                    const string verifiedGigsSql = @"
-                        SELECT vg.id,
-                               vg.verified_at,
-                               COALESCE(vg.role_at_event, 'Sessionist'),
-                               COALESCE(e.title, 'Untitled Event'),
-                               e.event_time,
-                               COALESCE(e.city, ''),
-                               COALESCE(e.location, '')
-                        FROM verified_gigs vg
-                        LEFT JOIN events e ON e.id = vg.event_id
-                        WHERE vg.user_id = @id
-                        ORDER BY vg.verified_at DESC
-                        LIMIT 10;";
+                    var workedWithArtists = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    const string workedWithArtistsSql = @"
+                        SELECT COALESCE(artists, '')
+                        FROM events
+                        WHERE sessionist_lineup LIKE @needle
+                          AND (
+                              COALESCE(status, 'Upcoming') = 'Finished'
+                              OR event_time < NOW()
+                          )
+                        ORDER BY event_time DESC
+                        LIMIT 20;";
 
-                    using var verifiedCmd = new NpgsqlCommand(verifiedGigsSql, connection);
-                    verifiedCmd.Parameters.AddWithValue("@id", id);
-                    verifiedCmd.CommandTimeout = 5;
-
-                    using var verifiedReader = await verifiedCmd.ExecuteReaderAsync();
-                    while (await verifiedReader.ReadAsync())
+                    using (var workedWithCmd = new NpgsqlCommand(workedWithArtistsSql, connection))
                     {
-                        verifiedGigs.Add(new
+                        workedWithCmd.Parameters.AddWithValue("@needle", $"%{id}%");
+                        workedWithCmd.CommandTimeout = 5;
+
+                        using var workedWithReader = await workedWithCmd.ExecuteReaderAsync();
+                        while (await workedWithReader.ReadAsync())
                         {
-                            id = verifiedReader.GetGuid(0),
-                            verifiedAt = verifiedReader.IsDBNull(1) ? DateTime.UtcNow : verifiedReader.GetDateTime(1),
-                            roleAtEvent = verifiedReader.IsDBNull(2) ? "Sessionist" : verifiedReader.GetString(2),
-                            title = verifiedReader.IsDBNull(3) ? "Untitled Event" : verifiedReader.GetString(3),
-                            time = verifiedReader.IsDBNull(4) ? DateTime.MinValue : verifiedReader.GetDateTime(4),
-                            city = verifiedReader.IsDBNull(5) ? "" : verifiedReader.GetString(5),
-                            location = verifiedReader.IsDBNull(6) ? "" : verifiedReader.GetString(6)
-                        });
+                            var artistText = workedWithReader.IsDBNull(0) ? string.Empty : workedWithReader.GetString(0);
+                            foreach (var artistName in artistText.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                            {
+                                if (!string.IsNullOrWhiteSpace(artistName))
+                                {
+                                    workedWithArtists.Add(artistName);
+                                }
+                            }
+                        }
                     }
 
                     return Ok(new
@@ -379,8 +380,7 @@ namespace ImajinationAPI.Controllers
                         profileCompletionPercent = profileSummary.Percent,
                         profileCompletionLabel = profileSummary.Label,
                         relatedEvents,
-                        verifiedGigCount = verifiedGigs.Count,
-                        verifiedGigs
+                        workedWithArtists = workedWithArtists.Take(12).ToArray()
                     });
                 }
                 return NotFound(new { message = "Sessionist not found." });

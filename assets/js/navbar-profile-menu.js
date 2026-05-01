@@ -176,6 +176,54 @@
     footerGroup.appendChild(createLogoutButton());
   }
 
+  const DISPLAY_NAME_ROLES = new Set(['Artist', 'Sessionist']);
+  const DISPLAY_NAME_ENDPOINTS = { Artist: 'artist', Sessionist: 'sessionist', Customer: 'customer', Organizer: 'organizer' };
+
+  function applyNameToNav(name) {
+    const dropdownName = document.getElementById('dropdownName');
+    const profileInitial = document.getElementById('profileInitial') || document.getElementById('profileInitialNav');
+    if (dropdownName && name) dropdownName.textContent = name;
+    if (profileInitial && name) profileInitial.textContent = name.charAt(0).toUpperCase();
+  }
+
+  function resolveDisplayName(role, profile) {
+    if (!profile) return null;
+    if (DISPLAY_NAME_ROLES.has(role)) {
+      return profile.displayName || profile.stageName || profile.firstName || null;
+    }
+    return profile.displayName || profile.firstName || profile.productionName || null;
+  }
+
+  function fetchAndSyncProfileData(role, userId) {
+    const endpoint = DISPLAY_NAME_ENDPOINTS[role];
+    if (!endpoint || !userId) return;
+
+    fetch(`/api/${endpoint}/${userId}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((profile) => {
+        if (!profile) return;
+
+        const displayName = resolveDisplayName(role, profile);
+        if (displayName) {
+          localStorage.setItem('userDisplayName', displayName);
+          applyNameToNav(displayName);
+        }
+
+        const pic = profile.profilePicture;
+        if (pic) {
+          const navProfilePic = document.getElementById('navProfilePic');
+          const profileInitial = document.getElementById('profileInitial') || document.getElementById('profileInitialNav');
+          localStorage.setItem('userProfilePicture', pic);
+          if (navProfilePic) {
+            navProfilePic.src = pic;
+            navProfilePic.classList.remove('hidden');
+            profileInitial?.classList.add('hidden');
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
   function syncProfileIdentity(role) {
     const authLoggedIn = document.getElementById('authLoggedIn');
     const authLoggedOut = document.getElementById('authLoggedOut');
@@ -197,12 +245,12 @@
     authLoggedOut?.classList.add('hidden');
     authLoggedIn?.classList.remove('hidden');
 
-    const firstName = localStorage.getItem('userFirstName') || localStorage.getItem('firstName') || 'User';
+    const displayName = localStorage.getItem('userDisplayName') || localStorage.getItem('userFirstName') || localStorage.getItem('firstName') || 'User';
     const profilePicture = localStorage.getItem('userProfilePicture') || '';
 
-    if (dropdownName) dropdownName.textContent = firstName;
+    if (dropdownName) dropdownName.textContent = displayName;
     if (dropdownRole) dropdownRole.textContent = role.toUpperCase();
-    if (profileInitial) profileInitial.textContent = firstName.charAt(0).toUpperCase();
+    if (profileInitial) profileInitial.textContent = displayName.charAt(0).toUpperCase();
 
     if (navProfilePic) {
       if (profilePicture) {
@@ -224,7 +272,15 @@
 
     dropdown.classList.add('top-full');
 
-    syncProfileIdentity(localStorage.getItem('userRole'));
+    const role = localStorage.getItem('userRole');
+    const userId = localStorage.getItem('userId');
+
+    syncProfileIdentity(role);
+    fetchAndSyncProfileData(role, userId);
+
+    window.addEventListener('imajination:session-cleared', () => {
+      syncProfileIdentity(localStorage.getItem('userRole'));
+    });
 
     if (window.lucide?.createIcons) {
       window.lucide.createIcons();

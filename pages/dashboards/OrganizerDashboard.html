@@ -39,6 +39,7 @@
         <a href="/pages/browse/Events.html" class="hover:text-white transition-colors">Events</a>
         <a href="/pages/browse/Artists.html" class="hover:text-white transition-colors">Artists</a>
         <a href="/pages/browse/Sessionists.html" class="hover:text-white transition-colors">Sessionists</a>
+        <a href="/pages/browse/Community.html" class="hover:text-white transition-colors">Community</a>
       </div>
 
       <div class="flex items-center gap-3 relative">
@@ -96,39 +97,44 @@
         </div>
       </div>
       <nav class="flex md:flex-col flex-nowrap md:flex-1 gap-2 md:gap-1 px-4 py-4 md:py-6 overflow-x-auto md:overflow-y-auto">
-        <button type="button" data-view="dashboard" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 bg-white/10 text-white rounded-lg text-sm font-medium">
+        <button type="button" data-view="dashboard" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 bg-white/10 text-white rounded-xl text-sm font-medium">
           <span class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <button type="button" data-view="events" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="analytics" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
+          <span class="flex items-center gap-3"><i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+        </button>
+        <button type="button" data-view="events" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="calendar-days" class="w-4 h-4"></i> My Events</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <button type="button" data-view="attendees" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="attendees" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="users" class="w-4 h-4"></i> Attendees</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <button type="button" data-view="bookings" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="bookings" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="briefcase-business" class="w-4 h-4"></i> Talent Bookings</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <button type="button" data-view="payouts" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="payouts" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Payouts</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <button type="button" data-view="lineups" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="lineups" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="list-music" class="w-4 h-4"></i> Lineups</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <button type="button" data-view="community" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="community" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="megaphone" class="w-4 h-4"></i> Community Posts</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
-        <a href="/pages/bookings/messages.html" class="flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <!-- Messages link hidden temporarily -->
+        <a href="/pages/bookings/messages.html" class="hidden flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="message-square" class="w-4 h-4"></i> Messages</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </a>
-        <button type="button" data-view="settings" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-lg text-sm font-medium transition-colors">
+        <button type="button" data-view="settings" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="settings" class="w-4 h-4"></i> Settings</span>
           <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
         </button>
@@ -146,7 +152,7 @@
         <header class="mobile-stack-header flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <p class="text-[10px] font-semibold text-white/50 uppercase tracking-widest mb-1">Organizer Portal</p>
-            <h1 id="pageTitle" class="text-3xl font-extrabold text-white">Welcome, <span id="userNameDisplay" class="text-red-500">Guest</span></h1>
+            <h1 id="pageTitle" class="text-3xl font-extrabold text-white">Welcome</h1><span id="userNameDisplay" class="hidden"></span>
             <p id="pageSubtitle" class="text-sm text-white/60 mt-1">Create gigs, track sales, and monitor attendees.</p>
           </div>
           <div class="mobile-stack-actions flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
@@ -197,18 +203,22 @@
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
-              <div class="flex items-center justify-between mb-6">
-                <h2 class="text-lg font-bold text-white">Your events</h2>
-                <button type="button" onclick="setActiveView('events')" class="text-xs font-semibold text-red-400 hover:text-red-300 uppercase tracking-widest">View all</button>
+            <div class="lg:col-span-2 bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 backdrop-blur-sm">
+              <div class="flex items-center justify-between mb-5">
+                <div>
+                  <h2 class="text-base font-bold text-white">Your Events</h2>
+                  <p class="text-xs text-white/40 mt-0.5">Upcoming and recent events you've created.</p>
+                </div>
+                <button type="button" onclick="setActiveView('events')" class="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors">View All</button>
               </div>
-              <div id="eventsListContainer" class="space-y-4">
-                 <p class="text-sm text-white/60">Loading events...</p>
+              <div id="eventsListContainer" class="space-y-3">
+                <p class="text-sm text-white/40 text-center py-6">Loading events...</p>
               </div>
             </div>
 
             <div class="space-y-6">
-              <div class="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
+              <!-- Recent ticket sales hidden temporarily -->
+              <div class="hidden bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
                 <h2 class="text-lg font-bold text-white mb-4">Recent ticket sales</h2>
                 <div id="recentSalesContainer" class="space-y-3"><p class="text-sm text-white/60">Loading sales...</p></div>
               </div>
@@ -239,6 +249,123 @@
             </div>
           </div>
         </section>
+
+        <!-- ── ORGANIZER ANALYTICS VIEW ── -->
+        <section data-view-panel="analytics" class="dashboard-view hidden space-y-6">
+
+          <!-- Key Metric Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="col-span-2 lg:col-span-1 relative overflow-hidden bg-gradient-to-br from-emerald-500/[0.1] to-transparent border border-emerald-500/[0.2] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Total Revenue</p>
+                <span class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i></span>
+              </div>
+              <p id="analTotalRevenue" class="text-2xl font-extrabold text-emerald-400">PHP 0</p>
+              <p class="text-[10px] text-white/35 mt-1.5">Gross all events</p>
+            </div>
+            <div class="relative overflow-hidden bg-gradient-to-br from-blue-500/[0.09] to-transparent border border-blue-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Tickets Sold</p>
+                <span class="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="ticket" class="w-4 h-4 text-blue-400"></i></span>
+              </div>
+              <p id="analTotalTickets" class="text-2xl font-extrabold text-white">0</p>
+              <p class="text-[10px] text-white/35 mt-1.5">All events combined</p>
+            </div>
+            <div class="relative overflow-hidden bg-gradient-to-br from-red-500/[0.09] to-transparent border border-red-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Events Hosted</p>
+                <span class="w-8 h-8 rounded-xl bg-red-500/15 border border-red-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="calendar-check" class="w-4 h-4 text-red-400"></i></span>
+              </div>
+              <p id="analTotalEvents" class="text-2xl font-extrabold text-white">0</p>
+              <p class="text-[10px] text-white/35 mt-1.5"><span id="analFinishedEvents">0</span> finished</p>
+            </div>
+            <div class="relative overflow-hidden bg-gradient-to-br from-amber-500/[0.09] to-transparent border border-amber-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Sell-Through</p>
+                <span class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="percent" class="w-4 h-4 text-amber-400"></i></span>
+              </div>
+              <p id="analSellThrough" class="text-2xl font-extrabold text-amber-400">0%</p>
+              <p class="text-[10px] text-white/35 mt-1.5">Overall capacity used</p>
+            </div>
+            <div class="relative overflow-hidden bg-gradient-to-br from-purple-500/[0.09] to-transparent border border-purple-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Avg Revenue</p>
+                <span class="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="chart-no-axes-column" class="w-4 h-4 text-purple-400"></i></span>
+              </div>
+              <p id="analAvgRevenue" class="text-2xl font-extrabold text-purple-400">PHP 0</p>
+              <p class="text-[10px] text-white/35 mt-1.5">Per event average</p>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
+            <div class="xl:col-span-3 bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+              <div class="flex items-center gap-3 mb-5">
+                <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20"><i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i></span>
+                <div>
+                  <h3 class="text-sm font-bold text-white">Revenue by Event</h3>
+                  <p class="text-[10px] text-white/35 mt-0.5">Gross ticket revenue per event</p>
+                </div>
+              </div>
+              <div class="h-64"><canvas id="analRevenueByEventChart"></canvas></div>
+            </div>
+            <div class="xl:col-span-2 bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+              <div class="flex items-center gap-3 mb-5">
+                <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20"><i data-lucide="pie-chart" class="w-4 h-4 text-blue-400"></i></span>
+                <div>
+                  <h3 class="text-sm font-bold text-white">Capacity Overview</h3>
+                  <p class="text-[10px] text-white/35 mt-0.5">Sold vs remaining across all events</p>
+                </div>
+              </div>
+              <div class="h-64"><canvas id="analCapacityChart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Tickets Sold by Event (bar) -->
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-3 mb-5">
+              <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20"><i data-lucide="ticket" class="w-4 h-4 text-amber-400"></i></span>
+              <div>
+                <h3 class="text-sm font-bold text-white">Tickets Sold by Event</h3>
+                <p class="text-[10px] text-white/35 mt-0.5">Volume of tickets per event</p>
+              </div>
+            </div>
+            <div class="h-52"><canvas id="analTicketsByEventChart"></canvas></div>
+          </div>
+
+          <!-- Events Performance Table -->
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center justify-between gap-3 mb-5">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20"><i data-lucide="list-ordered" class="w-4 h-4 text-red-400"></i></span>
+                <div>
+                  <h3 class="text-sm font-bold text-white">All Events Performance</h3>
+                  <p class="text-[10px] text-white/35 mt-0.5">Sorted by revenue — click any event to open its analytics</p>
+                </div>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="border-b border-white/[0.06]">
+                  <tr class="text-[10px] font-bold uppercase tracking-widest text-white/35">
+                    <th class="pb-3 pr-4">#</th>
+                    <th class="pb-3 pr-4">Event</th>
+                    <th class="pb-3 pr-4">Date</th>
+                    <th class="pb-3 pr-4 text-right">Tickets</th>
+                    <th class="pb-3 pr-4 text-right">Revenue</th>
+                    <th class="pb-3 pr-4 text-right">Sell-Through</th>
+                    <th class="pb-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="analEventsTable" class="divide-y divide-white/[0.04]">
+                  <tr><td colspan="7" class="py-6 text-center text-sm text-white/35">Loading event performance...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+        <!-- ── END ORGANIZER ANALYTICS VIEW ── -->
 
         <section data-view-panel="event-analytics" class="dashboard-view hidden space-y-6">
           <div class="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm space-y-6">
@@ -333,40 +460,56 @@
           </div>
         </section>
 
-        <section data-view-panel="attendees" class="dashboard-view hidden space-y-6">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <p class="text-xs font-semibold text-white/50 mb-2">Transactions</p>
-              <p id="attendeeTransactionCount" class="text-3xl font-bold text-white">0</p>
+        <section data-view-panel="attendees" class="dashboard-view hidden space-y-5">
+          <!-- Summary cards -->
+          <div class="grid grid-cols-3 gap-4">
+            <div class="relative overflow-hidden bg-gradient-to-br from-blue-500/[0.09] to-transparent border border-blue-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Transactions</p>
+                <span class="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center"><i data-lucide="receipt" class="w-4 h-4 text-blue-400"></i></span>
+              </div>
+              <p id="attendeeTransactionCount" class="text-3xl font-extrabold text-white">0</p>
+              <p class="text-[10px] text-white/30 mt-1">Total ticket orders</p>
             </div>
-            <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <p class="text-xs font-semibold text-white/50 mb-2">People booked</p>
-              <p id="attendeePeopleCount" class="text-3xl font-bold text-white">0</p>
+            <div class="relative overflow-hidden bg-gradient-to-br from-emerald-500/[0.09] to-transparent border border-emerald-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">People Booked</p>
+                <span class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center"><i data-lucide="users" class="w-4 h-4 text-emerald-400"></i></span>
+              </div>
+              <p id="attendeePeopleCount" class="text-3xl font-extrabold text-emerald-400">0</p>
+              <p class="text-[10px] text-white/30 mt-1">Total tickets purchased</p>
             </div>
-            <div class="bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm">
-              <p class="text-xs font-semibold text-white/50 mb-2">Used tickets</p>
-              <p id="attendeeUsedCount" class="text-3xl font-bold text-white">0</p>
+            <div class="relative overflow-hidden bg-gradient-to-br from-amber-500/[0.09] to-transparent border border-amber-500/[0.18] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Used Tickets</p>
+                <span class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center"><i data-lucide="scan-line" class="w-4 h-4 text-amber-400"></i></span>
+              </div>
+              <p id="attendeeUsedCount" class="text-3xl font-extrabold text-amber-400">0</p>
+              <p class="text-[10px] text-white/30 mt-1">Scanned at the gate</p>
             </div>
           </div>
-          <div class="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
-            <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
-              <div>
-                <h2 class="text-lg font-bold text-white mb-2">Attendee activity</h2>
-                <p class="text-sm text-white/50">Latest bookings across all your events.</p>
+
+          <!-- Search bar -->
+          <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3">
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
+                <input id="attendeeSearchInput" type="text" placeholder="Search by name, email, or event…" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-red-500/40 transition-colors">
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto">
-                <input id="attendeeSearchInput" type="text" placeholder="Search name, email, or event" class="sm:col-span-2 w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white focus:border-red-500">
-                  <select id="attendeeStatusFilter" class="hidden w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white appearance-none" aria-hidden="true">
-                    <option value="all">All tickets</option>
-                    <option value="used">Used</option>
-                    <option value="unused">Unused</option>
-                  </select>
-              </div>
-            </div>
-            <div id="attendeesContainer" class="space-y-4">
-              <p class="text-sm text-white/60">Loading attendees...</p>
+              <select id="attendeeStatusFilter" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+                <option value="all">All Tickets</option>
+                <option value="used">Used</option>
+                <option value="unused">Unused</option>
+              </select>
             </div>
           </div>
+
+          <!-- Per-event attendee groups -->
+          <div id="attendeesContainer" class="space-y-5">
+            <p class="text-sm text-white/50 text-center py-8">Loading attendees...</p>
+          </div>
+
+          <select id="attendeeStatusFilterHidden" class="hidden" aria-hidden="true"></select>
         </section>
 
         <section data-view-panel="bookings" class="dashboard-view hidden space-y-6">
@@ -731,6 +874,17 @@
               <div id="artistLineupPicker" class="max-h-48 overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-3 space-y-2">
                 <p class="text-xs text-white/50">Loading artists...</p>
               </div>
+              <div class="rounded-2xl border border-dashed border-white/10 bg-black/20 p-3 space-y-3">
+                <div>
+                  <p class="text-[10px] uppercase tracking-widest text-white/45">External Artist</p>
+                  <p class="text-xs text-white/50 mt-1">Add an artist who is not registered in the system yet.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="text" id="externalArtistInput" placeholder="Type external artist name" class="flex-1 px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none">
+                  <button type="button" id="addExternalArtistBtn" class="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-colors">Add</button>
+                </div>
+                <div id="externalArtistTags" class="flex flex-wrap gap-2"></div>
+              </div>
             </div>
             <div class="space-y-2">
               <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Registered Sessionists</label>
@@ -743,17 +897,37 @@
               <div id="sessionistLineupPicker" class="max-h-48 overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-3 space-y-2">
                 <p class="text-xs text-white/50">Loading sessionists...</p>
               </div>
+              <div class="rounded-2xl border border-dashed border-white/10 bg-black/20 p-3 space-y-3">
+                <div>
+                  <p class="text-[10px] uppercase tracking-widest text-white/45">External Sessionist</p>
+                  <p class="text-xs text-white/50 mt-1">Add a sessionist who is not registered in the system yet.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="text" id="externalSessionistInput" placeholder="Type external sessionist name" class="flex-1 px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none">
+                  <button type="button" id="addExternalSessionistBtn" class="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-colors">Add</button>
+                </div>
+                <div id="externalSessionistTags" class="flex flex-wrap gap-2"></div>
+              </div>
             </div>
           </div>
 
           <div class="space-y-2 pt-2">
-            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Genres (Select Multiple) *</label>
-            <div class="flex flex-wrap gap-2" id="genreSelection">
-              <label class="cursor-pointer"><input type="checkbox" value="Indie Pop" class="genre-checkbox peer hidden"><span class="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold text-white/50 peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-500 transition-colors">Indie Pop</span></label>
-              <label class="cursor-pointer"><input type="checkbox" value="Rock" class="genre-checkbox peer hidden"><span class="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold text-white/50 peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-500 transition-colors">Rock</span></label>
-              <label class="cursor-pointer"><input type="checkbox" value="Acoustic" class="genre-checkbox peer hidden"><span class="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold text-white/50 peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-500 transition-colors">Acoustic</span></label>
-              <label class="cursor-pointer"><input type="checkbox" value="R&B" class="genre-checkbox peer hidden"><span class="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold text-white/50 peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-500 transition-colors">R&B</span></label>
-              <label class="cursor-pointer"><input type="checkbox" value="Electronic" class="genre-checkbox peer hidden"><span class="px-4 py-2 rounded-full border border-white/10 text-xs font-semibold text-white/50 peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-500 transition-colors">Electronic</span></label>
+            <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Genres *</label>
+            <div class="rounded-2xl border border-white/10 bg-black/20 p-3 space-y-3">
+              <div class="relative">
+                <div class="flex gap-2">
+                  <div class="relative flex-1">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none" style="stroke-width:1.5"></i>
+                    <input type="text" id="genreComboInput" autocomplete="off" placeholder="Search or type a genre..." class="w-full pl-9 pr-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40 transition-colors">
+                  </div>
+                  <button type="button" id="addGenreBtn" class="px-4 py-3 rounded-xl bg-red-600/10 border border-red-500/20 text-sm font-semibold text-red-300 hover:bg-red-600/20 transition-colors whitespace-nowrap">Add</button>
+                </div>
+                <div id="genreDropdown" class="hidden absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-white/10 bg-[#1c1818] shadow-2xl overflow-hidden">
+                  <div class="max-h-44 overflow-y-auto" id="genreDropdownList"></div>
+                </div>
+              </div>
+              <div id="selectedGenresList" class="flex flex-wrap gap-2"></div>
+              <p class="text-[10px] text-white/40">Search or type a genre and press Add or Enter. Click a tag to remove it.</p>
             </div>
           </div>
 
@@ -769,6 +943,7 @@
           <div class="space-y-2">
             <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Date & Time *</label>
             <input type="datetime-local" id="eventTime" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white [color-scheme:dark]">
+            <p id="eventTimeLockHint" class="hidden text-[10px] text-amber-300">When editing an event, the date stays locked. You can still adjust the time.</p>
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -995,6 +1170,15 @@
     let activeEventAnalyticsId = '';
     let eventSalesChart = null;
     let eventCapacityChart = null;
+    let selectedGenres = [];
+    let selectedExternalArtists = [];
+    let selectedExternalSessionists = [];
+    let editingLockedEventDate = '';
+    const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+    const organizerGenreOptions = [
+      'Indie Pop', 'Rock', 'Acoustic', 'R&B', 'Electronic', 'Hip-Hop', 'Jazz', 'Pop',
+      'Folk', 'Alternative', 'Soul', 'House', 'Reggae', 'Punk', 'Metal', 'Classical'
+    ];
     const organizerVerificationUploads = {
       organizerVerificationIdFront: null,
       organizerVerificationIdBack: null,
@@ -1064,6 +1248,40 @@
       return text ? JSON.parse(text) : null;
     }
 
+    async function ensureOrganizerSession(userId) {
+      const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
+      if (!userId || !sessionToken) {
+        localStorage.clear();
+        window.location.href = '/pages/auth/login.html?session=expired';
+        return false;
+      }
+
+      try {
+        const response = await fetch(`/api/auth/session-status?userId=${encodeURIComponent(userId)}`, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: {
+            'Accept': 'application/json',
+            'X-Session-Token': sessionToken
+          }
+        });
+
+        if (response.ok) {
+          return true;
+        }
+
+        if (response.status === 401) {
+          localStorage.clear();
+          window.location.href = '/pages/auth/login.html?session=expired';
+          return false;
+        }
+      } catch {
+        // Let the dashboard continue if the network briefly fails.
+      }
+
+      return true;
+    }
+
     function normalizeRole(role) {
       return (role || '').trim().toLowerCase();
     }
@@ -1083,6 +1301,192 @@
       if (normalized === 'draft' || normalized === 'pending') return 'bg-amber-500/15 border border-amber-400/20 text-amber-300';
       if (normalized.includes('cancel') || normalized === 'suspended' || normalized === 'flagged') return 'bg-red-500/15 border border-red-400/20 text-red-300';
       return 'bg-emerald-500/15 border border-emerald-400/20 text-emerald-300';
+    }
+
+    function normalizeNameToken(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    function renderExternalTalentTags(role) {
+      const containerId = role === 'Artist' ? 'externalArtistTags' : 'externalSessionistTags';
+      const items = role === 'Artist' ? selectedExternalArtists : selectedExternalSessionists;
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (!items.length) {
+        container.innerHTML = '<p class="text-xs text-white/35">No external names added yet.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map((name) => `
+        <button type="button" data-external-role="${role}" data-external-name="${escapeHtml(name)}" class="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-white/75 hover:border-white/20 transition-colors">
+          <span>${escapeHtml(name)}</span>
+          <span class="text-white/40">Remove</span>
+        </button>
+      `).join('');
+
+      container.querySelectorAll('[data-external-role]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const externalRole = button.dataset.externalRole;
+          const externalName = button.dataset.externalName || '';
+          removeExternalTalent(externalRole, externalName);
+        });
+      });
+    }
+
+    function addExternalTalent(role) {
+      const inputId = role === 'Artist' ? 'externalArtistInput' : 'externalSessionistInput';
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const value = String(input.value || '').trim().replace(/\s+/g, ' ');
+      if (!value) return;
+
+      const target = role === 'Artist' ? selectedExternalArtists : selectedExternalSessionists;
+      const exists = target.some((name) => normalizeNameToken(name) === normalizeNameToken(value));
+      if (!exists) target.push(value);
+
+      input.value = '';
+      renderExternalTalentTags(role);
+      syncLineupSummary();
+    }
+
+    function removeExternalTalent(role, name) {
+      const normalized = normalizeNameToken(name);
+      if (role === 'Artist') {
+        selectedExternalArtists = selectedExternalArtists.filter((item) => normalizeNameToken(item) !== normalized);
+      } else {
+        selectedExternalSessionists = selectedExternalSessionists.filter((item) => normalizeNameToken(item) !== normalized);
+      }
+      renderExternalTalentTags(role);
+      syncLineupSummary();
+    }
+
+    function renderGenreOptions() {
+      // Replaced by custom dropdown — no-op kept for compatibility
+    }
+
+    function showGenreDropdown(filter) {
+      const dropdown = document.getElementById('genreDropdown');
+      const list = document.getElementById('genreDropdownList');
+      if (!dropdown || !list) return;
+
+      const q = (filter || '').toLowerCase().trim();
+      const filtered = organizerGenreOptions.filter(g =>
+        !q || g.toLowerCase().includes(q)
+      );
+
+      if (!filtered.length) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      list.innerHTML = filtered.map(genre => {
+        const isSelected = selectedGenres.some(g => normalizeNameToken(g) === normalizeNameToken(genre));
+        return `<button type="button" data-genre-option="${escapeHtml(genre)}"
+          class="w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3
+            ${isSelected ? 'text-emerald-300 bg-emerald-500/10' : 'text-white/75 hover:bg-white/[0.06] hover:text-white'}">
+          <span class="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+            ${isSelected ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+          </span>
+          ${escapeHtml(genre)}
+        </button>`;
+      }).join('');
+
+      list.querySelectorAll('[data-genre-option]').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          addGenreSelection(btn.dataset.genreOption);
+          const input = document.getElementById('genreComboInput');
+          if (input) { input.value = ''; input.focus(); }
+          showGenreDropdown('');
+        });
+      });
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function hideGenreDropdown() {
+      document.getElementById('genreDropdown')?.classList.add('hidden');
+    }
+
+    function renderSelectedGenres() {
+      const container = document.getElementById('selectedGenresList');
+      if (!container) return;
+      if (!selectedGenres.length) {
+        container.innerHTML = '<p class="text-xs text-white/35">No genres selected yet.</p>';
+        return;
+      }
+
+      container.innerHTML = selectedGenres.map((genre) => `
+        <button type="button" data-remove-genre="${escapeHtml(genre)}" class="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-red-600/10 border border-red-500/20 text-xs font-semibold text-red-200 hover:bg-red-600/20 transition-colors">
+          <span>${escapeHtml(genre)}</span>
+          <span class="text-red-200/60">Remove</span>
+        </button>
+      `).join('');
+
+      container.querySelectorAll('[data-remove-genre]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const value = button.dataset.removeGenre || '';
+          selectedGenres = selectedGenres.filter((genre) => normalizeNameToken(genre) !== normalizeNameToken(value));
+          renderSelectedGenres();
+        });
+      });
+    }
+
+    function addGenreSelection(rawValue) {
+      const value = String(rawValue || '').trim().replace(/\s+/g, ' ');
+      if (!value) return;
+      if (!selectedGenres.some((genre) => normalizeNameToken(genre) === normalizeNameToken(value))) {
+        selectedGenres.push(value);
+      }
+      const input = document.getElementById('genreComboInput');
+      if (input) input.value = '';
+      renderSelectedGenres();
+    }
+
+    function bindOrganizerEventComposerControls() {
+      document.getElementById('addGenreBtn')?.addEventListener('click', () => {
+        const input = document.getElementById('genreComboInput');
+        addGenreSelection(input?.value);
+        if (input) { input.value = ''; input.focus(); }
+        showGenreDropdown('');
+      });
+
+      const genreInput = document.getElementById('genreComboInput');
+      genreInput?.addEventListener('input', (e) => showGenreDropdown(e.target.value));
+      genreInput?.addEventListener('focus', (e) => showGenreDropdown(e.target.value));
+      genreInput?.addEventListener('blur', () => setTimeout(hideGenreDropdown, 150));
+      genreInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addGenreSelection(event.target.value);
+          event.target.value = '';
+          showGenreDropdown('');
+        }
+        if (event.key === 'Escape') hideGenreDropdown();
+      });
+      document.getElementById('addExternalArtistBtn')?.addEventListener('click', () => addExternalTalent('Artist'));
+      document.getElementById('addExternalSessionistBtn')?.addEventListener('click', () => addExternalTalent('Sessionist'));
+      document.getElementById('externalArtistInput')?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addExternalTalent('Artist');
+        }
+      });
+      document.getElementById('externalSessionistInput')?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addExternalTalent('Sessionist');
+        }
+      });
+    }
+
+    function enforceEditDateLock(rawValue) {
+      if (!editingEventId || !editingLockedEventDate || !rawValue) return rawValue;
+      const parsed = new Date(rawValue);
+      if (Number.isNaN(parsed.getTime())) return rawValue;
+      const lockedPrefix = `${editingLockedEventDate}T`;
+      const timePortion = rawValue.includes('T') ? rawValue.split('T')[1] : '00:00';
+      return `${lockedPrefix}${timePortion}`;
     }
 
     function isRunningOnLiveServer() {
@@ -1107,6 +1511,7 @@
       const displayName = firstName || username || 'Organizer';
 
       if (!userId || normalizeRole(role) !== 'organizer') return window.location.href = '/pages/auth/login.html';
+      if (!(await ensureOrganizerSession(userId))) return;
 
       // Use safe setters for initial UI
       dom.setText('userNameDisplay', displayName);
@@ -1126,11 +1531,23 @@
         bindOrganizerSettings();
         bindOrganizerCommunity();
         bindAttendeeControls();
+        bindOrganizerEventComposerControls();
+        renderGenreOptions();
+        renderSelectedGenres();
+        renderExternalTalentTags('Artist');
+        renderExternalTalentTags('Sessionist');
         document.getElementById('organizerBookingSearchInput')?.addEventListener('input', renderOrganizerBookings);
         document.getElementById('organizerBookingStatusFilter')?.addEventListener('change', renderOrganizerBookings);
         bindLineupModal();
         document.getElementById('eventLocation')?.addEventListener('input', (e) => {
           syncVenueCityFromTag(e.target.value);
+        });
+        document.getElementById('eventTime')?.addEventListener('change', (e) => {
+          if (!editingEventId || !editingLockedEventDate) return;
+          const lockedValue = enforceEditDateLock(e.target.value);
+          if (lockedValue !== e.target.value) {
+            e.target.value = lockedValue;
+          }
         });
         document.getElementById('artistLineupSearch')?.addEventListener('input', () => renderLineupOptions('artistLineupPicker', artistLineupOptions, 'Artist'));
         document.getElementById('sessionistLineupSearch')?.addEventListener('input', () => renderLineupOptions('sessionistLineupPicker', sessionistLineupOptions, 'Sessionist'));
@@ -1304,9 +1721,7 @@
       if (!container) return;
 
       try {
-        const res = await fetch(`/api/notification/user/${userId}`);
-        if (!res.ok) throw new Error('Failed to load notifications.');
-        organizerNotifications = await res.json();
+        organizerNotifications = await safeFetchJSON(`/api/notification/user/${userId}`) || [];
 
         const unreadCount = organizerNotifications.filter(item => !item.isRead).length;
         dom.setText('organizerNotificationCount', `${unreadCount} new`);
@@ -1345,6 +1760,7 @@
         if (!organizer) return;
         
         const displayName = organizer.displayName || localStorage.getItem('userFirstName') || 'Organizer';
+        localStorage.setItem('userDisplayName', displayName);
         
         dom.setText('userNameDisplay', displayName);
         dom.setText('sidebarName', displayName);
@@ -1397,6 +1813,155 @@
       } catch (error) {
          console.warn("Organizer profile failed to load safely:", error);
       }
+    }
+
+    const _analCharts = {};
+    function destroyAnalChart(key) {
+      if (_analCharts[key]) { try { _analCharts[key].destroy(); } catch(_) {} delete _analCharts[key]; }
+    }
+
+    async function loadOrganizerAnalytics(orgId) {
+      // Use cached events list; fall back to a fresh fetch if empty
+      let events = Array.isArray(organizerEventsCache) && organizerEventsCache.length ? organizerEventsCache : [];
+      if (!events.length) {
+        try {
+          const fetched = await safeFetchJSON(`/api/event/organizer/${orgId}`);
+          if (Array.isArray(fetched)) { organizerEventsCache = fetched; events = fetched; }
+        } catch(_) {}
+      }
+
+      // Also pull YTD gross from dashboard endpoint for accuracy
+      let ytdRevenue = 0;
+      try {
+        const dash = await safeFetchJSON(`/api/event/organizer/${orgId}/dashboard`);
+        if (dash && dash.revenueYtd != null) ytdRevenue = Number(dash.revenueYtd);
+      } catch(_) {}
+
+      // ─── Compute metrics ───
+      const totalTickets  = events.reduce((s, e) => s + Number(e.ticketsSold || 0), 0);
+      const totalCapacity = events.reduce((s, e) => s + Number(e.slots || 0), 0);
+      const finishedCount = events.filter(e => ['Finished', 'Completed'].includes(String(e.status || ''))).length;
+      const totalRevenue  = ytdRevenue || events.reduce((s, e) => s + Number(e.ticketsSold || 0) * Number(e.price || 0), 0);
+      const avgRevenue    = events.length ? totalRevenue / events.length : 0;
+      const sellThrough   = totalCapacity > 0 ? Math.round((totalTickets / totalCapacity) * 100) : 0;
+
+      // ─── Populate stat cards ───
+      dom.setText('analTotalRevenue', formatPeso(totalRevenue));
+      dom.setText('analTotalTickets', totalTickets);
+      dom.setText('analTotalEvents', events.length);
+      dom.setText('analFinishedEvents', finishedCount);
+      dom.setText('analSellThrough', `${sellThrough}%`);
+      dom.setText('analAvgRevenue', formatPeso(avgRevenue));
+
+      // ─── Sort events by revenue descending ───
+      const sorted = [...events]
+        .map(e => ({
+          ...e,
+          revenue: Number(e.ticketsSold || 0) * Number(e.price || 0),
+          pct: Number(e.slots || 0) > 0 ? Math.round((Number(e.ticketsSold || 0) / Number(e.slots || 0)) * 100) : 0
+        }))
+        .sort((a, b) => b.revenue - a.revenue);
+
+      const top = sorted.slice(0, 8);
+      const labels = top.map(e => (e.title || 'Untitled').slice(0, 22) + (e.title?.length > 22 ? '…' : ''));
+
+      const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      };
+
+      // ─── Revenue by Event (horizontal bar) ───
+      destroyAnalChart('revenue');
+      const revCtx = document.getElementById('analRevenueByEventChart')?.getContext('2d');
+      if (revCtx && typeof Chart !== 'undefined') {
+        _analCharts.revenue = new Chart(revCtx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{ label: 'Revenue', data: top.map(e => e.revenue),
+              backgroundColor: 'rgba(52,211,153,0.75)', borderRadius: 6 }]
+          },
+          options: { ...chartDefaults, indexAxis: 'y',
+            plugins: { legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ' ' + formatPeso(ctx.raw) } } },
+            scales: {
+              x: { ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 },
+                callback: v => formatPeso(v).replace('PHP ', '₱') }, grid: { color: 'rgba(255,255,255,0.05)' } },
+              y: { ticks: { color: 'rgba(255,255,255,0.6)', font: { size: 10 } }, grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      // ─── Capacity doughnut ───
+      destroyAnalChart('capacity');
+      const capCtx = document.getElementById('analCapacityChart')?.getContext('2d');
+      if (capCtx && typeof Chart !== 'undefined') {
+        const remaining = Math.max(0, totalCapacity - totalTickets);
+        _analCharts.capacity = new Chart(capCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Tickets Sold', 'Remaining'],
+            datasets: [{ data: [totalTickets, remaining],
+              backgroundColor: ['rgba(96,165,250,0.85)', 'rgba(255,255,255,0.08)'],
+              borderColor: ['rgba(96,165,250,0.5)', 'rgba(255,255,255,0.05)'],
+              borderWidth: 2, hoverOffset: 6 }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '68%',
+            plugins: { legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.55)', font: { size: 10 }, padding: 16 } } } }
+        });
+      }
+
+      // ─── Tickets sold by event (bar) ───
+      destroyAnalChart('tickets');
+      const tixCtx = document.getElementById('analTicketsByEventChart')?.getContext('2d');
+      if (tixCtx && typeof Chart !== 'undefined') {
+        _analCharts.tickets = new Chart(tixCtx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{ label: 'Tickets', data: top.map(e => Number(e.ticketsSold || 0)),
+              backgroundColor: 'rgba(251,191,36,0.75)', borderRadius: 6 }]
+          },
+          options: { ...chartDefaults,
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      // ─── Events performance table ───
+      const tbody = document.getElementById('analEventsTable');
+      if (tbody) {
+        if (!sorted.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-sm text-white/35">No events yet.</td></tr>';
+        } else {
+          tbody.innerHTML = sorted.map((e, i) => {
+            const statusClass = String(e.status || '').toLowerCase().includes('finish') || String(e.status || '').toLowerCase().includes('complet')
+              ? 'bg-slate-500/15 text-slate-300' : String(e.status || '').toLowerCase().includes('cancel')
+              ? 'bg-red-500/15 text-red-300' : 'bg-emerald-500/15 text-emerald-300';
+            const bar = e.pct > 0 ? `<div class="w-12 h-1.5 rounded-full bg-white/[0.08] overflow-hidden inline-block align-middle ml-2"><div class="h-full rounded-full bg-amber-400/70" style="width:${e.pct}%"></div></div>` : '';
+            return `<tr class="hover:bg-white/[0.02] cursor-pointer transition-colors" onclick="openEventAnalytics('${e.id}')">
+              <td class="py-3 pr-4 text-white/35 text-xs">${i + 1}</td>
+              <td class="py-3 pr-4">
+                <p class="text-sm font-semibold text-white leading-snug">${escapeHtml(e.title || 'Untitled')}</p>
+                <p class="text-[10px] text-white/35 mt-0.5">${escapeHtml(e.city || e.location || 'Metro Manila')}</p>
+              </td>
+              <td class="py-3 pr-4 text-xs text-white/50">${e.time ? new Date(e.time).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+              <td class="py-3 pr-4 text-right text-sm font-semibold text-white">${Number(e.ticketsSold || 0)}<span class="text-white/30 text-xs">/${Number(e.slots || 0)}</span></td>
+              <td class="py-3 pr-4 text-right text-sm font-semibold text-emerald-400">${formatPeso(e.revenue)}</td>
+              <td class="py-3 pr-4 text-right text-xs text-amber-400">${e.pct}%${bar}</td>
+              <td class="py-3 text-right"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusClass}">${escapeHtml(e.status || 'Upcoming')}</span></td>
+            </tr>`;
+          }).join('');
+        }
+      }
+
+      lucide.createIcons();
     }
 
     async function loadDashboardAnalytics(orgId) {
@@ -1508,6 +2073,14 @@
         if(createBtn) createBtn.classList.add('hidden');
         if(scanBtn) scanBtn.classList.add('hidden');
         if(analyticsScannerBtn) analyticsScannerBtn.classList.toggle('hidden', !activeEventAnalyticsId);
+      } else if (viewName === 'analytics') {
+        dom.setText('pageTitle', 'Analytics Overview');
+        dom.setText('pageSubtitle', 'Revenue, ticket sales, and performance across all your events.');
+        if(createBtn) createBtn.classList.add('hidden');
+        if(scanBtn) scanBtn.classList.add('hidden');
+        if(analyticsScannerBtn) analyticsScannerBtn.classList.add('hidden');
+        const orgId = localStorage.getItem('userId');
+        if (orgId) loadOrganizerAnalytics(orgId);
       } else if (viewName === 'attendees') {
         dom.setText('pageTitle', 'Attendees');
         dom.setText('pageSubtitle', 'Review live attendee records from ticket purchases.');
@@ -1545,7 +2118,7 @@
         if(scanBtn) scanBtn.classList.add('hidden');
         if(analyticsScannerBtn) analyticsScannerBtn.classList.add('hidden');
       } else {
-        dom.setText('pageTitle', `Welcome, ${firstName}`);
+        dom.setText('pageTitle', 'Welcome');
         dom.setText('pageSubtitle', 'Create gigs, track sales, and monitor attendees.');
         if(createBtn) createBtn.classList.remove('hidden');
         if(scanBtn) scanBtn.classList.remove('hidden');
@@ -1876,63 +2449,105 @@
 
     function renderFilteredAttendees() {
       const container = document.getElementById('attendeesContainer');
-      if(!container) return;
+      if (!container) return;
 
-      const searchInput = document.getElementById('attendeeSearchInput');
-      const statusFilter = document.getElementById('attendeeStatusFilter');
-      const searchValue = searchInput ? searchInput.value.trim().toLowerCase() : '';
-      const statusValue = statusFilter ? statusFilter.value : 'all';
+      const searchValue = (document.getElementById('attendeeSearchInput')?.value || '').trim().toLowerCase();
+      const statusValue = document.getElementById('attendeeStatusFilter')?.value || 'all';
 
-      let filteredAttendees = [...attendeesCache];
-
+      let filtered = [...attendeesCache];
       if (searchValue) {
-        filteredAttendees = filteredAttendees.filter(attendee =>
-          (attendee.attendeeName || '').toLowerCase().includes(searchValue) ||
-          (attendee.email || '').toLowerCase().includes(searchValue) ||
-          (attendee.eventTitle || '').toLowerCase().includes(searchValue) ||
-          String(attendee.ticketId || '').toLowerCase().includes(searchValue)
+        filtered = filtered.filter(a =>
+          (a.attendeeName || '').toLowerCase().includes(searchValue) ||
+          (a.email || '').toLowerCase().includes(searchValue) ||
+          (a.eventTitle || '').toLowerCase().includes(searchValue)
         );
       }
+      if (statusValue === 'used') filtered = filtered.filter(a => Number(a.usedQuantity || 0) > 0 || a.isUsed);
+      else if (statusValue === 'unused') filtered = filtered.filter(a => !(Number(a.usedQuantity || 0) > 0 || a.isUsed));
 
-      if (statusValue === 'used') {
-        filteredAttendees = filteredAttendees.filter(attendee => Number(attendee.usedQuantity || 0) > 0 || attendee.isUsed);
-      } else if (statusValue === 'unused') {
-        filteredAttendees = filteredAttendees.filter(attendee => !(Number(attendee.usedQuantity || 0) > 0 || attendee.isUsed));
-      }
-
-      if (filteredAttendees.length === 0) {
-        container.innerHTML = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-xl text-center">No attendees matched your search.</p>`;
+      if (!filtered.length) {
+        container.innerHTML = `<p class="text-sm text-white/45 text-center py-10">No attendees match your search.</p>`;
         return;
       }
 
-      container.innerHTML = filteredAttendees.map(attendee => `
-        <div class="p-4 bg-black/40 border border-white/10 rounded-2xl">
-          <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-            <div class="min-w-0">
-              <div class="flex flex-col md:flex-row md:items-center gap-3">
-                <div>
-                  <p class="text-sm font-semibold text-white">${attendee.attendeeName || 'Guest buyer'}</p>
-                  <p class="text-xs text-white/50 mt-1">${attendee.email || 'No email provided'}</p>
+      // Group by event, preserving insertion order
+      const groups = filtered.reduce((acc, a) => {
+        const key = a.eventTitle || 'Untitled Event';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(a);
+        return acc;
+      }, {});
+
+      container.innerHTML = Object.entries(groups).map(([eventTitle, attendees]) => {
+        const totalPeople = attendees.reduce((s, a) => s + Number(a.quantity || 0), 0);
+        const totalUsed   = attendees.reduce((s, a) => s + Number(a.usedQuantity || (a.isUsed ? a.quantity || 0 : 0)), 0);
+        const usedPct     = totalPeople > 0 ? Math.round((totalUsed / totalPeople) * 100) : 0;
+
+        const rows = attendees.map(a => {
+          const isUsed = Number(a.usedQuantity || 0) > 0 || a.isUsed;
+          const usedLabel = Number(a.usedQuantity || 0) > 0 && !a.isUsed
+            ? `${a.usedQuantity}/${a.quantity || 0} Scanned`
+            : isUsed ? 'Used' : 'Unused';
+          const initials = (a.attendeeName || 'G').split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+
+          return `
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4 px-4 py-3.5 bg-white/[0.02] border border-white/[0.06] rounded-xl hover:border-white/[0.12] transition-colors">
+              <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-white/[0.07] border border-white/[0.08] flex items-center justify-center text-xs font-bold text-white/70 flex-shrink-0">${initials}</div>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-white truncate">${escapeHtml(a.attendeeName || 'Guest Buyer')}</p>
+                  <p class="text-[11px] text-white/40 truncate">${escapeHtml(a.email || 'No email')}</p>
                 </div>
-                <span class="w-fit text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${(Number(attendee.usedQuantity || 0) > 0 || attendee.isUsed) ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-300'}">${Number(attendee.usedQuantity || 0) > 0 && !attendee.isUsed ? `${attendee.usedQuantity}/${attendee.quantity || 0} Used` : (attendee.isUsed ? 'Used' : 'Unused')}</span>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-4 text-xs text-white/70">
-                <div><span class="text-white/40 block mb-1">Event</span>${attendee.eventTitle || 'N/A'}</div>
-                <div><span class="text-white/40 block mb-1">Tier</span>${attendee.tierName || 'General'}</div>
-                <div><span class="text-white/40 block mb-1">Quantity</span>${attendee.quantity || 0}</div>
-                <div><span class="text-white/40 block mb-1">Amount</span>${formatPeso(attendee.totalPrice)}</div>
-                <div><span class="text-white/40 block mb-1">Purchased</span>${formatSaleTime(attendee.purchaseDate)}</div>
+              <div class="grid grid-cols-3 gap-4 text-xs text-white/60 flex-shrink-0 sm:w-auto">
+                <div>
+                  <p class="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Tier</p>
+                  <p class="font-semibold text-white/80 truncate">${escapeHtml(a.tierName || 'General')}</p>
+                </div>
+                <div>
+                  <p class="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Qty · Amount</p>
+                  <p class="font-semibold text-white/80">${a.quantity || 0} · ${escapeHtml(formatPeso(a.totalPrice))}</p>
+                </div>
+                <div>
+                  <p class="text-[10px] text-white/30 uppercase tracking-wider mb-0.5">Purchased</p>
+                  <p class="font-semibold text-white/80">${escapeHtml(formatSaleTime(a.purchaseDate))}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isUsed ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-400' : 'bg-amber-500/15 border border-amber-500/25 text-amber-300'}">${usedLabel}</span>
+                <button type="button" onclick="openAttendeeQrModal('${escapeHtml(a.ticketId || '')}', ${JSON.stringify((a.attendeeName || 'Guest Buyer')).replace(/"/g, '&quot;')}, ${Number(a.quantity || 1)}, ${JSON.stringify(Array.isArray(a.usedTicketUnits) ? a.usedTicketUnits : [])})"
+                  class="px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white text-[11px] font-semibold hover:bg-white/10 transition-colors whitespace-nowrap">
+                  View QR
+                </button>
               </div>
             </div>
-            <div class="flex flex-col sm:flex-row gap-2 lg:min-w-[170px]">
-              <button type="button" onclick="openAttendeeQrModal('${attendee.ticketId || ''}', ${JSON.stringify((attendee.attendeeName || 'Guest buyer')).replace(/"/g, '&quot;')}, ${Number(attendee.quantity || 1)}, ${JSON.stringify(Array.isArray(attendee.usedTicketUnits) ? attendee.usedTicketUnits : [])})" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-xl hover:bg-white/10 transition-colors">
-                View Ticket QR
-              </button>
-              <span class="px-3 py-2 bg-black/40 border border-white/10 text-[10px] text-white/50 rounded-xl break-all">${attendee.ticketId || 'Missing ID'}</span>
+          `;
+        }).join('');
+
+        return `
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex-shrink-0"><i data-lucide="calendar-check" class="w-4 h-4 text-red-400"></i></span>
+                <div>
+                  <p class="text-sm font-bold text-white">${escapeHtml(eventTitle)}</p>
+                  <p class="text-[11px] text-white/35 mt-0.5">${attendees.length} orders · ${totalPeople} tickets · ${totalUsed} scanned</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                  <div class="w-24 h-1.5 rounded-full bg-white/[0.07] overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-emerald-500/80 to-emerald-400/60" style="width:${usedPct}%"></div></div>
+                  <span class="text-[11px] text-white/40">${usedPct}% used</span>
+                </div>
+                <span class="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">${totalUsed}/${totalPeople}</span>
+              </div>
             </div>
+            <div class="p-3 space-y-2">${rows}</div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
+
+      lucide.createIcons();
     }
 
     function buildTicketQrPayload(ticketId, unitNumber) {
@@ -2609,7 +3224,9 @@
     }
 
     const modal = document.getElementById('createEventModal');
-    let editingEventId = null; 
+    let editingEventId = null;
+    let editingOriginalCity = '';
+    let editingOriginalLocation = '';
     let base64ImageString = null;
 
     function getSelectedLineup(role) {
@@ -2617,11 +3234,14 @@
         ? '#artistLineupPicker input[type="checkbox"]:checked'
         : '#sessionistLineupPicker input[type="checkbox"]:checked';
       const options = role === 'Artist' ? artistLineupOptions : sessionistLineupOptions;
+      const externalItems = (role === 'Artist' ? selectedExternalArtists : selectedExternalSessionists)
+        .map((displayName) => ({ id: EMPTY_GUID, displayName, role, profilePicture: '' }));
 
       return Array.from(document.querySelectorAll(selector))
         .map(checkbox => options.find(item => item.id === checkbox.value))
         .filter(Boolean)
-        .map(item => ({ id: item.id, displayName: item.displayName, role, profilePicture: item.profilePicture || '' }));
+        .map(item => ({ id: item.id, displayName: item.displayName, role, profilePicture: item.profilePicture || '' }))
+        .concat(externalItems);
     }
 
     function syncLineupSummary() {
@@ -2700,8 +3320,21 @@
 
     function applySelectedLineup(role, items) {
       const containerId = role === 'Artist' ? 'artistLineupPicker' : 'sessionistLineupPicker';
-      const targetIds = new Set((items || []).map(item => item.id));
+      const targetIds = new Set((items || []).filter(item => item.id && item.id !== EMPTY_GUID).map(item => item.id));
       document.querySelectorAll(`#${containerId} input[type="checkbox"]`).forEach(cb => { cb.checked = targetIds.has(cb.value); });
+
+      const externalNames = (items || [])
+        .filter((item) => !item.id || item.id === EMPTY_GUID)
+        .map((item) => item.displayName)
+        .filter(Boolean);
+
+      if (role === 'Artist') {
+        selectedExternalArtists = externalNames;
+      } else {
+        selectedExternalSessionists = externalNames;
+      }
+
+      renderExternalTalentTags(role);
     }
 
       function resetModal() {
@@ -2712,12 +3345,21 @@
         dom.setText('publishEventBtn', "Publish Event");
         const draftToggle = document.getElementById('eventDraftToggle');
         if (draftToggle) draftToggle.checked = false;
-        
-        document.querySelectorAll('.genre-checkbox').forEach(cb => cb.checked = false);
+        selectedGenres = [];
+        selectedExternalArtists = [];
+        selectedExternalSessionists = [];
+        editingLockedEventDate = '';
+        renderSelectedGenres();
+        renderExternalTalentTags('Artist');
+        renderExternalTalentTags('Sessionist');
         dom.setVal('artistLineupSearch', '');
         dom.setVal('sessionistLineupSearch', '');
+        dom.setVal('externalArtistInput', '');
+        dom.setVal('externalSessionistInput', '');
+        dom.setVal('genreComboInput', '');
         dom.hide('posterPreview');
         dom.show('posterPlaceholder');
+        document.getElementById('eventTimeLockHint')?.classList.add('hidden');
       
       const dtc = document.getElementById('dynamicTiersContainer');
       if(dtc) dtc.innerHTML = ''; 
@@ -2817,7 +3459,7 @@
         if(lineupContainer) lineupContainer.innerHTML = '';
 
         if (events.length === 0) {
-          const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No events found. Click "Create event" to start!</p>`;
+          const emptyState = `<p class="text-sm text-white/40 p-6 text-center">No events yet. Click "Create event" to get started.</p>`;
           if(container) container.innerHTML = emptyState;
           if(managementContainer) managementContainer.innerHTML = emptyState;
           if(lineupContainer) lineupContainer.innerHTML = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No lineups available yet.</p>`;
@@ -2838,29 +3480,58 @@
             
             const statusBadge = `<span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${getEventStatusBadgeClass(isFinished ? 'Finished' : (isDraft ? 'Draft' : 'Upcoming'))}">${isFinished ? 'Finished' : (isDraft ? 'Draft' : 'Upcoming')}</span>`;
             
-            const analyticsBtn = `<button type="button" onclick="event.stopPropagation(); openEventAnalytics('${ev.id}')" title="Open Event Analytics" class="event-action-btn w-8 h-8 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="bar-chart-3" class="w-4 h-4"></i></button>`;
-            const finishBtn = isLocked ? '' : `<button onclick="event.stopPropagation(); finishEvent('${ev.id}')" title="Mark as Finished" class="event-action-btn w-8 h-8 bg-green-500/10 border border-green-500/20 text-green-500 rounded-lg flex items-center justify-center hover:bg-green-500/30 transition-colors"><i data-lucide="check-circle" class="w-4 h-4"></i></button>`;
-            const editBtn = isFinished ? '' : `<button onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit Event" class="event-action-btn w-8 h-8 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center hover:bg-blue-500/30 transition-colors"><i data-lucide="edit" class="w-4 h-4"></i></button>`;
-            const lineupBtn = `<button onclick="event.stopPropagation(); openManageLineupModal('${ev.id}')" title="Manage Lineup" class="event-action-btn w-8 h-8 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg flex items-center justify-center hover:bg-amber-500/20 transition-colors"><i data-lucide="list-music" class="w-4 h-4"></i></button>`;
-            const scanBtn = isLocked ? '' : `<button type="button" data-event-scanner data-event-id="${ev.id}" data-event-title="${escapeHtml(ev.title || 'Untitled Event')}" onclick="event.stopPropagation(); openEventScanner('${ev.id}', ${JSON.stringify(ev.title || 'Untitled Event')})" title="Scan Tickets For This Event" aria-label="Scan tickets for ${escapeHtml(ev.title || 'Untitled Event')}" class="event-action-btn w-8 h-8 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="scan-line" class="w-4 h-4"></i></button>`;
-            const bookArtistBtn = isLocked ? '' : `<button onclick="event.stopPropagation(); browseTalentForEvent('Artist', '${ev.id}', ${JSON.stringify(ev.title || 'Untitled Event')})" title="Book Artist" class="event-action-btn w-8 h-8 bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300 rounded-lg flex items-center justify-center hover:bg-fuchsia-500/20 transition-colors"><i data-lucide="mic-2" class="w-4 h-4"></i></button>`;
-            const bookSessionistBtn = isLocked ? '' : `<button onclick="event.stopPropagation(); browseTalentForEvent('Sessionist', '${ev.id}', ${JSON.stringify(ev.title || 'Untitled Event')})" title="Book Sessionist" class="event-action-btn w-8 h-8 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-lg flex items-center justify-center hover:bg-cyan-500/20 transition-colors"><i data-lucide="headphones" class="w-4 h-4"></i></button>`;
+            const analyticsBtn = `<button type="button" onclick="event.stopPropagation(); openEventAnalytics('${ev.id}')" title="Open Event Analytics" class="event-action-btn w-7 h-7 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i></button>`;
+            const finishBtn = isLocked ? '' : `<button onclick="event.stopPropagation(); finishEvent('${ev.id}')" title="Mark as Finished" class="event-action-btn w-7 h-7 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center hover:bg-emerald-500/20 transition-colors"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button>`;
+            const editBtn = isFinished ? '' : `<button onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit Event" class="event-action-btn w-7 h-7 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center hover:bg-blue-500/20 transition-colors"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>`;
+            const lineupBtn = `<button onclick="event.stopPropagation(); openManageLineupModal('${ev.id}')" title="Manage Lineup" class="event-action-btn w-7 h-7 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg flex items-center justify-center hover:bg-amber-500/20 transition-colors"><i data-lucide="list-music" class="w-3.5 h-3.5"></i></button>`;
+            const scanBtn = isLocked ? '' : `<button type="button" data-event-scanner data-event-id="${ev.id}" data-event-title="${escapeHtml(ev.title || 'Untitled Event')}" onclick="event.stopPropagation(); openEventScanner('${ev.id}', ${JSON.stringify(ev.title || 'Untitled Event')})" title="Scan Tickets" class="event-action-btn w-7 h-7 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i></button>`;
+            const deleteBtn = `<button onclick="event.stopPropagation(); deleteEvent('${ev.id}')" title="Delete Event" class="event-action-btn w-7 h-7 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg flex items-center justify-center hover:bg-red-500/20 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`;
+
+            const soldPct = Math.min(100, Math.round(((ev.ticketsSold ?? 0) / Math.max(ev.slots ?? 1, 1)) * 100));
 
             const eventCard = `
-              <div onclick="openEventAnalytics('${ev.id}')" class="p-5 bg-black/40 border border-white/10 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-white/20 transition-colors cursor-pointer ${isFinished ? 'opacity-60' : ''}">
-              <div>
-                <div class="flex items-center gap-2 mb-2 flex-wrap">${statusBadge}<span class="text-xs font-semibold text-white/50 bg-white/5 border border-white/10 px-2 py-0.5 rounded">${ev.eventType || 'Live Gig'}</span></div>
-                <h3 class="text-lg font-bold text-white mb-2">${ev.title || 'Untitled Event'}</h3>
-                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-white mb-2">
-                  <p class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3.5 h-3.5 text-white/50"></i> ${eventDate}</p>
-                  <p class="flex items-center gap-1.5"><i data-lucide="users" class="w-3.5 h-3.5 text-white/50"></i> ${ev.ticketsSold ?? 0}/${ev.slots ?? 0} sold</p>
+              <div onclick="openEventAnalytics('${ev.id}')" class="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-r from-white/[0.04] to-black/30 hover:border-white/[0.18] hover:from-white/[0.06] transition-all cursor-pointer ${isFinished ? 'opacity-60' : ''}">
+                <div class="flex gap-0">
+                  ${ev.posterUrl ? `<div class="relative w-40 flex-shrink-0 overflow-hidden"><img src="${escapeHtml(ev.posterUrl)}" class="w-full h-full object-cover opacity-50 group-hover:opacity-65 transition-opacity" onerror="this.parentElement.style.display='none'"><div class="absolute inset-0 bg-gradient-to-r from-transparent to-black/60"></div></div>` : `<div class="w-2 flex-shrink-0 bg-gradient-to-b ${isFinished ? 'from-slate-500/60 to-slate-600/40' : isDraft ? 'from-amber-500/60 to-amber-600/40' : 'from-red-500/60 to-red-600/40'}"></div>`}
+                  <div class="flex-1 p-5 space-y-4 min-w-0">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="space-y-1.5 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          ${statusBadge}
+                          <span class="text-[10px] font-semibold text-white/40 bg-white/[0.05] border border-white/[0.07] px-2 py-0.5 rounded">${ev.eventType || 'Live Gig'}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white leading-tight truncate">${ev.title || 'Untitled Event'}</h3>
+                      </div>
+                      <div class="flex items-center gap-1.5 flex-shrink-0" onclick="event.stopPropagation()">
+                        ${analyticsBtn}${scanBtn}${lineupBtn}${finishBtn}${editBtn}${deleteBtn}
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div class="bg-black/20 border border-white/[0.06] rounded-xl px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-white/35 mb-1">Date</p>
+                        <p class="text-xs font-semibold text-white/80">${eventDate}</p>
+                      </div>
+                      <div class="bg-black/20 border border-white/[0.06] rounded-xl px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-white/35 mb-1">Tickets</p>
+                        <p class="text-xs font-semibold text-white/80">${ev.ticketsSold ?? 0} / ${ev.slots ?? 0}</p>
+                      </div>
+                      <div class="bg-black/20 border border-white/[0.06] rounded-xl px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-white/35 mb-1">Price</p>
+                        <p class="text-xs font-semibold text-emerald-400">${formatPeso(ev.price)}</p>
+                      </div>
+                      <div class="bg-black/20 border border-white/[0.06] rounded-xl px-3 py-2.5">
+                        <p class="text-[10px] uppercase tracking-widest text-white/35 mb-1">Sold</p>
+                        <p class="text-xs font-semibold text-white/80">${soldPct}%</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <div class="flex-1 h-1.5 rounded-full bg-white/[0.07] overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-emerald-500/80 to-emerald-400/60" style="width:${soldPct}%"></div></div>
+                      <p class="text-xs text-white/40 flex items-center gap-1 flex-shrink-0"><i data-lucide="map-pin" class="w-3 h-3"></i>${[ev.city, ev.location].filter(Boolean).join(' · ') || 'Location TBA'}</p>
+                    </div>
+                    ${finishedAnalytics}
+                  </div>
                 </div>
-                <p class="text-sm font-semibold text-white mb-1">${formatPeso(ev.price)}</p>
-                <p class="text-xs text-white/50"><i data-lucide="map-pin" class="w-3 h-3 inline"></i> ${ev.city || ''} - ${ev.location || 'Location TBA'}</p>
-                ${finishedAnalytics}
-              </div>
-              <div class="flex md:flex-col gap-2">${analyticsBtn}${scanBtn}${lineupBtn}${bookArtistBtn}${bookSessionistBtn}${finishBtn}${editBtn}<button onclick="event.stopPropagation(); deleteEvent('${ev.id}')" title="Delete Event" class="event-action-btn w-8 h-8 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500/30 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>
-            </div>`;
+              </div>`;
           if(container) container.innerHTML += eventCard;
           if(managementContainer) managementContainer.innerHTML += eventCard;
         });
@@ -2988,10 +3659,10 @@
               </div>
               <div class="min-w-0">
                 <p class="text-sm font-semibold text-white truncate">${escapeHtml(item.displayName || 'Unknown')}</p>
-                <p class="text-[10px] uppercase tracking-widest text-white/40">${escapeHtml(role)}</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/40">${escapeHtml(role)}${(!item.id || item.id === EMPTY_GUID) ? ' • External' : ''}</p>
               </div>
             </div>
-            <button data-role="${escapeHtml(role)}" data-user-id="${escapeHtml(item.id)}" class="remove-lineup-member px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/20 text-xs font-semibold rounded-xl transition-colors">Remove</button>
+            <button data-role="${escapeHtml(role)}" data-user-id="${escapeHtml(item.id || '')}" data-display-name="${escapeHtml(item.displayName || '')}" class="remove-lineup-member px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/20 text-xs font-semibold rounded-xl transition-colors">Remove</button>
           </div>
         `).join('');
       };
@@ -3005,6 +3676,7 @@
         button.addEventListener('click', async () => {
           const role = button.dataset.role;
           const userId = button.dataset.userId;
+          const displayName = button.dataset.displayName;
           if (!activeLineupEventId || !role || !userId) return;
           const shouldRemove = await window.systemDialog.confirm(`Remove this ${role.toLowerCase()} from the event lineup?`, {
             title: 'Remove Lineup Member',
@@ -3018,6 +3690,67 @@
           button.innerText = 'Removing...';
 
           try {
+            if (userId === EMPTY_GUID) {
+              const fullEvent = await safeFetchJSON(`/api/event/${activeLineupEventId}`);
+              const targetEvent = organizerEventsCache.find(item => item.id === activeLineupEventId);
+              if (!fullEvent) throw new Error('Event not found.');
+
+              const key = normalizeNameToken(displayName || '');
+              if (role === 'Artist') {
+                fullEvent.artistLineup = (fullEvent.artistLineup || []).filter(item => !(String(item.id || '') === EMPTY_GUID && normalizeNameToken(item.displayName) === key));
+              } else {
+                fullEvent.sessionistLineup = (fullEvent.sessionistLineup || []).filter(item => !(String(item.id || '') === EMPTY_GUID && normalizeNameToken(item.displayName) === key));
+              }
+
+              const payload = {
+                organizerId: localStorage.getItem('userId'),
+                title: fullEvent.title,
+                eventType: fullEvent.eventType,
+                genres: fullEvent.genres,
+                artists: [...(fullEvent.artistLineup || []), ...(fullEvent.sessionistLineup || [])].map(item => item.displayName).join(', '),
+                description: fullEvent.description || '',
+                time: fullEvent.time,
+                city: fullEvent.city || '',
+                location: fullEvent.location || '',
+                posterUrl: fullEvent.posterUrl || null,
+                price: Number(fullEvent.price || 0),
+                slots: Number(fullEvent.totalSlots || fullEvent.slots || 0),
+                maxTicketsPerCustomer: Number(fullEvent.maxTicketsPerCustomer || 5),
+                tierName: fullEvent.tierName || null,
+                tierPrice: fullEvent.tierPrice || null,
+                tierSlots: fullEvent.tierSlots || null,
+                bundles: fullEvent.bundles || null,
+                discounts: fullEvent.discounts || null,
+                sponsors: fullEvent.sponsors || null,
+                saleName: fullEvent.saleName || null,
+                saleType: fullEvent.saleType || null,
+                saleValue: fullEvent.saleValue || null,
+                saleStartsAt: fullEvent.saleStartsAt || null,
+                saleEndsAt: fullEvent.saleEndsAt || null,
+                status: fullEvent.status || 'Upcoming',
+                artistLineup: fullEvent.artistLineup || [],
+                sessionistLineup: fullEvent.sessionistLineup || []
+              };
+
+              const updateResponse = await fetch(`/api/event/${activeLineupEventId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              const updateData = await updateResponse.json().catch(() => ({}));
+              if (!updateResponse.ok) throw new Error(updateData.message || 'Failed to remove external lineup member.');
+
+              if (targetEvent) {
+                targetEvent.artistLineup = fullEvent.artistLineup || [];
+                targetEvent.sessionistLineup = fullEvent.sessionistLineup || [];
+                targetEvent.artists = payload.artists;
+              }
+              renderManageLineupLists(fullEvent);
+              renderLineupsView(organizerEventsCache);
+              await loadEvents(localStorage.getItem('userId'));
+              return;
+            }
+
             const response = await fetch(`/api/event/${activeLineupEventId}/lineup/${role.toLowerCase()}/${userId}`, { method: 'DELETE' });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.message || 'Failed to remove lineup member.');
@@ -3091,6 +3824,8 @@
         syncLineupSummary();
         dom.setVal('eventDescription', ev.description || '');
         
+        editingOriginalCity = ev.city || '';
+        editingOriginalLocation = ev.location || '';
         if(ev.city) dom.setVal('eventCity', ev.city);
         dom.setVal('eventLocation', ev.location || '');
         dom.setVal('eventPrice', ev.price || 0);
@@ -3101,7 +3836,12 @@
         dom.setVal('eventSaleValue', ev.saleValue || '');
         
         const d = new Date(ev.time);
-        if(!isNaN(d)) dom.setVal('eventTime', new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0,16));
+        if(!isNaN(d)) {
+          const localizedTime = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
+          editingLockedEventDate = localizedTime.slice(0, 10);
+          dom.setVal('eventTime', localizedTime);
+          document.getElementById('eventTimeLockHint')?.classList.remove('hidden');
+        }
         const saleStart = ev.saleStartsAt ? new Date(ev.saleStartsAt) : null;
         const saleEnd = ev.saleEndsAt ? new Date(ev.saleEndsAt) : null;
         if(saleStart && !isNaN(saleStart)) dom.setVal('eventSaleStartsAt', new Date(saleStart.getTime() - (saleStart.getTimezoneOffset() * 60000)).toISOString().slice(0,16));
@@ -3109,10 +3849,11 @@
 
           if(ev.posterUrl) { dom.setSrc('posterPreview', ev.posterUrl); dom.hide('posterPlaceholder'); base64ImageString = ev.posterUrl; }
 
-          if(ev.genres) {
-             const dbGenres = ev.genres.split(',').map(g => g.trim());
-             document.querySelectorAll('.genre-checkbox').forEach(cb => { if(dbGenres.includes(cb.value)) cb.checked = true; });
-          }
+          selectedGenres = String(ev.genres || '')
+            .split(',')
+            .map(g => g.trim())
+            .filter(Boolean);
+          renderSelectedGenres();
           const draftToggle = document.getElementById('eventDraftToggle');
           if (draftToggle) {
             draftToggle.checked = (ev.status || '').toLowerCase() === 'draft';
@@ -3128,11 +3869,11 @@
           e.preventDefault();
           if (isRunningOnLiveServer()) return alert("Open the app from the dotnet run URL, not Live Server on port 5500, before publishing events.");
           
-          const checkedGenres = Array.from(document.querySelectorAll('.genre-checkbox:checked')).map(cb => cb.value).join(', ');
+          const checkedGenres = selectedGenres.join(', ');
           if (!checkedGenres) return alert("Please select at least one genre!");
           const selectedArtists = getSelectedLineup('Artist');
           const selectedSessionists = getSelectedLineup('Sessionist');
-          if (selectedArtists.length === 0 && selectedSessionists.length === 0) return alert("Please select at least one registered artist or sessionist for the lineup.");
+          if (selectedArtists.length === 0 && selectedSessionists.length === 0) return alert("Please add at least one artist or sessionist to the lineup.");
           const isDraft = document.getElementById('eventDraftToggle')?.checked;
 
           const submitBtn = document.getElementById('publishEventBtn');
@@ -3150,7 +3891,7 @@
             title: document.getElementById('eventTitle')?.value,
             eventType: document.getElementById('eventType')?.value,
             genres: checkedGenres, artists: document.getElementById('eventArtists')?.value,
-            description: document.getElementById('eventDescription')?.value, time: document.getElementById('eventTime')?.value,
+            description: document.getElementById('eventDescription')?.value, time: enforceEditDateLock(document.getElementById('eventTime')?.value),
             city: document.getElementById('eventCity')?.value, location: document.getElementById('eventLocation')?.value,
             posterUrl: base64ImageString, price: parseFloat(document.getElementById('eventPrice')?.value) || 0,
             slots: parseInt(document.getElementById('eventSlots')?.value) || 0,
@@ -3167,14 +3908,29 @@
 
         try {
           let url = '/api/event/create'; let method = 'POST';
-          if(editingEventId) { url = `/api/event/${editingEventId}`; method = 'PUT'; }
+          const isEdit = !!editingEventId;
+          if(isEdit) { url = `/api/event/${editingEventId}`; method = 'PUT'; }
+
+          const newCity = newEventData.city || '';
+          const newLocation = newEventData.location || '';
+          const venueChanged = isEdit && (newCity !== editingOriginalCity || newLocation !== editingOriginalLocation);
 
           const response = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newEventData) });
           const data = await response.json().catch(() => ({}));
           if (response.ok) {
-            alert("Event saved successfully!");
             if(modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
             resetModal(); await refreshOrganizerData();
+            if (venueChanged) {
+              const savedEventId = data.eventId || editingEventId;
+              fetch(`/api/event/${savedEventId}/announce-venue-change`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ city: newCity, location: newLocation })
+              }).catch(() => {});
+              alert(`Event updated. All connected attendees and talent will be notified of the venue change to ${newLocation}${newCity ? ', ' + newCity : ''}.`);
+            } else {
+              alert("Event saved successfully!");
+            }
           } else { throw new Error(data.message || "Error saving event."); }
         } catch (error) {
           alert(error.message || (isRunningOnLiveServer() ? "Open the app from the dotnet run URL, not Live Server." : "Could not reach the ASP.NET server."));

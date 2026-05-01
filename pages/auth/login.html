@@ -195,6 +195,7 @@
     function persistUserSession(data) {
       const safeFirstName = (data.firstName || '').trim();
       const safeUsername = (data.username || '').trim();
+      const safeSessionToken = (data.sessionToken || '').trim();
 
       localStorage.setItem('userId', data.id);
       localStorage.setItem('userFirstName', safeFirstName);
@@ -202,7 +203,11 @@
       localStorage.setItem('username', safeUsername);
       localStorage.setItem('userEmail', data.email || '');
       localStorage.setItem('userProfilePicture', data.profilePicture || '');
-      localStorage.removeItem('sessionToken');
+      if (safeSessionToken) {
+        localStorage.setItem('sessionToken', safeSessionToken);
+      } else {
+        localStorage.removeItem('sessionToken');
+      }
       localStorage.removeItem('accessToken');
     }
 
@@ -451,13 +456,31 @@
       }, 1000);
     }
 
+    function clearHandledLoginState(params, keysToDelete = []) {
+      let changed = false;
+      keysToDelete.forEach((key) => {
+        if (params.has(key)) {
+          params.delete(key);
+          changed = true;
+        }
+      });
+
+      if (!changed) return;
+
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+      window.history.replaceState({}, document.title, nextUrl);
+    }
+
     window.addEventListener('load', () => {
+      const params = new URLSearchParams(window.location.search);
+
       if (localStorage.getItem('sessionTimedOut') === '1') {
         localStorage.removeItem('sessionTimedOut');
         window.systemDialog?.alert?.('Your session timed out due to inactivity. Please sign in again.');
+        clearHandledLoginState(params, ['timeout']);
       }
 
-      const params = new URLSearchParams(window.location.search);
       const sessionReason = params.get('session') || localStorage.getItem('sessionEndedReason') || '';
       if (sessionReason === 'another-device' || sessionReason === 'another_device') {
         localStorage.removeItem('sessionEndedReason');
@@ -465,12 +488,14 @@
           title: 'Signed Out',
           kicker: 'Session Protection'
         });
+        clearHandledLoginState(params, ['session']);
       } else if (sessionReason === 'expired' || sessionReason === 'session_ended') {
         localStorage.removeItem('sessionEndedReason');
         window.systemDialog?.alert?.('Your previous session is no longer active. Please sign in again.', {
           title: 'Session Ended',
           kicker: 'Account Access'
         });
+        clearHandledLoginState(params, ['session']);
       }
 
       const loginSessionNotice = sessionStorage.getItem('loginSessionNotice');

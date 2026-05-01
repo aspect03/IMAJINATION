@@ -5,6 +5,7 @@ using NpgsqlTypes;
 using ImajinationAPI.Services;
 using BCrypt.Net;
 using System.Security.Claims;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ImajinationAPI.Controllers
 {
@@ -15,10 +16,16 @@ namespace ImajinationAPI.Controllers
         public string? lastName { get; set; }
         public string? username { get; set; }
         public string? email { get; set; }
-        public string? currentPassword { get; set; }
-        public string? newPassword { get; set; }
+        public DateTime? birthday { get; set; }
         public string? bio { get; set; }
         public string? profilePicture { get; set; } // Base64 string
+    }
+
+    public class ChangeCustomerPasswordDto
+    {
+        public string? currentPassword { get; set; }
+        public string? newPassword { get; set; }
+        public string? otp { get; set; }
     }
 
     [Route("api/[controller]")]
@@ -28,11 +35,13 @@ namespace ImajinationAPI.Controllers
     {
         private readonly string _connectionString;
         private readonly UploadScanningService _uploadScanningService;
+        private readonly IMemoryCache _cache;
 
-        public CustomerController(IConfiguration configuration, UploadScanningService uploadScanningService)
+        public CustomerController(IConfiguration configuration, UploadScanningService uploadScanningService, IMemoryCache cache)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _uploadScanningService = uploadScanningService;
+            _cache = cache;
         }
 
         private bool CanAccessCustomerRecord(Guid targetUserId)
@@ -160,7 +169,8 @@ namespace ImajinationAPI.Controllers
                         COALESCE(bio, ''),
                         COALESCE(is_verified, FALSE),
                         COALESCE(username, ''),
-                        COALESCE(email, '')
+                        COALESCE(email, ''),
+                        birthday
                     FROM users
                     WHERE id = @id AND role = 'Customer'";
                 using var cmd = new NpgsqlCommand(sql, connection);
@@ -176,6 +186,7 @@ namespace ImajinationAPI.Controllers
                     bool isVerified = !reader.IsDBNull(4) && reader.GetBoolean(4);
                     string username = reader.IsDBNull(5) ? "" : reader.GetString(5);
                     string email = reader.IsDBNull(6) ? "" : reader.GetString(6);
+                    var birthday = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7);
                     var profileSummary = CommunitySupport.CalculateProfileCompletion("Customer", first, last, bio, profilePicture, "", "", "", "", "", "");
                     await reader.CloseAsync();
                     await CommunitySupport.SyncProfileVerificationAsync(connection, id, "Customer", first, last, bio, profilePicture, "", "", "", "", "", "");
@@ -187,6 +198,8 @@ namespace ImajinationAPI.Controllers
                         lastName = last,
                         username,
                         email,
+                        birthday,
+                        birthdayLocked = birthday.HasValue,
                         profilePicture,
                         bio,
                         isVerified = profileSummary.IsVerified || isVerified,
@@ -250,30 +263,18 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "A valid email address is required." });
                 }
 
-                var wantsPasswordChange = !string.IsNullOrWhiteSpace(req.newPassword) || !string.IsNullOrWhiteSpace(req.currentPassword);
-                if (wantsPasswordChange)
-                {
-                    if (string.IsNullOrWhiteSpace(req.currentPassword) || string.IsNullOrWhiteSpace(req.newPassword))
-                    {
-                        return BadRequest(new { message = "Enter both current and new password to change your password." });
-                    }
-
-                    if (!IsStrongPassword(req.newPassword))
-                    {
-                        return BadRequest(new { message = "New password must be at least 8 characters and include uppercase, lowercase, number, and special character." });
-                    }
-                }
-
                 const string currentSql = @"
                     SELECT COALESCE(passwordhash, ''),
                            COALESCE(username, ''),
-                           COALESCE(email, '')
+                           COALESCE(email, ''),
+                           birthday
                     FROM users
                     WHERE id = @id AND role = 'Customer';";
 
                 string currentPasswordHash = "";
                 string currentUsername = "";
                 string currentEmail = "";
+                DateTime? currentBirthday = null;
                 using (var currentCmd = new NpgsqlCommand(currentSql, connection))
                 {
                     currentCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
@@ -286,11 +287,7 @@ namespace ImajinationAPI.Controllers
                     currentPasswordHash = currentReader.IsDBNull(0) ? "" : currentReader.GetString(0);
                     currentUsername = currentReader.IsDBNull(1) ? "" : currentReader.GetString(1);
                     currentEmail = currentReader.IsDBNull(2) ? "" : currentReader.GetString(2);
-                }
-
-                if (wantsPasswordChange && !BCrypt.Net.BCrypt.Verify(req.currentPassword, currentPasswordHash))
-                {
-                    return BadRequest(new { message = "Current password is incorrect." });
+                    currentBirthday = currentReader.IsDBNull(3) ? (DateTime?)null : currentReader.GetDateTime(3);
                 }
 
                 if (!string.Equals(currentUsername, sanitizedUsername, StringComparison.Ordinal))
@@ -319,7 +316,17 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
-                var updatedPasswordHash = wantsPasswordChange ? BCrypt.Net.BCrypt.HashPassword(req.newPassword) : null;
+                DateTime? updatedBirthday = currentBirthday;
+                if (req.birthday.HasValue)
+                {
+                    var requestedBirthday = req.birthday.Value.Date;
+                    if (currentBirthday.HasValue && currentBirthday.Value.Date != requestedBirthday)
+                    {
+                        return BadRequest(new { message = "Birthday can only be changed once." });
+                    }
+
+                    updatedBirthday = requestedBirthday;
+                }
 
                 string sql = @"
                     UPDATE users SET
@@ -327,9 +334,9 @@ namespace ImajinationAPI.Controllers
                         lastname = @lastName,
                         username = @username,
                         email = @email,
+                        birthday = @birthday,
                         bio = @bio,
-                        profile_picture = COALESCE(@pic, profile_picture),
-                        passwordhash = COALESCE(@passwordHash, passwordhash)
+                        profile_picture = COALESCE(@pic, profile_picture)
                     WHERE id = @id AND role = 'Customer'";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
@@ -338,9 +345,9 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.Add("@lastName", NpgsqlDbType.Text).Value = sanitizedLastName;
                 cmd.Parameters.Add("@username", NpgsqlDbType.Text).Value = sanitizedUsername;
                 cmd.Parameters.Add("@email", NpgsqlDbType.Text).Value = normalizedEmail;
+                cmd.Parameters.Add("@birthday", NpgsqlDbType.Timestamp).Value = (object?)updatedBirthday ?? DBNull.Value;
                 cmd.Parameters.Add("@bio", NpgsqlDbType.Text).Value = string.IsNullOrWhiteSpace(sanitizedBio) ? DBNull.Value : sanitizedBio;
                 cmd.Parameters.Add("@pic", NpgsqlDbType.Text).Value = (object?)normalizedPicture ?? DBNull.Value;
-                cmd.Parameters.Add("@passwordHash", NpgsqlDbType.Text).Value = (object?)updatedPasswordHash ?? DBNull.Value;
 
                 int rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0) return BadRequest(new { message = "Update failed. Make sure you are a Customer." });
@@ -349,6 +356,7 @@ namespace ImajinationAPI.Controllers
                            COALESCE(lastname, ''),
                            COALESCE(username, ''),
                            COALESCE(email, ''),
+                           birthday,
                            COALESCE(profile_picture, ''),
                            COALESCE(bio, '')
                     FROM users
@@ -358,6 +366,7 @@ namespace ImajinationAPI.Controllers
                 string last = "";
                 string username = "";
                 string email = "";
+                DateTime? birthday = null;
                 string profilePicture = "";
                 string bio = "";
                 using (var profileCmd = new NpgsqlCommand(profileSql, connection))
@@ -370,8 +379,9 @@ namespace ImajinationAPI.Controllers
                         last = reader.IsDBNull(1) ? "" : reader.GetString(1);
                         username = reader.IsDBNull(2) ? "" : reader.GetString(2);
                         email = reader.IsDBNull(3) ? "" : reader.GetString(3);
-                        profilePicture = reader.IsDBNull(4) ? "" : reader.GetString(4);
-                        bio = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                        birthday = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+                        profilePicture = reader.IsDBNull(5) ? "" : reader.GetString(5);
+                        bio = reader.IsDBNull(6) ? "" : reader.GetString(6);
                     }
                 }
 
@@ -394,6 +404,8 @@ namespace ImajinationAPI.Controllers
                     lastName = last,
                     username,
                     email,
+                    birthday,
+                    birthdayLocked = birthday.HasValue,
                     displayName = $"{first} {last}".Trim(),
                     bio,
                     profilePicture,
@@ -405,6 +417,100 @@ namespace ImajinationAPI.Controllers
             catch (Exception)
             {
                 return StatusCode(500, new { message = "Failed to load customer profile." });
+            }
+        }
+
+        [HttpPost("{id}/change-password")]
+        public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangeCustomerPasswordDto req)
+        {
+            try
+            {
+                if (!CanAccessCustomerRecord(id))
+                {
+                    return Forbid();
+                }
+
+                if (string.IsNullOrWhiteSpace(req.currentPassword) || string.IsNullOrWhiteSpace(req.newPassword) || string.IsNullOrWhiteSpace(req.otp))
+                {
+                    return BadRequest(new { message = "Current password, new password, and OTP are required." });
+                }
+
+                if (!IsStrongPassword(req.newPassword))
+                {
+                    return BadRequest(new { message = "New password must be at least 8 characters and include uppercase, lowercase, number, and special character." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string sql = @"
+                    SELECT COALESCE(email, ''),
+                           COALESCE(passwordhash, '')
+                    FROM users
+                    WHERE id = @id AND role = 'Customer';";
+
+                string email = "";
+                string passwordHash = "";
+                await using (var cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Customer not found." });
+                    }
+
+                    email = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    passwordHash = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                }
+
+                var normalizedEmail = NormalizeEmail(email);
+                if (string.IsNullOrWhiteSpace(normalizedEmail))
+                {
+                    return BadRequest(new { message = "Customer email is required before changing password." });
+                }
+
+                if (!_cache.TryGetValue(normalizedEmail, out string? savedOtp) || string.IsNullOrWhiteSpace(savedOtp))
+                {
+                    return BadRequest(new { message = "OTP expired or not requested. Request a new code first." });
+                }
+
+                if (!string.Equals(savedOtp, req.otp.Trim(), StringComparison.Ordinal))
+                {
+                    return BadRequest(new { message = "Invalid OTP code." });
+                }
+
+                if (!BCrypt.Net.BCrypt.Verify(req.currentPassword, passwordHash))
+                {
+                    return BadRequest(new { message = "Current password is incorrect." });
+                }
+
+                var nextPasswordHash = BCrypt.Net.BCrypt.HashPassword(req.newPassword);
+                const string updateSql = "UPDATE users SET passwordhash = @passwordHash WHERE id = @id AND role = 'Customer';";
+                await using (var updateCmd = new NpgsqlCommand(updateSql, connection))
+                {
+                    updateCmd.Parameters.Add("@passwordHash", NpgsqlDbType.Text).Value = nextPasswordHash;
+                    updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    await updateCmd.ExecuteNonQueryAsync();
+                }
+
+                _cache.Remove(normalizedEmail);
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    id,
+                    "Customer",
+                    "password_changed",
+                    "user",
+                    id,
+                    HttpContext,
+                    "Customer changed password with OTP verification.");
+
+                return Ok(new { message = "Password changed successfully." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to change password right now." });
             }
         }
 

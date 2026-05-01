@@ -104,17 +104,18 @@
     <section class="max-w-7xl mx-auto px-6">
       
       <div class="mb-10">
-        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">Discover Metro Manila Gigs</h2>
-        <p class="text-base text-white/60 mt-3">Find upcoming indie gigs and events near you.</p>
+        <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Discover</p>
+        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">Metro Manila Gigs</h2>
+        <p class="text-sm text-white/55 mt-2">Find upcoming indie gigs and events near you.</p>
       </div>
 
-      <div class="bg-[#1a1515]/80 border border-white/5 rounded-2xl p-4 mb-10 flex flex-col gap-4 shadow-xl backdrop-blur-md">
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="relative flex-grow min-w-[200px]">
-            <i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/50"></i>
-            <input type="text" id="searchInput" placeholder="Search events..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-[#141010] border border-white/10 text-sm text-white focus:outline-none focus:border-red-500/50 transition-colors">
+      <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3 mb-8">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="relative flex-1 min-w-[160px]">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
+            <input type="text" id="searchInput" placeholder="Search events..." class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-red-500/40 transition-colors">
           </div>
-          <select id="filterGenre" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[120px] cursor-pointer">
+          <select id="filterGenre" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
             <option value="">Genre</option>
             <option value="indie pop">Indie Pop</option>
             <option value="rock">Rock</option>
@@ -122,22 +123,22 @@
             <option value="r&b">R&B</option>
             <option value="electronic">Electronic</option>
           </select>
-          <select id="filterType" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[140px] cursor-pointer">
+          <select id="filterType" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
             <option value="">Event Type</option>
             <option value="festival">Festival</option>
             <option value="live gig">Live Gig</option>
             <option value="listening party">Listening Party</option>
           </select>
-          <select id="filterPrice" class="bg-[#141010] border border-white/10 text-white text-sm rounded-xl pl-4 pr-10 py-2.5 focus:outline-none focus:border-red-500/50 appearance-none min-w-[140px] cursor-pointer">
+          <select id="filterPrice" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
             <option value="">Price Range</option>
             <option value="0-500">Under ₱500</option>
-            <option value="500-1000">₱500 - ₱1,000</option>
+            <option value="500-1000">₱500 – ₱1,000</option>
             <option value="1000+">₱1,000+</option>
           </select>
-        </div>
-        <div class="flex justify-end gap-3 pt-2">
-          <button id="clearFiltersBtn" class="px-6 py-2.5 rounded-xl border border-white/10 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-white/5 transition-colors">Clear</button>
-          <button id="applyFiltersBtn" class="px-6 py-2.5 rounded-xl bg-[#cc292b] text-white text-xs font-bold uppercase tracking-[0.14em] hover:bg-red-600 transition-colors shadow-lg">Apply Filters</button>
+          <div class="flex items-center gap-2 ml-auto">
+            <button id="clearFiltersBtn" class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-bold uppercase tracking-wider text-white/55 hover:text-white hover:bg-white/[0.08] transition-colors">Clear</button>
+            <button id="applyFiltersBtn" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors shadow-lg">Apply</button>
+          </div>
         </div>
       </div>
       
@@ -155,7 +156,7 @@
       const role = (localStorage.getItem('userRole') || '').trim();
       const userId = (localStorage.getItem('userId') || '').trim();
       const storedProfilePicture = localStorage.getItem('userProfilePicture');
-      const displayName = firstName || username || role || 'User';
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
 
       if (!(userId && role)) return;
 

@@ -189,12 +189,18 @@ namespace ImajinationAPI.Controllers
 
             var isTalentRole = role.Equals("Artist", StringComparison.OrdinalIgnoreCase) || role.Equals("Sessionist", StringComparison.OrdinalIgnoreCase);
             var isOrganizerRole = role.Equals("Organizer", StringComparison.OrdinalIgnoreCase);
-            var isVerified = summary.IsVerified && verification.HasApprovedRequest;
+            bool isVerified;
             if (isTalentRole)
             {
-                isVerified = summary.IsVerified && (verification.HasApprovedRequest || await HasVerifiedGigAsync(connection, userId));
+                // For Artists and Sessionists: verified badge is granted solely by admin ID verification approval.
+                // Profile completion percentage does not affect this.
+                isVerified = verification.HasApprovedRequest;
             }
-            else if (!isOrganizerRole)
+            else if (isOrganizerRole)
+            {
+                isVerified = verification.HasApprovedRequest;
+            }
+            else
             {
                 isVerified = summary.IsVerified;
             }

@@ -11,15 +11,13 @@ namespace ImajinationAPI.Controllers
 {
     public class CheckoutRequest
     {
-        // FIX: Changed to strings so ASP.NET stops auto-blocking them!
-        public string eventId { get; set; }
-        public string customerId { get; set; }
-        
-        public string tierName { get; set; }
+        public string eventId { get; set; } = string.Empty;
+        public string customerId { get; set; } = string.Empty;
+        public string tierName { get; set; } = string.Empty;
         public int quantity { get; set; }
         public decimal totalPrice { get; set; }
-        public string successUrl { get; set; } 
-        public string cancelUrl { get; set; }  
+        public string successUrl { get; set; } = string.Empty;
+        public string cancelUrl { get; set; } = string.Empty;
     }
 
     public class ScanTicketRequest
@@ -381,7 +379,7 @@ namespace ImajinationAPI.Controllers
                 var plainTextBytes = Encoding.UTF8.GetBytes(_paymongoSecretKey);
                 string base64Auth = Convert.ToBase64String(plainTextBytes);
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
-                client.DefaultRequestHeaders.Add("Idempotency-Key", $"ticket-{parsedCustomerId}-{parsedEventId}-{req.tier}-{req.quantity}");
+                client.DefaultRequestHeaders.Add("Idempotency-Key", $"ticket-{parsedCustomerId}-{parsedEventId}-{req.tierName}-{req.quantity}");
                 var content = new StringContent(JsonSerializer.Serialize(paymongoPayload), Encoding.UTF8, "application/json");
 
                 var response = await client.PostAsync("https://api.paymongo.com/v1/checkout_sessions", content);

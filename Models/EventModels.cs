@@ -6,29 +6,28 @@ namespace ImajinationAPI.Models
     public class TalentLineupItemDto
     {
         public Guid id { get; set; }
-        public string displayName { get; set; } = "";
-        public string role { get; set; } = "";
+        public string displayName { get; set; } = string.Empty;
+        public string role { get; set; } = string.Empty;
         public string? profilePicture { get; set; }
     }
 
     public class CreateEventDto
     {
         public Guid organizerId { get; set; }
-        public string title { get; set; }
-        public string artists { get; set; }
-        public string description { get; set; }
+        public string title { get; set; } = string.Empty;
+        public string artists { get; set; } = string.Empty;
+        public string description { get; set; } = string.Empty;
         public DateTime time { get; set; }
-        
-        // NEW: Separate City and Location fields!
-        public string city { get; set; } 
-        public string location { get; set; }
-        
+
+        public string city { get; set; } = string.Empty;
+        public string location { get; set; } = string.Empty;
+
         public string? posterUrl { get; set; }
         public decimal price { get; set; }
         public int slots { get; set; }
         public int? maxTicketsPerCustomer { get; set; }
-        
-        public string? eventType { get; set; } 
+
+        public string? eventType { get; set; }
         public string? genres { get; set; }
 
         public string? tierName { get; set; }
@@ -50,21 +49,20 @@ namespace ImajinationAPI.Models
     public class EventDto
     {
         public Guid id { get; set; }
-        public string title { get; set; }
+        public string title { get; set; } = string.Empty;
         public DateTime time { get; set; }
-        
-        // NEW: Separate City and Location fields!
-        public string city { get; set; }
-        public string location { get; set; }
-        
+
+        public string city { get; set; } = string.Empty;
+        public string location { get; set; } = string.Empty;
+
         public decimal price { get; set; }
         public int slots { get; set; }
         public int ticketsSold { get; set; }
         public int maxTicketsPerCustomer { get; set; }
         public int attendedTickets { get; set; }
-        public string status { get; set; }
-        public string? posterUrl { get; set; } 
-        
+        public string status { get; set; } = string.Empty;
+        public string? posterUrl { get; set; }
+
         public string? eventType { get; set; }
         public string? genres { get; set; }
         public string? saleName { get; set; }

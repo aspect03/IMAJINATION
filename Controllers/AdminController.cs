@@ -1418,5 +1418,81 @@ namespace ImajinationAPI.Controllers
                 // Moderation should still succeed even if the email provider rejects or delays the email.
             }
         }
+
+        [HttpGet("bookings/stuck")]
+        public async Task<IActionResult> GetStuckBookings()
+        {
+            try
+            {
+                ApplySensitiveResponseHeaders();
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                const string sql = @"
+                    SELECT
+                        b.id,
+                        COALESCE(b.event_title, 'Booking Request') AS event_title,
+                        COALESCE(b.status, '') AS status,
+                        b.event_date,
+                        b.event_end_time,
+                        TRIM(CONCAT(COALESCE(c.firstname, ''), ' ', COALESCE(c.lastname, ''))) AS customer_name,
+                        CASE
+                            WHEN COALESCE(t.stagename, '') <> '' THEN t.stagename
+                            ELSE TRIM(CONCAT(COALESCE(t.firstname, ''), ' ', COALESCE(t.lastname, '')))
+                        END AS talent_name,
+                        COALESCE(b.target_role, 'Artist') AS target_role,
+                        COALESCE(b.budget, 0) AS budget,
+                        COALESCE(b.talent_fee_status, 'Unpaid') AS talent_fee_status,
+                        b.customer_completed_at,
+                        b.target_completed_at,
+                        COALESCE(b.created_at, NOW()) AS created_at
+                    FROM bookings b
+                    LEFT JOIN users c ON c.id = b.customer_id
+                    LEFT JOIN users t ON t.id = b.target_user_id
+                    WHERE COALESCE(b.status, '') IN (
+                        'Completion Pending Customer Confirmation',
+                        'Completion Pending Talent Confirmation'
+                    )
+                    ORDER BY b.event_date ASC NULLS LAST, b.created_at ASC NULLS LAST";
+
+                var results = new List<object>();
+                using var cmd = new NpgsqlCommand(sql, connection);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var eventDate = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
+                    var eventEndTime = reader.IsDBNull(4) ? (DateTime?)null : reader.GetDateTime(4);
+                    var customerCompletedAt = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10);
+                    var targetCompletedAt = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11);
+                    var confirmedAt = customerCompletedAt ?? targetCompletedAt;
+                    var daysStuck = confirmedAt.HasValue
+                        ? (int)Math.Floor((DateTime.UtcNow - confirmedAt.Value.ToUniversalTime()).TotalDays)
+                        : 0;
+
+                    results.Add(new
+                    {
+                        id = reader.GetGuid(0),
+                        eventTitle = reader.IsDBNull(1) ? "Booking Request" : reader.GetString(1),
+                        status = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                        eventDate = eventDate?.ToString("o"),
+                        eventEndTime = eventEndTime?.ToString("o"),
+                        customerName = reader.IsDBNull(5) ? "Unknown Customer" : reader.GetString(5).Trim(),
+                        talentName = reader.IsDBNull(6) ? "Unknown Talent" : reader.GetString(6).Trim(),
+                        targetRole = reader.IsDBNull(7) ? "Artist" : reader.GetString(7),
+                        budget = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
+                        talentFeeStatus = reader.IsDBNull(9) ? "Unpaid" : reader.GetString(9),
+                        customerCompletedAt = customerCompletedAt?.ToString("o"),
+                        targetCompletedAt = targetCompletedAt?.ToString("o"),
+                        daysStuck
+                    });
+                }
+
+                return Ok(new { stuckBookings = results, count = results.Count });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load stuck bookings: " + ex.Message });
+            }
+        }
     }
 }

@@ -148,8 +148,8 @@
                 <p id="ratingAverage" class="text-xl font-extrabold text-amber-400">0.0</p>
               </div>
               <div class="flex-1 bg-gradient-to-br from-red-500/[0.1] to-transparent border border-red-500/20 rounded-xl px-3 py-3 text-center">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-1">From</p>
-                <p id="detailBasePrice" class="text-base font-extrabold text-red-400">PHP 0</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-1">Booking Rate</p>
+                <p id="detailBasePrice" class="text-base font-extrabold text-red-400">Rate not set</p>
               </div>
             </div>
             <button id="bookArtistBtn" type="button" title="Send a booking request"
@@ -598,7 +598,9 @@
         document.getElementById('detailAvailability').className = `mb-3 text-[10px] font-bold uppercase tracking-[0.18em] ${currentArtistAvailable ? 'text-emerald-400' : 'text-white/50'}`;
         document.getElementById('artistProfileStatusLabel').innerText = getArtistProfileStatusLabel(artist.verificationStatus, artist.isAvailable !== false);
         currentArtistBasePrice = Number(artist.basePrice || 0);
-        document.getElementById('detailBasePrice').innerText = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentArtistBasePrice);
+        document.getElementById('detailBasePrice').innerText = currentArtistBasePrice > 0
+          ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentArtistBasePrice)
+          : 'Rate not set';
         syncBookingBudgetWithBasePrice(true);
         document.getElementById('bookArtistBtn').disabled = !currentArtistAvailable;
         document.getElementById('bookArtistBtn').classList.toggle('opacity-50', !currentArtistAvailable);
@@ -875,6 +877,40 @@
 
     document.getElementById('addBookingSlotBtn')?.addEventListener('click', () => addBookingSlotRow());
 
+    const artistReportReasons = [
+      'Fake or impersonating profile',
+      'Inappropriate content or behavior',
+      'Harassment or threats',
+      'Fraud or scam',
+      'Hate speech or discrimination',
+      'Other'
+    ];
+
+    async function promptForStructuredArtistReport() {
+      const optionsList = artistReportReasons.map((r, i) => `${i + 1}. ${r}`).join('\n');
+      const choice = await window.systemDialog.prompt(
+        `Choose the main reason for this report:\n${optionsList}`,
+        { title: 'Report Artist', kicker: 'Safety Report', placeholder: 'Enter number (1-6)', okText: 'Next' }
+      );
+      if (!choice) return null;
+      const optionIndex = parseInt(choice.trim(), 10) - 1;
+      const normalized = (choice || '').trim().toLowerCase();
+      const reason = artistReportReasons[optionIndex]
+        || artistReportReasons.find(r => r.toLowerCase().startsWith(normalized));
+      if (!reason) {
+        await window.systemDialog.alert('Please choose one of the listed reasons from 1 to 6.', { title: 'Invalid Selection', kicker: 'Safety Report' });
+        return promptForStructuredArtistReport();
+      }
+      const details = await window.systemDialog.prompt(
+        reason === 'Other'
+          ? 'Please describe what happened so the team can review this report.'
+          : 'Add any extra details to help the review team (optional).',
+        { title: 'More Details', kicker: 'Safety Report', placeholder: 'Add details here', okText: 'Submit', multiline: true }
+      );
+      if (details === null) return null;
+      return { reason, details: details || '' };
+    }
+
     document.getElementById('reportArtistBtn')?.addEventListener('click', async () => {
       const reporterUserId = localStorage.getItem('userId');
       if (!reporterUserId) {
@@ -886,21 +922,8 @@
         return;
       }
 
-      const reason = await window.systemDialog.prompt('What is the main reason for this report?', {
-        title: 'Report Artist',
-        kicker: 'Safety Report',
-        placeholder: 'Enter the main reason',
-        okText: 'Next',
-        required: true
-      });
-      if (!reason) return;
-      const details = await window.systemDialog.prompt('Add more details if needed (optional):', {
-        title: 'More Details',
-        kicker: 'Optional Context',
-        placeholder: 'Add more details here',
-        okText: 'Submit',
-        multiline: true
-      }) || '';
+      const reportPayload = await promptForStructuredArtistReport();
+      if (!reportPayload) return;
 
       try {
         const res = await fetch('/api/report', {
@@ -910,8 +933,8 @@
             reporterUserId,
             targetId: currentArtistId,
             targetType: 'artist',
-            reason,
-            details
+            reason: reportPayload.reason,
+            details: reportPayload.details
           })
         });
         const data = await res.json().catch(() => ({}));
@@ -939,14 +962,12 @@
         document.getElementById('ratingAverage').innerText = Number(artistInteractionSummary.averageRating || 0).toFixed(1);
         document.getElementById('favoriteCount').innerText = artistInteractionSummary.favoriteCount || 0;
         document.getElementById('reviewCount').innerText = artistInteractionSummary.reviewCount || 0;
-        updateFavoriteButton(artistInteractionSummary.isFavorited);
+        updateFavoriteButton(!!artistInteractionSummary.isFavorited);
         updateArtistReviewEligibility(!!artistInteractionSummary.canReview, !!customerId, artistInteractionSummary.reviewEligibilityMessage || '');
         renderReviews(artistInteractionSummary.reviews || []);
-        await syncArtistFavoriteStateFromCustomerFavorites();
       } catch (error) {
         updateArtistReviewEligibility(false, !!customerId, error.message || '');
         document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
-        await syncArtistFavoriteStateFromCustomerFavorites();
       }
     }
 

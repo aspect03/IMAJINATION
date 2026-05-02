@@ -273,11 +273,27 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = $"This event allows up to {maxTicketsPerCustomer} tickets per customer." });
                 }
 
+                // Clean up stale AwaitingPayment tickets for this customer+event before checking limit
+                const string cleanupSql = @"
+                    DELETE FROM tickets
+                    WHERE event_id = @eventId
+                      AND customer_id = @customerId
+                      AND payment_method = 'AwaitingPayment'
+                      AND created_at < NOW() - INTERVAL '2 hours';";
+                await using (var cleanupCmd = new NpgsqlCommand(cleanupSql, connection))
+                {
+                    cleanupCmd.Parameters.AddWithValue("@eventId", parsedEventId);
+                    cleanupCmd.Parameters.AddWithValue("@customerId", parsedCustomerId);
+                    await cleanupCmd.ExecuteNonQueryAsync();
+                }
+
+                // Only count tickets that have been paid (not AwaitingPayment)
                 const string personalLimitSql = @"
                     SELECT COALESCE(SUM(quantity), 0)
                     FROM tickets
                     WHERE event_id = @eventId
-                      AND customer_id = @customerId;";
+                      AND customer_id = @customerId
+                      AND payment_method NOT IN ('AwaitingPayment');";
                 await using (var personalLimitCmd = new NpgsqlCommand(personalLimitSql, connection))
                 {
                     personalLimitCmd.Parameters.AddWithValue("@eventId", parsedEventId);
@@ -287,7 +303,7 @@ namespace ImajinationAPI.Controllers
                     {
                         return BadRequest(new
                         {
-                            message = $"You already reserved {existingCount} ticket(s) for this event. The organizer limit is {maxTicketsPerCustomer} per customer."
+                            message = $"You already have {existingCount} paid ticket(s) for this event. The organizer limit is {maxTicketsPerCustomer} per customer."
                         });
                     }
                 }
@@ -326,12 +342,7 @@ namespace ImajinationAPI.Controllers
                 insertCmd.Parameters.AddWithValue("@phasePercentage", pricingPhase.PercentageMarkup);
                 var newTicketId = await insertCmd.ExecuteScalarAsync();
 
-                string updateSql = "UPDATE events SET tickets_sold = COALESCE(tickets_sold, 0) + @qty WHERE id = @eId";
-                using var updateCmd = new NpgsqlCommand(updateSql, connection);
-                updateCmd.Parameters.AddWithValue("@qty", req.quantity);
-                updateCmd.Parameters.AddWithValue("@eId", parsedEventId);
-                await updateCmd.ExecuteNonQueryAsync();
-
+                // tickets_sold is incremented only on confirmed payment to avoid counting cancelled checkouts
                 var successUrl = AppendQuery(req.successUrl, $"ticketPaid=1&ticketId={newTicketId}");
                 var cancelUrl = AppendQuery(req.cancelUrl, $"ticketPending=1&ticketId={newTicketId}");
 
@@ -370,8 +381,9 @@ namespace ImajinationAPI.Controllers
                 var plainTextBytes = Encoding.UTF8.GetBytes(_paymongoSecretKey);
                 string base64Auth = Convert.ToBase64String(plainTextBytes);
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
+                client.DefaultRequestHeaders.Add("Idempotency-Key", $"ticket-{parsedCustomerId}-{parsedEventId}-{req.tier}-{req.quantity}");
                 var content = new StringContent(JsonSerializer.Serialize(paymongoPayload), Encoding.UTF8, "application/json");
-                
+
                 var response = await client.PostAsync("https://api.paymongo.com/v1/checkout_sessions", content);
                 var responseString = await response.Content.ReadAsStringAsync();
 
@@ -851,6 +863,16 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.AddWithValue("@checkoutReference", (object?)checkoutReference ?? DBNull.Value);
                 updateCmd.Parameters.AddWithValue("@ticketId", ticketId);
                 await updateCmd.ExecuteNonQueryAsync();
+
+                // Increment tickets_sold only now that payment is confirmed
+                const string incrementSoldSql = @"
+                    UPDATE events e
+                    SET tickets_sold = COALESCE(tickets_sold, 0) + t.quantity
+                    FROM tickets t
+                    WHERE t.id = @ticketId AND e.id = t.event_id;";
+                using var incrementCmd = new NpgsqlCommand(incrementSoldSql, connection);
+                incrementCmd.Parameters.AddWithValue("@ticketId", ticketId);
+                await incrementCmd.ExecuteNonQueryAsync();
 
                 await PaymentLedgerService.MarkPaidAsync(
                     connection,

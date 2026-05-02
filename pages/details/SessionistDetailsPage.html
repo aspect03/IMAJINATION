@@ -139,8 +139,8 @@
               <p id="ratingAverage" class="text-2xl font-extrabold text-amber-400">0.0</p>
             </div>
             <div class="flex-1 bg-gradient-to-br from-red-500/[0.08] to-transparent border border-red-500/[0.15] rounded-2xl p-4 text-center">
-              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-1">From</p>
-              <p id="detailBasePrice" class="text-lg font-extrabold text-red-400 leading-tight">PHP 0</p>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-1">Booking Rate</p>
+              <p id="detailBasePrice" class="text-lg font-extrabold text-red-400 leading-tight">Rate not set</p>
             </div>
           </div>
         </div>
@@ -578,7 +578,9 @@
         document.getElementById('detailAvailability').className = `mt-2 text-[10px] font-bold uppercase tracking-[0.18em] ${currentSessionistAvailable ? 'text-emerald-400' : 'text-white/50'}`;
         document.getElementById('sessionistProfileStatusLabel').innerText = getSessionistProfileStatusLabel(data.verificationStatus, data.isAvailable !== false);
         currentSessionistBasePrice = Number(data.basePrice || 0);
-        document.getElementById('detailBasePrice').innerText = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentSessionistBasePrice);
+        document.getElementById('detailBasePrice').innerText = currentSessionistBasePrice > 0
+          ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentSessionistBasePrice)
+          : 'Rate not set';
         syncBookingBudgetWithBasePrice(true);
         document.getElementById('bookSessionistBtn').disabled = !currentSessionistAvailable;
         document.getElementById('bookSessionistBtn').classList.toggle('opacity-50', !currentSessionistAvailable);
@@ -848,29 +850,48 @@
 
     document.getElementById('addBookingSlotBtn')?.addEventListener('click', () => addBookingSlotRow());
 
+    const sessionistReportReasons = [
+      'Fake or impersonating profile',
+      'Inappropriate content or behavior',
+      'Harassment or threats',
+      'Fraud or scam',
+      'Hate speech or discrimination',
+      'Other'
+    ];
+
+    async function promptForStructuredSessionistReport() {
+      const optionsList = sessionistReportReasons.map((r, i) => `${i + 1}. ${r}`).join('\n');
+      const choice = await window.systemDialog.prompt(
+        `Choose the main reason for this report:\n${optionsList}`,
+        { title: 'Report Sessionist', kicker: 'Safety Report', placeholder: 'Enter number (1-6)', okText: 'Next' }
+      );
+      if (!choice) return null;
+      const optionIndex = parseInt(choice.trim(), 10) - 1;
+      const normalized = (choice || '').trim().toLowerCase();
+      const reason = sessionistReportReasons[optionIndex]
+        || sessionistReportReasons.find(r => r.toLowerCase().startsWith(normalized));
+      if (!reason) {
+        await window.systemDialog.alert('Please choose one of the listed reasons from 1 to 6.', { title: 'Invalid Selection', kicker: 'Safety Report' });
+        return promptForStructuredSessionistReport();
+      }
+      const details = await window.systemDialog.prompt(
+        reason === 'Other' ? 'Please describe what happened.' : 'Add any extra details (optional).',
+        { title: 'More Details', kicker: 'Safety Report', placeholder: 'Add details here', okText: 'Submit', multiline: true }
+      );
+      if (details === null) return null;
+      return { reason, details: details || '' };
+    }
+
     document.getElementById('reportSessionistBtn')?.addEventListener('click', async () => {
       const reporterUserId = localStorage.getItem('userId');
       if (!reporterUserId) {
-        alert('Please sign in first before sending a report.');
+        await window.systemDialog.alert('Please sign in first before sending a report.', { title: 'Sign In Required', kicker: 'Safety Report' });
         window.location.href = '/pages/auth/login.html';
         return;
       }
 
-      const reason = await window.systemDialog.prompt('What is the main reason for this report?', {
-        title: 'Report Sessionist',
-        kicker: 'Safety Report',
-        placeholder: 'Enter the main reason',
-        okText: 'Next',
-        required: true
-      });
-      if (!reason) return;
-      const details = await window.systemDialog.prompt('Add more details if needed (optional):', {
-        title: 'More Details',
-        kicker: 'Optional Context',
-        placeholder: 'Add more details here',
-        okText: 'Submit',
-        multiline: true
-      }) || '';
+      const reportPayload = await promptForStructuredSessionistReport();
+      if (!reportPayload) return;
 
       try {
         const res = await fetch('/api/report', {
@@ -880,15 +901,15 @@
             reporterUserId,
             targetId: currentSessionistId,
             targetType: 'sessionist',
-            reason,
-            details
+            reason: reportPayload.reason,
+            details: reportPayload.details
           })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Failed to submit report.');
-        alert(data.message || 'Report submitted successfully.');
+        await window.systemDialog.alert(data.message || 'Report submitted successfully.', { title: 'Report Submitted', kicker: 'Safety Report' });
       } catch (error) {
-        alert(error.message || 'Failed to submit report.');
+        await window.systemDialog.alert(error.message || 'Failed to submit report.', { title: 'Report Failed', kicker: 'Safety Report' });
       }
     });
 
@@ -903,14 +924,12 @@
         document.getElementById('ratingAverage').innerText = Number(sessionistInteractionSummary.averageRating || 0).toFixed(1);
         document.getElementById('favoriteCount').innerText = sessionistInteractionSummary.favoriteCount || 0;
         document.getElementById('reviewCount').innerText = sessionistInteractionSummary.reviewCount || 0;
-        updateFavoriteButton(sessionistInteractionSummary.isFavorited);
+        updateFavoriteButton(!!sessionistInteractionSummary.isFavorited);
         updateSessionistReviewEligibility(!!sessionistInteractionSummary.canReview, !!customerId, sessionistInteractionSummary.reviewEligibilityMessage || '');
         renderReviews(sessionistInteractionSummary.reviews || []);
-        await syncSessionistFavoriteStateFromCustomerFavorites();
       } catch (error) {
         updateSessionistReviewEligibility(false, !!customerId, error.message || '');
         document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
-        await syncSessionistFavoriteStateFromCustomerFavorites();
       }
     }
 

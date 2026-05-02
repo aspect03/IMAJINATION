@@ -1930,6 +1930,7 @@ namespace ImajinationAPI.Controllers
                 var plainTextBytes = Encoding.UTF8.GetBytes(_paymongoSecretKey);
                 var base64Auth = Convert.ToBase64String(plainTextBytes);
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
+                client.DefaultRequestHeaders.Add("Idempotency-Key", $"booking-{bookingId}-{paymentType}");
 
                 var content = new StringContent(JsonSerializer.Serialize(paymongoPayload), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync("https://api.paymongo.com/v1/checkout_sessions", content);

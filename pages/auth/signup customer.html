@@ -96,16 +96,6 @@
           </div>
         </div>
 
-        <div class="space-y-2">
-          <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Contact Number *</label>
-          <div class="flex">
-            <span class="inline-flex items-center px-4 bg-black/60 border border-r-0 border-white/10 rounded-l-xl text-sm text-white/60 font-semibold">
-              +63
-            </span>
-            <input type="tel" id="contactNumber" placeholder="9123456789" pattern="[0-9]{10}" title="Enter 10 digits after +63" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-r-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
-          </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-black/20 border border-white/5 rounded-2xl">
           <div class="password-field-shell space-y-2">
             <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Secure Password *</label>
@@ -142,7 +132,16 @@
           </div>
         </div>
 
-        <div class="pt-4 border-t border-white/10">
+        <div class="pt-4 border-t border-white/10 space-y-4">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input type="checkbox" id="agreeTerms" class="mt-0.5 w-4 h-4 rounded border-white/20 bg-black/40 accent-red-500 shrink-0">
+            <span class="text-xs text-white/60 leading-relaxed">
+              I have read and agree to the
+              <button type="button" id="openTermsBtn" class="text-red-400 hover:text-red-300 underline underline-offset-2 font-semibold">Terms and Conditions</button>
+              and <button type="button" id="openPrivacyBtn" class="text-red-400 hover:text-red-300 underline underline-offset-2 font-semibold">Privacy Policy</button>
+              of Imajination.
+            </span>
+          </label>
           <button type="button" id="initiateBtn" class="w-full py-4 bg-red-600 text-white text-sm font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-red-500 transition-colors shadow-lg">
             Verify Email & Create Account
           </button>
@@ -151,6 +150,34 @@
       </div>
     </div>
   </main>
+
+  <!-- Terms & Conditions Modal -->
+  <div id="termsModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/85 backdrop-blur-sm px-4 py-6" style="display:none;">
+    <div class="bg-neutral-900 border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl relative flex flex-col" style="max-height:88vh;">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400/80">Legal</p>
+          <h3 class="text-xl font-extrabold text-white">Terms and Conditions</h3>
+        </div>
+        <button id="closeTermsBtn" type="button" class="w-9 h-9 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="overflow-y-auto flex-1 px-6 py-5 space-y-5 text-sm text-white/70 leading-relaxed">
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">1. Acceptance</h4><p>By creating an account on Imajination you agree to these Terms. If you do not agree, do not use the platform. We may update these terms at any time; continued use means acceptance.</p></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">2. Account Security &amp; Privacy</h4><ul class="space-y-1.5 list-none"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Passwords are stored as <strong class="text-white">bcrypt hashes</strong> — we never store your plain-text password.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Sessions use signed JWT tokens in secure cookies. Tokens expire and are invalidated on logout.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>We collect your name, email, and profile data only to operate the platform. We do not sell personal data.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Your <strong class="text-white">birthday can only be set once</strong> after signup and cannot be changed to prevent age fraud.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Security events (logins, profile changes, password resets) are logged to protect your account.</span></li></ul></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">3. General Rules (All Users)</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>You must be at least <strong class="text-white">13 years old</strong>. Users under 18 need parental consent.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No multiple accounts, impersonation, or identity misrepresentation.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No harassment, hate speech, illegal activity, or abusive behavior.</span></li></ul></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">4. Customer Terms</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Payments are processed through <strong class="text-white">PayMongo</strong> (GCash, card, Maya). We do not store card details.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Booking talent fees are held in escrow until event completion is confirmed.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No ticket resale for profit outside the platform.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Reviews must be honest and based on genuine booking experience.</span></li></ul></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">5. Payments &amp; Refunds</h4><p>All payments go through PayMongo. Refund requests are reviewed by admins. Chargebacks initiated without first raising a dispute through Imajination may result in account suspension.</p></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">6. Reports &amp; Moderation</h4><p>Reports are reviewed within 3 business days. Actions range from warning to permanent ban. Admins may remove content or accounts that violate these terms.</p></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">7. Governing Law</h4><p>These terms are governed by the laws of the <strong class="text-white">Republic of the Philippines</strong>.</p></div>
+      </div>
+      <div class="px-6 py-4 border-t border-white/10 shrink-0 flex gap-3">
+        <button id="dismissTermsBtn" type="button" class="flex-1 py-3 bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">Close</button>
+        <button id="acceptTermsBtn" type="button" class="flex-1 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">I Accept</button>
+      </div>
+    </div>
+  </div>
 
   <div id="otpModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
     <div class="bg-neutral-900 border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center relative">
@@ -173,6 +200,27 @@
 
   <script>
     lucide.createIcons();
+
+    // Terms & Conditions modal
+    function openTermsModal() {
+      const m = document.getElementById('termsModal');
+      m.style.display = 'flex';
+      lucide.createIcons();
+    }
+    function closeTermsModal() {
+      document.getElementById('termsModal').style.display = 'none';
+    }
+    document.getElementById('openTermsBtn').addEventListener('click', openTermsModal);
+    document.getElementById('openPrivacyBtn').addEventListener('click', openTermsModal);
+    document.getElementById('closeTermsBtn').addEventListener('click', closeTermsModal);
+    document.getElementById('dismissTermsBtn').addEventListener('click', closeTermsModal);
+    document.getElementById('acceptTermsBtn').addEventListener('click', () => {
+      document.getElementById('agreeTerms').checked = true;
+      closeTermsModal();
+    });
+    document.getElementById('termsModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('termsModal')) closeTermsModal();
+    });
 
     const pendingGoogleSignup = sessionStorage.getItem('pendingGoogleSignup');
     const fromGoogleSignup = new URLSearchParams(window.location.search).get('from') === 'google';
@@ -291,6 +339,10 @@
     document.getElementById('initiateBtn').addEventListener('click', async () => {
       const form = document.getElementById('registerForm');
       if (!form.checkValidity()) { form.reportValidity(); return; }
+      if (!document.getElementById('agreeTerms').checked) {
+        openTermsModal();
+        return;
+      }
       if (pass.value !== confirmPass.value) { alert("Passwords do not match!"); return; }
 
       const email = document.getElementById('email').value;
@@ -339,7 +391,6 @@
         suffix: document.getElementById('suffix').value,
         username: document.getElementById('username').value,
         email: document.getElementById('email').value,
-        contactNumber: "+63" + document.getElementById('contactNumber').value,
         password: document.getElementById('password').value,
         address: document.getElementById('address').value,
         birthday: document.getElementById('bday').value,

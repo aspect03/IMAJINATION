@@ -669,6 +669,25 @@
           liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
         }
       };
+
+      stream.onopen = null;
+      const reconnectOnClose = () => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+        if (stream.readyState === EventSource.CLOSED) {
+          updateLiveChatStatus('Reconnecting', 'amber');
+          if (!liveMessagePollHandle) {
+            liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
+          }
+          window.setTimeout(() => {
+            if (String(bookingId) === String(activeBookingId)) {
+              startLiveConversationUpdates(bookingId);
+            }
+          }, 5000);
+        }
+      };
+      stream.addEventListener('error', reconnectOnClose);
     }
 
     async function openConversation(bookingId) {
@@ -1023,6 +1042,12 @@
 
     async function markBookingCompleted() {
       if (!activeBookingId) return;
+
+      const confirmed = await window.systemDialog.confirm(
+        'Confirm that this booking has been completed? This will release escrow funds to the talent once both sides confirm.',
+        { title: 'Confirm Completion', kicker: 'Booking Completion', okText: 'Yes, Confirm Completion', cancelText: 'Not Yet' }
+      );
+      if (!confirmed) return;
 
       const button = document.getElementById('completeBookingBtn');
       button.disabled = true;

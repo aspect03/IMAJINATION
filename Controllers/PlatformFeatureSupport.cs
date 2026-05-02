@@ -94,8 +94,17 @@ namespace ImajinationAPI.Controllers
                    OR target_entity_type IS NULL
                    OR target_type IS NULL;
 
+                ALTER TABLE entity_reports
+                    ADD COLUMN IF NOT EXISTS admin_note text NULL;
+
+                ALTER TABLE entity_reports
+                    ADD COLUMN IF NOT EXISTS reviewed_at timestamptz NULL;
+
                 CREATE INDEX IF NOT EXISTS idx_entity_reports_target
                     ON entity_reports(target_entity_type, target_entity_id);
+
+                CREATE INDEX IF NOT EXISTS idx_entity_reports_status
+                    ON entity_reports(status);
 
                 CREATE TABLE IF NOT EXISTS booking_contracts (
                     id uuid PRIMARY KEY,

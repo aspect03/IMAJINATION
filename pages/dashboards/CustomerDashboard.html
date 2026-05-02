@@ -347,7 +347,7 @@
                       <label for="birthdayInput" class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Birthday</label>
                       <span id="birthdayLockHint" class="text-[10px] uppercase tracking-widest text-white/35">Can only be changed once</span>
                     </div>
-                    <input id="birthdayInput" type="date" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                    <input id="birthdayInput" type="date" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none [color-scheme:dark]">
                   </div>
                 </div>
               </div>
@@ -1407,6 +1407,15 @@
     async function markCustomerBookingCompleted(bookingId) {
       if (!bookingId) return;
 
+      const confirmed = await window.systemDialog.confirm(
+        'Confirm that this booking has been completed? This will release escrow funds to the talent once both sides confirm.',
+        { title: 'Confirm Completion', kicker: 'Booking Completion', okText: 'Yes, Confirm Completion', cancelText: 'Not Yet' }
+      );
+      if (!confirmed) return;
+
+      const btn = document.querySelector(`button[onclick="markCustomerBookingCompleted('${bookingId}')"]`);
+      if (btn) { btn.disabled = true; btn.classList.add('opacity-60', 'cursor-not-allowed'); }
+
       try {
         const res = await fetch(`/api/booking/${bookingId}/status`, {
           method: 'PATCH',
@@ -1424,6 +1433,7 @@
         await loadCustomerNotifications();
       } catch (error) {
         await showSystemAlert(error.message || 'Failed to mark booking as completed.', 'Completion Error');
+        if (btn) { btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-not-allowed'); }
       }
     }
 

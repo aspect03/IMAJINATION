@@ -110,12 +110,12 @@
       </div>
 
       <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3 mb-8">
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
           <div class="relative flex-1 min-w-[160px]">
             <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
             <input type="text" id="searchInput" placeholder="Search events..." class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-red-500/40 transition-colors">
           </div>
-          <select id="filterGenre" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+          <select id="filterGenre" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
             <option value="">Genre</option>
             <option value="indie pop">Indie Pop</option>
             <option value="rock">Rock</option>
@@ -123,19 +123,19 @@
             <option value="r&b">R&B</option>
             <option value="electronic">Electronic</option>
           </select>
-          <select id="filterType" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+          <select id="filterType" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
             <option value="">Event Type</option>
             <option value="festival">Festival</option>
             <option value="live gig">Live Gig</option>
             <option value="listening party">Listening Party</option>
           </select>
-          <select id="filterPrice" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+          <select id="filterPrice" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
             <option value="">Price Range</option>
             <option value="0-500">Under ₱500</option>
             <option value="500-1000">₱500 – ₱1,000</option>
             <option value="1000+">₱1,000+</option>
           </select>
-          <div class="flex items-center gap-2 ml-auto">
+          <div class="flex items-center gap-2 sm:ml-auto">
             <button id="clearFiltersBtn" class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-bold uppercase tracking-wider text-white/55 hover:text-white hover:bg-white/[0.08] transition-colors">Clear</button>
             <button id="applyFiltersBtn" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors shadow-lg">Apply</button>
           </div>

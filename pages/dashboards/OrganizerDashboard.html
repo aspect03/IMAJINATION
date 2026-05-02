@@ -21,7 +21,7 @@
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
   </style>
 </head>
-<body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col h-screen overflow-hidden" style="font-family: 'Montserrat', sans-serif;">
+<body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col min-h-screen" style="font-family: 'Montserrat', sans-serif;">
   
   <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
 
@@ -87,7 +87,7 @@
     </div>
   </nav>
 
-  <div class="mobile-dashboard-shell flex-1 flex flex-col md:flex-row overflow-hidden relative z-10">
+  <div class="mobile-dashboard-shell flex-1 flex flex-col md:flex-row md:overflow-hidden relative z-10">
     <aside class="mobile-dashboard-sidebar w-full md:w-64 flex-shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-white/[0.02] flex flex-col backdrop-blur-md">
       <div class="p-6 flex items-center gap-3 border-b border-white/10">
         <div class="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center border border-white/10"><i data-lucide="ticket" class="w-4 h-4 text-white"></i></div>
@@ -99,44 +99,44 @@
       <nav class="flex md:flex-col flex-nowrap md:flex-1 gap-2 md:gap-1 px-4 py-4 md:py-6 overflow-x-auto md:overflow-y-auto">
         <button type="button" data-view="dashboard" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 bg-white/10 text-white rounded-xl text-sm font-medium">
           <span class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="analytics" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="bar-chart-2" class="w-4 h-4"></i> Analytics</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="events" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="calendar-days" class="w-4 h-4"></i> My Events</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="attendees" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="users" class="w-4 h-4"></i> Attendees</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="bookings" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="briefcase-business" class="w-4 h-4"></i> Talent Bookings</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="payouts" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Payouts</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="lineups" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="list-music" class="w-4 h-4"></i> Lineups</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <button type="button" data-view="community" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="megaphone" class="w-4 h-4"></i> Community Posts</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
         <!-- Messages link hidden temporarily -->
         <a href="/pages/bookings/messages.html" class="hidden flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="message-square" class="w-4 h-4"></i> Messages</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </a>
         <button type="button" data-view="settings" class="dashboard-nav-btn flex items-center justify-between px-3 py-2.5 text-white/60 hover:bg-white/5 hover:text-white rounded-xl text-sm font-medium transition-colors">
           <span class="flex items-center gap-3"><i data-lucide="settings" class="w-4 h-4"></i> Settings</span>
-          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 opacity-50 hidden md:block"></i>
         </button>
       </nav>
       <div class="p-4 border-t border-white/10">

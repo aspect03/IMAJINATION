@@ -552,6 +552,68 @@
     sessionMonitorHandle = window.setInterval(validateSession, sessionMonitorIntervalMs);
   }
 
+  function installMobileNav() {
+    // Only inject on pages that have the standard public nav link pattern
+    const navLinks = document.querySelector('.detail-nav-link, nav .hidden.md\\:flex');
+    if (!navLinks) return;
+
+    const navBar = document.querySelector('nav > div.absolute + div, nav > div:last-child, nav');
+    const navInner = document.querySelector('nav .relative.max-w-7xl, nav .relative');
+    if (!navInner) return;
+
+    // Don't inject on dashboard pages (they have their own nav)
+    if (document.querySelector('.mobile-dashboard-shell')) return;
+    if (document.querySelector('.admin-section')) return;
+
+    // Collect nav links from hidden desktop nav
+    const desktopNav = document.querySelector('.hidden.md\\:flex');
+    if (!desktopNav) return;
+
+    const links = Array.from(desktopNav.querySelectorAll('a[href]'));
+    if (!links.length) return;
+
+    // Build hamburger button
+    const hamburger = document.createElement('button');
+    hamburger.setAttribute('type', 'button');
+    hamburger.setAttribute('aria-label', 'Open navigation menu');
+    hamburger.className = 'md:hidden flex items-center justify-center w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-colors';
+    hamburger.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+
+    // Insert hamburger before the right-side buttons
+    const rightSection = navInner.querySelector('.flex.items-center.gap-3.relative, .flex.items-center.gap-4');
+    if (rightSection) {
+      rightSection.insertBefore(hamburger, rightSection.firstChild);
+    }
+
+    // Build mobile menu overlay
+    const menu = document.createElement('div');
+    menu.className = 'mobile-nav-menu';
+    menu.setAttribute('id', 'mobileNavMenu');
+    menu.innerHTML = `
+      <button class="mobile-nav-close-btn" id="mobileNavClose" aria-label="Close menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="flex items-center gap-3 mb-6 mt-2">
+        <img src="/assets/images/logo.png" alt="Imajination" class="h-7 object-contain object-left" onerror="this.style.display='none'">
+      </div>
+      <nav>
+        ${links.map(link => `<a href="${link.href}" class="${link.className.includes('active') ? 'active-mobile' : ''}">${link.textContent.trim()}</a>`).join('')}
+      </nav>
+    `;
+    document.body.appendChild(menu);
+
+    const openMenu = () => menu.classList.add('open');
+    const closeMenu = () => menu.classList.remove('open');
+
+    hamburger.addEventListener('click', openMenu);
+    document.getElementById('mobileNavClose')?.addEventListener('click', closeMenu);
+    menu.addEventListener('click', (e) => { if (e.target === menu) closeMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+    // Close menu when a link is clicked
+    menu.querySelectorAll('nav a').forEach(a => a.addEventListener('click', closeMenu));
+  }
+
   function initPerformanceHelpers() {
     installSecurityFetch();
     installFetchOptimizer();
@@ -559,6 +621,7 @@
     installSessionMonitor();
     optimizeImages();
     optimizeSections();
+    installMobileNav();
   }
 
   window.initImajinationPerformanceHelpers = initPerformanceHelpers;

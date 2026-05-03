@@ -318,13 +318,25 @@
       matchText.textContent = matches ? 'Passwords match.' : 'Passwords do not match.';
     }
 
+    (function() {
+      const maxDate = new Date();
+      maxDate.setFullYear(maxDate.getFullYear() - 18);
+      document.getElementById('bday').max = maxDate.toISOString().split('T')[0];
+    })();
+
     document.getElementById('bday').addEventListener('change', function() {
       const bday = new Date(this.value);
       const today = new Date();
       let age = today.getFullYear() - bday.getFullYear();
       const m = today.getMonth() - bday.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) { age--; }
-      document.getElementById('age').value = age >= 0 ? age : 0;
+      if (age < 18) {
+        alert("You must be at least 18 years old to register.");
+        this.value = '';
+        document.getElementById('age').value = '';
+        return;
+      }
+      document.getElementById('age').value = age;
     });
 
     pass.addEventListener('input', () => {
@@ -344,6 +356,14 @@
         return;
       }
       if (pass.value !== confirmPass.value) { alert("Passwords do not match!"); return; }
+      const bdayVal = document.getElementById('bday').value;
+      if (!bdayVal) { alert("Please enter your birthday."); return; }
+      const bdayCheck = new Date(bdayVal);
+      const todayCheck = new Date();
+      let ageCheck = todayCheck.getFullYear() - bdayCheck.getFullYear();
+      const mCheck = todayCheck.getMonth() - bdayCheck.getMonth();
+      if (mCheck < 0 || (mCheck === 0 && todayCheck.getDate() < bdayCheck.getDate())) { ageCheck--; }
+      if (ageCheck < 18) { alert("You must be at least 18 years old to register."); return; }
 
       const email = document.getElementById('email').value;
       const btn = document.getElementById('initiateBtn');

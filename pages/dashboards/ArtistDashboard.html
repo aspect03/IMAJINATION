@@ -404,7 +404,7 @@
 
                   <div class="space-y-3">
                     <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Base Price (PHP)</label>
-                    <input type="number" id="basePriceInput" min="0" step="0.01" placeholder="0.00" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                    <input type="number" id="basePriceInput" min="0" step="1" placeholder="0" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
                     <p class="text-[10px] uppercase tracking-widest text-white/35">Displayed as your starting rate for bookings.</p>
                   </div>
 
@@ -1313,7 +1313,7 @@
       container.innerHTML = artistCalendarBlocks.map(block => `
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-black/50 border border-white/10 rounded-2xl">
           <div>
-            <p class="text-sm font-semibold text-white">${new Date(block.blockedDate || block.blockDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            <p class="text-sm font-semibold text-white">${new Date((block.blockedDate || block.blockDate).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             <p class="text-xs text-white/50 mt-1">${block.reason || 'Blocked manually by artist.'}</p>
           </div>
           <button type="button" data-block-id="${block.id}" class="artist-remove-block px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Remove</button>
@@ -1669,7 +1669,7 @@
         bio: document.getElementById('bioInput').value,
         genres: document.getElementById('genresInput').value,
         spotifyLink: document.getElementById('spotifyInput').value,
-        basePrice: parseFloat(document.getElementById('basePriceInput').value) || 0,
+        basePrice: Math.round(parseFloat(document.getElementById('basePriceInput').value) || 0),
         profilePicture: artistProfileImageDirty && typeof base64Image === 'string' && base64Image.startsWith('data:') ? base64Image : null,
         isAvailable: artistIsAvailable
       };

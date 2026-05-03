@@ -201,10 +201,18 @@ namespace ImajinationAPI.Controllers
         }
 
         [HttpPost("checkout")]
+        [Authorize]
         public async Task<IActionResult> Checkout([FromBody] CheckoutRequest req)
         {
             try
             {
+                var actorRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+                if (string.Equals(actorRole, "Artist", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(actorRole, "Sessionist", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(403, new { message = "Artists and Sessionists cannot purchase event tickets." });
+                }
+
                 if (req.totalPrice < 20)
                 {
                     return BadRequest(new { message = "PayMongo requires a minimum amount of ₱20.00." });
@@ -264,6 +272,11 @@ namespace ImajinationAPI.Controllers
                 if (organizerId != Guid.Empty && organizerId == parsedCustomerId)
                 {
                     return BadRequest(new { message = "Event organizers cannot buy tickets for their own event." });
+                }
+
+                if (string.Equals(actorRole, "Organizer", StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(403, new { message = "Organizers cannot purchase tickets for events." });
                 }
 
                 if (req.quantity < 1 || req.quantity > maxTicketsPerCustomer)

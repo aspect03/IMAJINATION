@@ -105,6 +105,10 @@
         <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.08] border border-white/[0.08] flex-shrink-0"><i data-lucide="messages-square" class="w-3.5 h-3.5"></i></span>
         <span>Community Posts</span>
       </button>
+      <button onclick="openSessionistSchedulesView()" id="tabBtn-schedules" class="w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+        <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.08] border border-white/[0.08] flex-shrink-0"><i data-lucide="calendar-range" class="w-3.5 h-3.5"></i></span>
+        <span>Schedules</span>
+      </button>
     </nav>
 
     <div class="px-4 py-4 border-t border-white/[0.06] space-y-3">
@@ -209,26 +213,6 @@
               <div class="px-4 py-3 bg-black/30 border border-white/[0.07] rounded-xl min-w-[80px] text-center">
                 <p class="text-[10px] uppercase tracking-widest text-white/40">Upcoming</p>
                 <p id="sessionistUpcomingScheduleCount" class="text-2xl font-bold text-white mt-1">0</p>
-              </div>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div class="bg-black/30 border border-white/[0.06] rounded-xl p-4">
-              <h3 class="text-[10px] font-bold uppercase tracking-widest text-white/45 mb-3">Today's Schedule</h3>
-              <div id="sessionistTodayScheduleContainer" class="space-y-3">
-                <p class="text-sm text-white/45">Loading today's schedule...</p>
-              </div>
-            </div>
-            <div class="bg-black/30 border border-white/[0.06] rounded-xl p-4">
-              <h3 class="text-[10px] font-bold uppercase tracking-widest text-white/45 mb-3">Upcoming Schedule</h3>
-              <div id="sessionistUpcomingScheduleContainer" class="space-y-3">
-                <p class="text-sm text-white/45">Loading upcoming schedule...</p>
-              </div>
-            </div>
-            <div class="bg-black/30 border border-white/[0.06] rounded-xl p-4">
-              <h3 class="text-[10px] font-bold uppercase tracking-widest text-white/45 mb-3">All Schedules</h3>
-              <div id="sessionistAllScheduleContainer" class="space-y-3 max-h-[340px] overflow-y-auto pr-1">
-                <p class="text-sm text-white/45">Loading all schedules...</p>
               </div>
             </div>
           </div>
@@ -384,7 +368,7 @@
 
                 <div class="space-y-3">
                   <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Base Price (PHP)</label>
-                  <input type="number" id="basePriceInput" min="0" step="0.01" placeholder="0.00" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                  <input type="number" id="basePriceInput" min="0" step="1" placeholder="0" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
                   <p class="text-[10px] uppercase tracking-widest text-white/35">Displayed as your starting rate for booking requests.</p>
                 </div>
 
@@ -487,27 +471,70 @@
                 </div>
               </div>
 
-              <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-4 backdrop-blur-md shadow-2xl">
-                <div>
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">4. Calendar Control</h3>
-                  <p class="text-xs text-white/50">Block dates when you do not want people to send booking requests.</p>
-                </div>
-                <div id="sessionistCalendarBlockForm" class="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-3">
-                  <input type="date" id="sessionistBlockedDateInput" required class="w-full px-4 py-3 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
-                  <input type="text" id="sessionistBlockReasonInput" placeholder="Reason (optional)" class="w-full px-4 py-3 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none">
-                  <button type="button" id="sessionistCalendarBlockSubmitBtn" class="px-5 py-3 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.18em] rounded-xl transition-colors">Block Day</button>
-                </div>
-                <div id="sessionistCalendarBlockList" class="space-y-3">
-                  <p class="text-sm text-white/50">Loading blocked dates...</p>
-                </div>
-              </div>
-
               <button type="submit" id="saveBtn" class="w-full py-5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_-10px_rgba(239,68,68,0.8)] transition-colors">
                 Save Profile Changes
               </button>
             </form>
           </div>
         </div>
+      </div>
+
+      <div id="view-schedules" class="tab-panel hidden space-y-6">
+        <section class="bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Sessionist Portal</p>
+              <h2 class="text-2xl font-extrabold text-white">All schedules</h2>
+              <p class="text-sm text-white/50 mt-1">See today, upcoming, and your full schedule history in one page.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:w-auto">
+              <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Today</p>
+                <p id="sessionistSchedulesViewTodayCount" class="text-2xl font-bold text-white mt-1">0</p>
+              </div>
+              <div class="px-4 py-3 bg-black/40 border border-white/10 rounded-2xl">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Upcoming</p>
+                <p id="sessionistSchedulesViewUpcomingCount" class="text-2xl font-bold text-white mt-1">0</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div class="bg-black/40 border border-white/10 rounded-2xl p-4">
+              <h3 class="text-xs font-bold uppercase tracking-widest text-white/60 mb-4">Today's Schedule</h3>
+              <div id="sessionistTodayScheduleContainer" class="space-y-3">
+                <p class="text-sm text-white/50">Loading today's schedule...</p>
+              </div>
+            </div>
+            <div class="bg-black/40 border border-white/10 rounded-2xl p-4">
+              <h3 class="text-xs font-bold uppercase tracking-widest text-white/60 mb-4">Upcoming Schedule</h3>
+              <div id="sessionistUpcomingScheduleContainer" class="space-y-3">
+                <p class="text-sm text-white/50">Loading upcoming schedule...</p>
+              </div>
+            </div>
+            <div class="bg-black/40 border border-white/10 rounded-2xl p-4">
+              <h3 class="text-xs font-bold uppercase tracking-widest text-white/60 mb-4">All Schedules</h3>
+              <div id="sessionistAllScheduleContainer" class="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                <p class="text-sm text-white/50">Loading all schedules...</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-black/40 border border-white/10 rounded-2xl p-4 space-y-4">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-widest text-white/60">Calendar Control</h3>
+              <p class="text-xs text-white/45 mt-2">Block dates when you do not want people to send booking requests.</p>
+            </div>
+            <div id="sessionistCalendarBlockForm" class="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-3">
+              <input type="date" id="sessionistBlockedDateInput" required class="w-full px-4 py-3 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+              <input type="text" id="sessionistBlockReasonInput" placeholder="Reason (optional)" class="w-full px-4 py-3 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none">
+              <button type="button" id="sessionistCalendarBlockSubmitBtn" class="px-5 py-3 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.18em] rounded-xl transition-colors">Block Day</button>
+            </div>
+            <div id="sessionistCalendarBlockList" class="space-y-3">
+              <p class="text-sm text-white/50">Loading blocked dates...</p>
+            </div>
+          </div>
+        </section>
       </div>
 
       <div id="view-community" class="tab-panel hidden">
@@ -1035,7 +1062,7 @@
         await loadSessionistPostsManager();
       }
 
-      if (tabName === 'edit-profile' && !sessionistCalendarBlocks.length) {
+      if (tabName === 'schedules' && !sessionistCalendarBlocks.length) {
         await loadSessionistCalendarBlocks();
       }
     }
@@ -1046,21 +1073,25 @@
       const profilePageView = document.getElementById('view-profile-page');
       const editProfileView = document.getElementById('view-edit-profile');
       const cmView = document.getElementById('view-community');
+      const schedulesView = document.getElementById('view-schedules');
       const dbBtn = document.getElementById('tabBtn-dashboard');
       const profilePageBtn = document.getElementById('tabBtn-profile-page');
       const editProfileBtn = document.getElementById('tabBtn-edit-profile');
       const cmBtn = document.getElementById('tabBtn-community');
+      const schedulesBtn = document.getElementById('tabBtn-schedules');
 
       dbView.classList.toggle('hidden', tabName !== 'dashboard');
       profilePageView.classList.toggle('hidden', tabName !== 'profile-page');
       editProfileView.classList.toggle('hidden', tabName !== 'edit-profile');
       cmView.classList.toggle('hidden', tabName !== 'community');
+      schedulesView.classList.toggle('hidden', tabName !== 'schedules');
 
       const activeView = {
         dashboard: dbView,
         'profile-page': profilePageView,
         'edit-profile': editProfileView,
-        community: cmView
+        community: cmView,
+        schedules: schedulesView
       }[tabName];
       activateTabPanel(activeView);
 
@@ -1068,7 +1099,8 @@
         [dbBtn, tabName === 'dashboard'],
         [profilePageBtn, tabName === 'profile-page'],
         [editProfileBtn, tabName === 'edit-profile'],
-        [cmBtn, tabName === 'community']
+        [cmBtn, tabName === 'community'],
+        [schedulesBtn, tabName === 'schedules']
       ].forEach(([button, isActive]) => {
         if (!button) return;
         button.className = isActive
@@ -1086,6 +1118,10 @@
 
       await ensureSessionistTabData(tabName);
       sessionStorage.setItem('sessionistActiveTab', tabName);
+    }
+
+    function openSessionistSchedulesView() {
+      switchTab('schedules');
     }
 
     async function loadSessionistProfile(userId) {
@@ -1163,7 +1199,7 @@
       const params = new URLSearchParams(window.location.search);
       const requestedTab = params.get('tab');
       const savedTab = sessionStorage.getItem('sessionistActiveTab');
-      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community'];
+      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community', 'schedules'];
       const initialTab = allowedTabs.includes(requestedTab || '')
         ? requestedTab
         : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
@@ -1478,8 +1514,11 @@
       const todaySchedules = allSchedules.filter(item => isSameLocalDay(item.date, now));
       const upcomingSchedules = allSchedules.filter(item => item.date >= now && !isSameLocalDay(item.date, now)).slice(0, 6);
 
+      const upcomingCount = allSchedules.filter(item => item.date >= now).length;
       setAnimatedCounter('sessionistTodayScheduleCount', todaySchedules.length);
-      setAnimatedCounter('sessionistUpcomingScheduleCount', allSchedules.filter(item => item.date >= now).length);
+      setAnimatedCounter('sessionistUpcomingScheduleCount', upcomingCount);
+      setAnimatedCounter('sessionistSchedulesViewTodayCount', todaySchedules.length);
+      setAnimatedCounter('sessionistSchedulesViewUpcomingCount', upcomingCount);
 
       renderSessionistScheduleList('sessionistTodayScheduleContainer', todaySchedules, 'No schedules for today.');
       renderSessionistScheduleList('sessionistUpcomingScheduleContainer', upcomingSchedules, 'No upcoming schedules.');
@@ -1498,7 +1537,7 @@
       container.innerHTML = sessionistCalendarBlocks.map(block => `
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-black/50 border border-white/10 rounded-2xl">
           <div>
-            <p class="text-sm font-semibold text-white">${new Date(block.blockedDate || block.blockDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            <p class="text-sm font-semibold text-white">${new Date((block.blockedDate || block.blockDate).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             <p class="text-xs text-white/50 mt-1">${escapeHtml(safeText(block.reason, 'Blocked manually by sessionist.'))}</p>
           </div>
           <button type="button" data-block-id="${escapeAttribute(block.id)}" class="sessionist-remove-block px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Remove</button>
@@ -1837,7 +1876,7 @@
         bio: document.getElementById('bioInput').value,
         genres: document.getElementById('genresInput').value,
         spotifyLink: document.getElementById('spotifyInput').value,
-        basePrice: parseFloat(document.getElementById('basePriceInput').value) || 0,
+        basePrice: Math.round(parseFloat(document.getElementById('basePriceInput').value) || 0),
         profilePicture: sessionistProfileImageDirty && typeof base64Image === 'string' && base64Image.startsWith('data:') ? base64Image : null,
         isAvailable: sessionistIsAvailable
       };

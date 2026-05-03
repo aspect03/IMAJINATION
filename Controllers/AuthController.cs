@@ -290,6 +290,20 @@ namespace ImajinationAPI.Controllers
                 return BadRequest(new { message = "Invalid OTP code." });
             }
 
+            if (req.birthday == default || req.birthday > DateTime.UtcNow)
+            {
+                return BadRequest(new { message = "A valid birthday is required." });
+            }
+
+            var today = DateTime.UtcNow.Date;
+            var birthdayDate = req.birthday.Date;
+            var computedAge = today.Year - birthdayDate.Year;
+            if (birthdayDate > today.AddYears(-computedAge)) computedAge--;
+            if (computedAge < 18)
+            {
+                return BadRequest(new { message = "You must be at least 18 years old to register." });
+            }
+
             try
             {
                 string passwordHash = BCrypt.Net.BCrypt.HashPassword(req.password);

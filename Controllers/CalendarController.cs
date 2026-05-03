@@ -51,7 +51,7 @@ namespace ImajinationAPI.Controllers
                         blocks.Add(new
                         {
                             id = reader.GetGuid(0),
-                            blockDate = reader.GetFieldValue<DateOnly>(1).ToDateTime(TimeOnly.MinValue),
+                            blockDate = reader.GetFieldValue<DateOnly>(1).ToString("yyyy-MM-dd"),
                             reason = reader.IsDBNull(2) ? "" : reader.GetString(2),
                             createdAt = reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3)
                         });
@@ -109,13 +109,14 @@ namespace ImajinationAPI.Controllers
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
 
                 var requestedDate = req.blockDate ?? req.blockedDate;
-                var normalizedRequestedDate = PlatformFeatureSupport.NormalizeToUtc(requestedDate);
-                if (!normalizedRequestedDate.HasValue)
+                if (!requestedDate.HasValue)
                 {
                     return BadRequest(new { message = "Missing calendar block date." });
                 }
 
-                var blockDate = DateOnly.FromDateTime(normalizedRequestedDate.Value);
+                // Use the date as supplied — no UTC conversion. Calendar blocks are date-only
+                // values; converting to UTC would shift the date on servers in positive UTC offsets.
+                var blockDate = DateOnly.FromDateTime(requestedDate.Value);
 
                 const string sql = @"
                     INSERT INTO user_calendar_blocks (id, user_id, role, blocked_date, reason, created_at)

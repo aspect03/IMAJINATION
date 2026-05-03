@@ -131,6 +131,18 @@
         return;
       }
 
+      if (currentRole === 'Artist' || currentRole === 'Sessionist') {
+        await showSystemAlert('Artists and Sessionists cannot purchase event tickets.', 'Access Restricted');
+        history.back();
+        return;
+      }
+
+      if (currentRole === 'Organizer') {
+        await showSystemAlert('Organizers cannot purchase tickets for events.', 'Access Restricted');
+        history.back();
+        return;
+      }
+
       const urlParams = new URLSearchParams(window.location.search);
       const eventId = urlParams.get('id');
       if (!eventId) {
@@ -147,11 +159,6 @@
         document.getElementById('checkoutEventImg').src = ev.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30';
         document.getElementById('checkoutEventImg').classList.remove('hidden');
 
-        if (currentRole === 'Organizer' && ev.organizerId && ev.organizerId === customerId) {
-          await showSystemAlert('Event organizers cannot buy tickets for their own event.', 'Ticket Purchase Locked');
-          window.location.href = `/pages/details/EventDetailPage.html?id=${eventId}`;
-          return;
-        }
 
         currentTicketServiceFeeRate = Number(ev.ticketServiceFeeRate || 0.05);
         const maxTicketsPerCustomer = Math.max(1, Math.min(10, Number(ev.maxTicketsPerCustomer || 5)));

@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using NpgsqlTypes;
-using ImajinationAPI.Controllers;
 
 namespace ImajinationAPI.Services
 {
@@ -12,16 +11,16 @@ namespace ImajinationAPI.Services
     {
         public const string SchemeName = "SessionToken";
 
-        private readonly IConfiguration _configuration;
+        private readonly NpgsqlDataSource _dataSource;
 
         public SessionTokenAuthenticationHandler(
             IOptionsMonitor<AuthenticationSchemeOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            IConfiguration configuration)
+            NpgsqlDataSource dataSource)
             : base(options, logger, encoder)
         {
-            _configuration = configuration;
+            _dataSource = dataSource;
         }
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -37,12 +36,9 @@ namespace ImajinationAPI.Services
                 return AuthenticateResult.NoResult();
             }
 
-            var connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(_configuration);
-
             try
             {
-                await using var connection = new NpgsqlConnection(connectionString);
-                await connection.OpenAsync();
+                await using var connection = await _dataSource.OpenConnectionAsync();
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
                 const string sql = @"

@@ -709,19 +709,17 @@
 
       const signedInRole = localStorage.getItem('userRole');
       const signedInUserId = localStorage.getItem('userId');
-      if (signedInRole === 'Organizer' && signedInUserId && ev.organizerId && signedInUserId === ev.organizerId) {
-        bookBtn.innerText = "Organizer Cannot Buy";
+      if (signedInRole === 'Artist' || signedInRole === 'Sessionist' || signedInRole === 'Organizer') {
+        bookBtn.innerText = signedInRole === 'Organizer' ? 'Organizers Cannot Buy Tickets' : 'Not Available for Your Account';
         bookBtn.disabled = true;
         bookBtn.classList.remove('bg-red-600');
         bookBtn.classList.add('bg-neutral-600');
       }
 
       bookBtn.onclick = () => {
-        if(!localStorage.getItem('userFirstName')) {
+        if (!localStorage.getItem('userFirstName')) {
           alert("Please sign in or create an account to book tickets!");
           window.location.href = '/pages/auth/login.html';
-        } else if (localStorage.getItem('userRole') === 'Organizer' && localStorage.getItem('userId') === ev.organizerId) {
-          alert("Event organizers cannot buy tickets for their own event.");
         } else {
           window.location.href = `/pages/bookings/Checkout.html?id=${eventId}`;
         }
@@ -881,7 +879,7 @@
         }
 
         bookBtn.addEventListener('click', () => {
-          if(!localStorage.getItem('userFirstName')) {
+          if (!localStorage.getItem('userFirstName')) {
             alert("Please sign in or create an account to book tickets!");
             window.location.href = '/pages/auth/login.html';
           } else {

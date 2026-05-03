@@ -1,5 +1,7 @@
 using System.Threading.RateLimiting;
+using Npgsql;
 using Microsoft.AspNetCore.Builder;
+using ImajinationAPI.Controllers;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
@@ -37,6 +39,10 @@ var allowedOrigins = builder.Configuration
     ?? Array.Empty<string>();
 ValidateSecurityConfiguration(builder.Configuration, builder.Environment, allowedOrigins);
 var jwtBootstrapService = new JwtTokenService(builder.Configuration);
+
+var dbConnectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(builder.Configuration);
+var npgsqlDataSource = NpgsqlDataSource.Create(dbConnectionString);
+builder.Services.AddSingleton(npgsqlDataSource);
 
 // Add Controllers
 builder.Services.AddControllers();

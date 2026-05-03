@@ -21,8 +21,17 @@ namespace ImajinationAPI.Services
             "image/gif"
         };
 
+        private static volatile bool _schemaEnsured = false;
+        private static readonly SemaphoreSlim _schemaSemaphore = new(1, 1);
+
         public static async Task EnsureSecuritySchemaAsync(NpgsqlConnection connection)
         {
+            if (_schemaEnsured) return;
+
+            await _schemaSemaphore.WaitAsync();
+            try
+            {
+                if (_schemaEnsured) return;
             const string sql = @"
                 CREATE TABLE IF NOT EXISTS auth_security_state (
                     email text PRIMARY KEY,
@@ -77,8 +86,14 @@ namespace ImajinationAPI.Services
                     ON user_active_sessions(last_seen_at DESC);
             ";
 
-            await using var cmd = new NpgsqlCommand(sql, connection);
-            await cmd.ExecuteNonQueryAsync();
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                await cmd.ExecuteNonQueryAsync();
+                _schemaEnsured = true;
+            }
+            finally
+            {
+                _schemaSemaphore.Release();
+            }
         }
 
         public static string SanitizePlainText(string? value, int maxLength = 4000, bool allowLineBreaks = true)

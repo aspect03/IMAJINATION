@@ -478,7 +478,10 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@spotify", string.IsNullOrWhiteSpace(sanitizedSpotifyLink) ? DBNull.Value : sanitizedSpotifyLink);
                 cmd.Parameters.AddWithValue("@pic", (object?)normalizedPicture ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@isAvailable", (object?)req.isAvailable ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@basePrice", (object?)req.basePrice ?? DBNull.Value);
+                var sanitizedBasePrice = req.basePrice.HasValue
+                    ? Math.Round(req.basePrice.Value, 2, MidpointRounding.AwayFromZero)
+                    : (decimal?)null;
+                cmd.Parameters.Add("@basePrice", NpgsqlTypes.NpgsqlDbType.Numeric).Value = (object?)sanitizedBasePrice ?? DBNull.Value;
 
                 int rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0) return BadRequest(new { message = "Update failed. Make sure you are a Sessionist." });

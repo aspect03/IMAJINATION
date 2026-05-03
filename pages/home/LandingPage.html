@@ -518,11 +518,38 @@
     async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
       try {
         return await fetch(url, { ...options, signal: controller.signal });
       } finally {
         clearTimeout(timeoutId);
+      }
+    }
+
+    // On cold start, Render free tier needs up to ~60s to wake up.
+    // Attempt 1: 10s (normal). If it fails, show a "waking up" message and
+    // retry once with a 55s window before giving up.
+    async function fetchWithColdStartRetry(url, loadingEl, wakingMsg) {
+      const controller1 = new AbortController();
+      const t1 = setTimeout(() => controller1.abort(), 10000);
+      try {
+        const res = await fetch(url, { signal: controller1.signal });
+        clearTimeout(t1);
+        return res;
+      } catch {
+        clearTimeout(t1);
+      }
+
+      // First attempt timed out — server is likely cold-starting.
+      if (loadingEl) loadingEl.innerHTML = wakingMsg;
+
+      const controller2 = new AbortController();
+      const t2 = setTimeout(() => controller2.abort(), 55000);
+      try {
+        const res = await fetch(url, { signal: controller2.signal });
+        clearTimeout(t2);
+        return res;
+      } finally {
+        clearTimeout(t2);
       }
     }
 
@@ -576,7 +603,11 @@
       container.innerHTML = `<p class="text-white/50 w-full text-center py-10">Loading upcoming events...</p>`;
 
       try {
-        const response = await fetchWithTimeout('/api/event/landing');
+        const response = await fetchWithColdStartRetry(
+          '/api/event/landing',
+          container,
+          `<p class="text-white/40 w-full text-center py-10 text-sm">Server is starting up, please wait a moment...</p>`
+        );
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(errorText || 'Failed to load live events.');
@@ -638,7 +669,11 @@
       const container = document.getElementById('spotlightArtistsContainer');
       container.innerHTML = `<p class="text-white/50 col-span-4 text-center py-10 font-medium uppercase tracking-widest text-sm">Loading artists...</p>`;
       try {
-        const response = await fetchWithTimeout('/api/artist/spotlight');
+        const response = await fetchWithColdStartRetry(
+          '/api/artist/spotlight',
+          container,
+          `<p class="text-white/40 col-span-4 text-center py-10 text-sm">Server is starting up, please wait a moment...</p>`
+        );
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(errorText || 'Failed to load artists.');
@@ -676,7 +711,11 @@
       const container = document.getElementById('spotlightSessionistsContainer');
       container.innerHTML = `<p class="text-white/50 col-span-4 text-center py-10 font-medium uppercase tracking-widest text-sm">Loading sessionists...</p>`;
       try {
-        const response = await fetchWithTimeout('/api/sessionist/spotlight');
+        const response = await fetchWithColdStartRetry(
+          '/api/sessionist/spotlight',
+          container,
+          `<p class="text-white/40 col-span-4 text-center py-10 text-sm">Server is starting up, please wait a moment...</p>`
+        );
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(errorText || 'Failed to load sessionists.');

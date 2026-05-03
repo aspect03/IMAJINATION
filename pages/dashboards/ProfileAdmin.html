@@ -9,6 +9,8 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://unpkg.com/chart.js@4.4.3/dist/chart.umd.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/mfa-settings.js"></script>
 </head>
 <body class="bg-neutral-950 text-white antialiased min-h-screen overflow-x-hidden overflow-y-auto" style="font-family: 'Montserrat', sans-serif;">
   
@@ -568,6 +570,17 @@
             </div>
           </div>
 
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-3 mb-5">
+              <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20"><i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i></span>
+              <div>
+                <h3 class="text-base font-bold text-white">Multi-Factor Authentication</h3>
+                <p class="text-xs text-white/40 mt-0.5">Require an authenticator app code on every admin sign-in.</p>
+              </div>
+            </div>
+            <div id="adminMfaSettings"></div>
+          </div>
+
           <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 flex flex-col min-h-0">
             <div class="flex items-center gap-3 mb-5">
               <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20"><i data-lucide="shield-alert" class="w-4 h-4 text-red-400"></i></span>
@@ -671,6 +684,8 @@
           window.location.href = '/pages/auth/login.html';
           return;
       }
+
+      window.initDashboardMfaSettings?.({ containerId: 'adminMfaSettings', title: 'Admin MFA' });
 
       const nameDisplay = document.getElementById('userNameDisplay');
       if (nameDisplay) {

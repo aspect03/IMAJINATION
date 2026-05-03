@@ -159,7 +159,7 @@
             <button id="openCreateModalBtn" class="px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-red-500 transition-colors shadow-lg">
               <i data-lucide="plus" class="w-4 h-4"></i> Create event
             </button>
-            <button id="scanTicketsBtn" type="button" onclick="setActiveView('events')" class="px-5 py-2.5 bg-white/5 border border-white/10 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
+            <button id="scanTicketsBtn" type="button" onclick="openScannerPickerModal()" class="px-5 py-2.5 bg-white/5 border border-white/10 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
               <i data-lucide="scan" class="w-4 h-4"></i> Choose Event Scanner
             </button>
             
@@ -1146,6 +1146,24 @@
             <p class="text-sm text-white/50">No sessionists in this lineup.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scanner Event Picker Modal -->
+  <div id="scannerPickerModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md bg-neutral-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div>
+          <h2 class="text-lg font-bold text-white">Choose Event to Scan</h2>
+          <p class="text-xs text-white/50 mt-1">Select an event to open the ticket scanner.</p>
+        </div>
+        <button onclick="closeScannerPickerModal()" type="button" class="text-white/50 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="scannerPickerList" class="px-4 py-4 space-y-2 max-h-96 overflow-y-auto">
+        <p class="text-sm text-white/50 text-center py-4">No upcoming events found.</p>
       </div>
     </div>
   </div>
@@ -3484,7 +3502,7 @@
             const finishBtn = isLocked ? '' : `<button onclick="event.stopPropagation(); finishEvent('${ev.id}')" title="Mark as Finished" class="event-action-btn w-7 h-7 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center hover:bg-emerald-500/20 transition-colors"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button>`;
             const editBtn = isFinished ? '' : `<button onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit Event" class="event-action-btn w-7 h-7 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center hover:bg-blue-500/20 transition-colors"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>`;
             const lineupBtn = `<button onclick="event.stopPropagation(); openManageLineupModal('${ev.id}')" title="Manage Lineup" class="event-action-btn w-7 h-7 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg flex items-center justify-center hover:bg-amber-500/20 transition-colors"><i data-lucide="list-music" class="w-3.5 h-3.5"></i></button>`;
-            const scanBtn = isLocked ? '' : `<button type="button" data-event-scanner data-event-id="${ev.id}" data-event-title="${escapeHtml(ev.title || 'Untitled Event')}" onclick="event.stopPropagation(); openEventScanner('${ev.id}', ${JSON.stringify(ev.title || 'Untitled Event')})" title="Scan Tickets" class="event-action-btn w-7 h-7 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i></button>`;
+            const scanBtn = isLocked ? '' : `<button type="button" data-event-scanner data-event-id="${ev.id}" data-event-title="${escapeHtml(ev.title || 'Untitled Event')}" onclick="event.stopPropagation(); openEventScanner(this.dataset.eventId, this.dataset.eventTitle)" title="Scan Tickets" class="event-action-btn w-7 h-7 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i></button>`;
             const deleteBtn = `<button onclick="event.stopPropagation(); deleteEvent('${ev.id}')" title="Delete Event" class="event-action-btn w-7 h-7 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg flex items-center justify-center hover:bg-red-500/20 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`;
 
             const soldPct = Math.min(100, Math.round(((ev.ticketsSold ?? 0) / Math.max(ev.slots ?? 1, 1)) * 100));
@@ -3562,6 +3580,50 @@
         eventTitle: eventTitle || 'Untitled Event'
       });
       window.location.href = `/pages/tools/dashboardscanner.html?${params.toString()}`;
+    }
+
+    function openScannerPickerModal() {
+      const modal = document.getElementById('scannerPickerModal');
+      const list = document.getElementById('scannerPickerList');
+      if (!modal || !list) return;
+
+      const upcoming = (organizerEventsCache || []).filter(ev => {
+        const status = (ev.status || '').trim();
+        return status !== 'Finished' && status.toLowerCase() !== 'draft';
+      });
+
+      if (upcoming.length === 0) {
+        list.innerHTML = '<p class="text-sm text-white/50 text-center py-4">No upcoming events found.</p>';
+      } else {
+        list.innerHTML = upcoming.map(ev => {
+          const d = new Date(ev.time);
+          const dateStr = isNaN(d) ? 'TBA' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const safeId = escapeHtml(String(ev.id || ''));
+          const safeTitle = escapeHtml(ev.title || 'Untitled Event');
+          return `
+            <div class="flex items-center justify-between gap-3 px-4 py-3 bg-white/[0.03] border border-white/[0.07] rounded-2xl">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-white truncate">${safeTitle}</p>
+                <p class="text-xs text-white/40 mt-0.5">${dateStr}</p>
+              </div>
+              <button data-picker-event-id="${safeId}" data-picker-event-title="${safeTitle}" onclick="closeScannerPickerModal(); openEventScanner(this.dataset.pickerEventId, this.dataset.pickerEventTitle)" class="flex-shrink-0 px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl hover:bg-red-500 transition-colors flex items-center gap-1.5">
+                <i data-lucide="scan-line" class="w-3.5 h-3.5"></i> Scan
+              </button>
+            </div>`;
+        }).join('');
+        lucide.createIcons();
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeScannerPickerModal() {
+      const modal = document.getElementById('scannerPickerModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
     }
 
     function renderLineupsView(events) {

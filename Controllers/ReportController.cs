@@ -180,22 +180,29 @@ namespace ImajinationAPI.Controllers
 
                 if (normalizedAction is "warn" or "suspend" or "ban" && targetType != "event")
                 {
-                    var moderationAction = normalizedAction switch
+                    var accountStatus = normalizedAction switch
                     {
-                        "warn" => "warned",
-                        "suspend" => "suspended",
-                        "ban" => "banned",
-                        _ => normalizedAction
+                        "warn" => "Warned",
+                        "suspend" => "Suspended",
+                        "ban" => "Banned",
+                        _ => "Active"
                     };
 
-                    const string moderateSql = "UPDATE users SET moderation_status = @action WHERE id = @id;";
+                    const string moderateSql = @"
+                        UPDATE users
+                        SET account_status = @accountStatus,
+                            is_banned = @isBanned
+                        WHERE id = @id;";
                     await using var moderateCmd = new NpgsqlCommand(moderateSql, connection);
-                    moderateCmd.Parameters.Add("@action", NpgsqlDbType.Text).Value = moderationAction;
+                    moderateCmd.Parameters.Add("@accountStatus", NpgsqlDbType.Text).Value = accountStatus;
+                    moderateCmd.Parameters.Add("@isBanned", NpgsqlDbType.Boolean).Value = normalizedAction == "ban";
                     moderateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = targetId;
                     await moderateCmd.ExecuteNonQueryAsync();
                 }
 
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
+
+                // Notify the reporter
                 await NotificationSupport.InsertNotificationIfNotExistsAsync(
                     connection,
                     reporterUserId,
@@ -205,6 +212,59 @@ namespace ImajinationAPI.Controllers
                     reportId,
                     "report",
                     0);
+
+                // Notify the reported target (user or event organizer)
+                if (targetType == "event")
+                {
+                    // Look up the event organizer
+                    const string orgSql = "SELECT organizer_id FROM events WHERE id = @eid LIMIT 1;";
+                    await using var orgCmd = new NpgsqlCommand(orgSql, connection);
+                    orgCmd.Parameters.Add("@eid", NpgsqlDbType.Uuid).Value = targetId;
+                    var orgIdRaw = await orgCmd.ExecuteScalarAsync();
+
+                    if (orgIdRaw is Guid organizerId && organizerId != Guid.Empty)
+                    {
+                        var eventActionMsg = normalizedAction switch
+                        {
+                            "dismiss" => "A report against your event was reviewed and dismissed — no action was taken.",
+                            "resolve" => "A report against your event has been resolved by our moderation team.",
+                            "warn"    => "Your event has received a warning from our moderation team following a report.",
+                            "suspend" => "Your event has been suspended following a moderation review.",
+                            "ban"     => "Your event has been removed following a moderation review.",
+                            _         => "A report against your event has been reviewed by our moderation team."
+                        };
+
+                        await NotificationSupport.InsertNotificationIfNotExistsAsync(
+                            connection,
+                            organizerId,
+                            "event_report_reviewed",
+                            "Event Report Reviewed",
+                            eventActionMsg,
+                            targetId,
+                            "event",
+                            0);
+                    }
+                }
+                else if (normalizedAction is "warn" or "suspend" or "ban")
+                {
+                    var userActionMsg = normalizedAction switch
+                    {
+                        "warn"    => "Your account has received a warning from our moderation team.",
+                        "suspend" => "Your account has been suspended following a moderation review.",
+                        "ban"     => "Your account has been banned following a moderation review.",
+                        _         => "A moderation action has been applied to your account."
+                    };
+
+                    await NotificationSupport.InsertNotificationIfNotExistsAsync(
+                        connection,
+                        targetId,
+                        "account_moderated",
+                        "Account Action",
+                        userActionMsg,
+                        reportId,
+                        "report",
+                        0);
+                }
 
                 return Ok(new { message = $"Report {newStatus.ToLower()} successfully." });
             }

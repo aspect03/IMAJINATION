@@ -15,6 +15,10 @@
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .receipt-paper { background: #fdfdfd; color: #111; font-family: 'Courier New', Courier, monospace; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
+    .receipt-paper::before { content: ""; position: absolute; top: -10px; left: 0; right: 0; height: 10px; background: radial-gradient(circle at 10px 0, transparent 10px, #fdfdfd 11px) repeat-x; background-size: 20px 10px; }
   </style>
 </head>
 <body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col min-h-screen" style="font-family: 'Montserrat', sans-serif;">
@@ -1432,6 +1436,7 @@
           const showDecisionButtons = canArtistConfirmBooking(booking);
           const bookingEnded = (booking.eventEndTime || booking.eventDate) ? new Date(booking.eventEndTime || booking.eventDate).getTime() <= Date.now() : false;
           const canCancelBooking = booking.status !== 'Completed' && !String(booking.status || '').startsWith('Cancelled') && !isCompletionPendingStatus(booking.status) && !bookingEnded;
+          const escrowReleased = booking.status === 'Completed' && booking.talentFeeStatus === 'Released';
 
           return `
           <div class="p-5 bg-black/40 border border-white/10 rounded-2xl flex flex-col lg:flex-row justify-between gap-4">
@@ -1457,6 +1462,7 @@
               ${showDecisionButtons ? `<button type="button" onclick="${booking.hasMessages ? `updateArtistBookingStatus('${booking.id}', 'Confirmed')` : `openArtistBookingMessages('${booking.id}')`}" class="px-4 py-2 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} text-xs font-bold uppercase tracking-wider rounded-xl transition-colors">${booking.hasMessages ? 'Confirm' : 'Message First'}</button>` : ''}
               ${canComplete ? `<button type="button" onclick="markArtistBookingCompleted('${booking.id}')" class="px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-500/20 transition-colors">Confirm Completion</button>` : ''}
               ${canCancelBooking ? `<button type="button" onclick="updateArtistBookingStatus('${booking.id}', 'Cancelled by Artist')" class="px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Cancel</button>` : ''}
+              ${escrowReleased ? `<button type="button" onclick="showArtistEscrowReceipt('${booking.id}')" class="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-500/20 transition-colors">Escrow Receipt</button>` : ''}
             </div>
           </div>
         `;
@@ -1806,6 +1812,79 @@
       document.getElementById(inputId)?.addEventListener('change', handleArtistVerificationFileChange);
       renderArtistVerificationUploadCard(inputId, null);
     });
+
+    async function showArtistEscrowReceipt(bookingId) {
+      try {
+        const res = await fetch(`/api/booking/${bookingId}`);
+        const booking = await res.json();
+        if (!res.ok) throw new Error(booking.message || 'Failed to load receipt.');
+
+        const talentFee = Number(booking.budget || 0);
+        const platformFee = Number(booking.talentPlatformFee || 0);
+        const netPayout = talentFee - platformFee;
+        const releasedAt = booking.talentPlatformFeePaidAt || booking.targetCompletedAt;
+
+        document.getElementById('erCustomer').innerText = booking.customerName || 'Customer';
+        document.getElementById('erEvent').innerText = booking.eventTitle || 'Event';
+        document.getElementById('erSchedule').innerText = `${formatBookingDate(booking.eventDate)}\n${booking.location || 'Location confirmed'}`;
+        document.getElementById('erTalentFee').innerText = formatPeso(talentFee);
+        document.getElementById('erPlatformFee').innerText = platformFee > 0 ? `- ${formatPeso(platformFee)}` : '₱0.00';
+        document.getElementById('erNetPayout').innerText = formatPeso(netPayout);
+        document.getElementById('erReleasedAt').innerText = releasedAt ? formatBookingDate(releasedAt) : 'Confirmed';
+        document.getElementById('erReference').innerText = booking.talentPlatformFeePaymentReference || booking.talentPlatformFeeCheckoutReference || booking.talentPlatformFeePaymentId || '—';
+
+        const modal = document.getElementById('artistEscrowReceiptModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to load escrow receipt.', 'Receipt Error');
+      }
+    }
+
+    function closeArtistEscrowReceipt() {
+      const modal = document.getElementById('artistEscrowReceiptModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.getElementById('artistEscrowReceiptModal')?.addEventListener('click', (e) => {
+      if (e.target?.id === 'artistEscrowReceiptModal') closeArtistEscrowReceipt();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeArtistEscrowReceipt();
+    });
   </script>
+
+  <div id="artistEscrowReceiptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
+    <div class="w-full max-w-sm animate-pop-in relative mt-6">
+      <div class="receipt-paper p-8 text-sm">
+        <button type="button" onclick="closeArtistEscrowReceipt()" aria-label="Close receipt" class="absolute top-3 right-3 inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+        <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <h2 class="font-extrabold text-2xl tracking-tight mb-1">IMAJINATION</h2>
+          <p class="text-xs text-gray-500">Escrow Release Receipt</p>
+          <p class="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">Talent Copy</p>
+        </div>
+        <div class="space-y-4 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div><p class="text-xs text-gray-500 uppercase">Booked By</p><p id="erCustomer" class="font-bold text-lg leading-tight">Customer</p></div>
+          <div><p class="text-xs text-gray-500 uppercase">Event</p><p id="erEvent" class="font-bold">Event</p></div>
+          <div><p class="text-xs text-gray-500 uppercase">Date & Location</p><p id="erSchedule" class="font-bold whitespace-pre-line">Schedule</p></div>
+        </div>
+        <div class="space-y-2 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div class="flex justify-between items-start"><p>Talent Fee Paid:</p><p id="erTalentFee" class="font-bold text-right">₱0.00</p></div>
+          <div class="flex justify-between items-start"><p>Platform Fee:</p><p id="erPlatformFee" class="font-bold text-right text-red-600">₱0.00</p></div>
+          <div class="flex justify-between items-start"><p>Escrow Released:</p><p id="erReleasedAt" class="font-bold text-[10px] text-right">Date</p></div>
+          <div class="flex justify-between items-start"><p>Reference:</p><p id="erReference" class="font-bold text-[10px] text-right">—</p></div>
+        </div>
+        <div class="flex justify-between items-center text-lg">
+          <p class="font-bold">NET PAYOUT:</p>
+          <p id="erNetPayout" class="font-bold">₱0.00</p>
+        </div>
+        <p class="text-center text-[10px] text-gray-400 mt-6 border-t border-dashed border-gray-300 pt-4">Escrow released upon mutual booking completion.<br>Thank you for performing on IMAJINATION.</p>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
